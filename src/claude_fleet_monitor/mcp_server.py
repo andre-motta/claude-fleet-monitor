@@ -71,20 +71,34 @@ def read_sessions():
     discover_processes()
     if not FLEET_DIR.exists():
         return []
-    sessions = []
+
+    hook_cwds = set()
+    all_sessions = []
     for f in FLEET_DIR.glob("*.json"):
+        if f.name.startswith("proc-"):
+            continue
         try:
             data = json.loads(f.read_text())
-            now = int(time.time())
-            data["age_seconds"] = now - data.get("ts", now)
-            data["needs_attention"] = (
-                data.get("status") == "idle" and data["age_seconds"] > 120
-            )
-            sessions.append(data)
+            hook_cwds.add(data.get("cwd", ""))
+            all_sessions.append(data)
         except (json.JSONDecodeError, OSError):
             continue
-    sessions.sort(key=lambda s: s.get("ts", 0), reverse=True)
-    return sessions
+
+    for f in FLEET_DIR.glob("proc-*.json"):
+        try:
+            data = json.loads(f.read_text())
+            if data.get("cwd", "") not in hook_cwds:
+                all_sessions.append(data)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    now = int(time.time())
+    for s in all_sessions:
+        s["age_seconds"] = now - s.get("ts", now)
+        s["needs_attention"] = s.get("status") == "idle" and s["age_seconds"] > 120
+
+    all_sessions.sort(key=lambda s: s.get("ts", 0), reverse=True)
+    return all_sessions
 
 
 @mcp.tool()

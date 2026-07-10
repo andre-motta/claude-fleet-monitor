@@ -25,8 +25,20 @@ truncate_str() {
     fi
 }
 
+cleanup_stale_proc() {
+    for f in "$FLEET_DIR"/proc-*.json; do
+        [ -f "$f" ] || continue
+        local pid_num
+        pid_num=$(basename "$f" .json | sed 's/proc-//')
+        if ! kill -0 "$pid_num" 2>/dev/null; then
+            rm -f "$f"
+        fi
+    done
+}
+
 case "$EVENT" in
     session-start)
+        cleanup_stale_proc
         jq -n \
             --arg sid "$SESSION_ID" \
             --arg cwd "$CWD" \
