@@ -27,7 +27,16 @@ pip install .
 claude-fleet install
 ```
 
-Restart your Claude Code sessions after installing to activate hooks.
+Restart your Claude Code sessions after the first install to activate hooks.
+
+### Upgrading
+
+```bash
+pip install --upgrade claude-fleet-monitor
+claude-fleet install
+```
+
+Re-running `claude-fleet install` copies the updated scripts to `~/.claude/`. No need to restart sessions -- existing hooks pick up the new scripts automatically.
 
 ### Dependencies
 
