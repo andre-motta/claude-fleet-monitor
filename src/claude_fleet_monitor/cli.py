@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import sys
-from importlib.resources import files
 from pathlib import Path
 
 
@@ -23,16 +22,6 @@ HOOK_EVENTS = [
 ]
 
 
-def get_script_dir():
-    return files("claude_fleet_monitor") / "scripts"
-
-
-def get_install_paths():
-    bin_dir = CLAUDE_DIR / "bin"
-    mcp_dir = CLAUDE_DIR / "fleet-mcp"
-    return bin_dir, mcp_dir
-
-
 def load_settings():
     if SETTINGS_FILE.exists():
         return json.loads(SETTINGS_FILE.read_text())
@@ -45,32 +34,12 @@ def save_settings(settings):
 
 
 def cmd_install(args):
-    bin_dir, mcp_dir = get_install_paths()
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    mcp_dir.mkdir(parents=True, exist_ok=True)
     FLEET_DIR.mkdir(parents=True, exist_ok=True)
 
-    script_dir = get_script_dir()
-    for name in ("fleet-hook.sh", "fleet-monitor.sh", "fleet-focus.sh"):
-        src = script_dir / name
-        dst = bin_dir / name
-        dst.write_bytes(src.read_bytes())
-        dst.chmod(0o755)
-        print(f"  Installed {dst}")
-
-    mcp_src = files("claude_fleet_monitor") / "mcp_server.py"
-    mcp_dst = mcp_dir / "server.py"
-    mcp_dst.write_bytes(mcp_src.read_bytes())
-    print(f"  Installed {mcp_dst}")
-
-    pyproject_src = files("claude_fleet_monitor") / "mcp_pyproject.toml"
-    pyproject_dst = mcp_dir / "pyproject.toml"
-    pyproject_dst.write_bytes(pyproject_src.read_bytes())
-    print(f"  Installed {pyproject_dst}")
+    hook_cmd = shutil.which("claude-fleet-hook") or "claude-fleet-hook"
+    python_path = sys.executable
 
     settings = load_settings()
-
-    hook_script = str(bin_dir / "fleet-hook.sh")
 
     if "hooks" not in settings:
         settings["hooks"] = {}
@@ -80,7 +49,7 @@ def cmd_install(args):
             "hooks": [
                 {
                     "type": "command",
-                    "command": f"{hook_script} {arg}",
+                    "command": f"{hook_cmd} {arg}",
                     "timeout": 5,
                 }
             ]
@@ -89,7 +58,7 @@ def cmd_install(args):
             settings["hooks"][event] = []
 
         already = any(
-            hook_script in (h.get("hooks", [{}])[0].get("command", ""))
+            "claude-fleet-hook" in (h.get("hooks", [{}])[0].get("command", ""))
             for h in settings["hooks"][event]
         )
         if not already:
@@ -98,10 +67,9 @@ def cmd_install(args):
     if "mcpServers" not in settings:
         settings["mcpServers"] = {}
 
-    uv_path = shutil.which("uv") or "uv"
     settings["mcpServers"]["fleet"] = {
-        "command": uv_path,
-        "args": ["run", "--directory", str(mcp_dir), "server.py"],
+        "command": python_path,
+        "args": ["-m", "claude_fleet_monitor.mcp_server"],
         "env": {},
     }
 
@@ -112,25 +80,25 @@ def cmd_install(args):
     print("Claude Fleet Monitor installed!")
     print()
     print("Usage:")
-    print(f"  {bin_dir}/fleet-monitor.sh        # TUI dashboard")
-    print(f"  {bin_dir}/fleet-focus.sh <repo>    # Focus terminal tab")
+    print("  claude-fleet monitor          # TUI dashboard")
+    print("  claude-fleet focus <repo>     # Focus terminal tab")
     print("  (MCP tools available in any Claude session)")
     print()
     print("Restart Claude Code sessions to activate hooks.")
 
 
 def cmd_uninstall(args):
-    bin_dir, mcp_dir = get_install_paths()
-
+    # Clean up legacy bash scripts and MCP dir from older versions
+    bin_dir = CLAUDE_DIR / "bin"
+    mcp_dir = CLAUDE_DIR / "fleet-mcp"
     for name in ("fleet-hook.sh", "fleet-monitor.sh", "fleet-focus.sh"):
         f = bin_dir / name
         if f.exists():
             f.unlink()
-            print(f"  Removed {f}")
-
+            print(f"  Removed legacy {f}")
     if mcp_dir.exists():
         shutil.rmtree(mcp_dir)
-        print(f"  Removed {mcp_dir}")
+        print(f"  Removed legacy {mcp_dir}")
 
     settings = load_settings()
 
@@ -140,7 +108,7 @@ def cmd_uninstall(args):
                 settings["hooks"][event] = [
                     h
                     for h in settings["hooks"][event]
-                    if "fleet-hook.sh" not in json.dumps(h)
+                    if "fleet-hook" not in json.dumps(h)
                 ]
                 if not settings["hooks"][event]:
                     del settings["hooks"][event]

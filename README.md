@@ -33,16 +33,13 @@ Restart your Claude Code sessions after the first install to activate hooks.
 
 ```bash
 pip install --upgrade claude-fleet-monitor
-claude-fleet install
 ```
 
-Re-running `claude-fleet install` copies the updated scripts to `~/.claude/`. No need to restart sessions -- existing hooks pick up the new scripts automatically.
+No need to re-run `claude-fleet install` or restart sessions. Hooks and MCP server point to pip-installed entry points, so upgrades take effect immediately.
 
 ### Dependencies
 
-- `jq` -- JSON processing in hook/monitor scripts
 - `python3` >= 3.10
-- `uv` -- for running the MCP server
 
 Optional:
 - `qdbus` -- Konsole tab switching (KDE)

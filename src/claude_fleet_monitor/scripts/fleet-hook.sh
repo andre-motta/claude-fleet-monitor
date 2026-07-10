@@ -16,10 +16,19 @@ REPO_NAME=$(basename "$CWD")
 STATUS_FILE="${FLEET_DIR}/${SESSION_ID}.json"
 NOW=$(date +%s)
 
+get_cmd_for_pid() {
+    local pid="$1"
+    if [ -f "/proc/$pid/cmdline" ]; then
+        cat "/proc/$pid/cmdline" 2>/dev/null | tr '\0' ' ' | head -c 200
+    else
+        ps -o args= -p "$pid" 2>/dev/null | head -c 200
+    fi
+}
+
 CLAUDE_PID=""
 p=$$
 while [ "$p" != "1" ] && [ -n "$p" ]; do
-    cmd=$(cat "/proc/$p/cmdline" 2>/dev/null | tr '\0' ' ' | head -c 200)
+    cmd=$(get_cmd_for_pid "$p")
     if [[ "$cmd" == *"claude"* ]] && [[ "$cmd" != *"fleet-hook"* ]] && [[ "$cmd" != *"daemon"* ]] && [[ "$cmd" != *"bg-pty"* ]]; then
         CLAUDE_PID="$p"
         break

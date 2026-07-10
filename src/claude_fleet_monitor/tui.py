@@ -1,16 +1,11 @@
 """Curses-based TUI for Claude Fleet Monitor."""
 
 import curses
-import json
-import os
-import re
 import shutil
 import subprocess
 import time
-from pathlib import Path
 
-FLEET_DIR = Path(os.environ.get("FLEET_DIR", Path.home() / ".claude" / "fleet"))
-FOCUS_SCRIPT = Path.home() / ".claude" / "bin" / "fleet-focus.sh"
+from claude_fleet_monitor.discovery import read_sessions
 
 STATUS_COLORS = {
     "running": 2,
@@ -39,101 +34,6 @@ def format_age(seconds):
     return f"{seconds // 3600}h{seconds % 3600 // 60}m"
 
 
-def discover_processes():
-    try:
-        result = subprocess.run(
-            ["pgrep", "-x", "claude"], capture_output=True, text=True
-        )
-        if result.returncode != 0:
-            return
-    except FileNotFoundError:
-        return
-
-    now = int(time.time())
-    for pid_str in result.stdout.strip().split("\n"):
-        if not pid_str:
-            continue
-        pid = int(pid_str)
-        proc_file = FLEET_DIR / f"proc-{pid}.json"
-        if proc_file.exists():
-            continue
-        try:
-            cwd = os.readlink(f"/proc/{pid}/cwd")
-            cmdline = Path(f"/proc/{pid}/cmdline").read_text().replace("\0", " ")
-        except OSError:
-            continue
-
-        if any(skip in cmdline for skip in ("daemon", "bg-pty", "bg-spare")):
-            continue
-
-        repo = os.path.basename(cwd)
-        FLEET_DIR.mkdir(parents=True, exist_ok=True)
-        tty = ""
-        try:
-            link = os.readlink(f"/proc/{pid}/fd/0")
-            match = re.search(r"pts/\d+", link)
-            if match:
-                tty = match.group()
-        except OSError:
-            pass
-
-        proc_file.write_text(
-            json.dumps(
-                {
-                    "session_id": f"proc-{pid}",
-                    "repo": repo,
-                    "cwd": cwd,
-                    "status": "discovered",
-                    "detail": f"PID {pid} {tty}".strip(),
-                    "ts": now,
-                    "started": now,
-                    "source": "process",
-                }
-            )
-        )
-
-    for f in FLEET_DIR.glob("proc-*.json"):
-        pid_match = re.search(r"proc-(\d+)", f.name)
-        if pid_match:
-            pid = int(pid_match.group(1))
-            try:
-                os.kill(pid, 0)
-            except OSError:
-                f.unlink(missing_ok=True)
-
-
-def read_sessions():
-    discover_processes()
-    if not FLEET_DIR.exists():
-        return []
-
-    hook_cwds = set()
-    all_sessions = []
-    for f in FLEET_DIR.glob("*.json"):
-        if f.name.startswith("proc-"):
-            continue
-        try:
-            data = json.loads(f.read_text())
-            hook_cwds.add(data.get("cwd", ""))
-            all_sessions.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
-
-    for f in FLEET_DIR.glob("proc-*.json"):
-        try:
-            data = json.loads(f.read_text())
-            if data.get("cwd", "") not in hook_cwds:
-                all_sessions.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
-
-    now = int(time.time())
-    for s in all_sessions:
-        s["age_seconds"] = now - s.get("ts", now)
-        s["needs_attention"] = s.get("status") == "idle" and s["age_seconds"] > 120
-
-    all_sessions.sort(key=lambda s: s.get("repo", ""))
-    return all_sessions
 
 
 def focus_session(session):

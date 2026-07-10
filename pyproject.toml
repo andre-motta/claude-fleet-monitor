@@ -5,6 +5,7 @@ description = "Fleet monitoring for Claude Code sessions - TUI dashboard, MCP se
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+dependencies = ["mcp[cli]>=1.0.0"]
 authors = [
     {name = "Andre Motta"},
 ]
@@ -23,6 +24,7 @@ windows = ["windows-curses; sys_platform == 'win32'"]
 
 [project.scripts]
 claude-fleet = "claude_fleet_monitor.cli:main"
+claude-fleet-hook = "claude_fleet_monitor.hook:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]

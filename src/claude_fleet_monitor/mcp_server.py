@@ -1,104 +1,12 @@
+"""MCP server for Claude Fleet Monitor."""
+
 import json
-import os
-import re
-import subprocess
-import time
-from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-FLEET_DIR = Path.home() / ".claude" / "fleet"
+from claude_fleet_monitor.discovery import read_sessions, FLEET_DIR
 
 mcp = FastMCP("claude-fleet")
-
-
-def discover_processes():
-    try:
-        result = subprocess.run(
-            ["pgrep", "-x", "claude"], capture_output=True, text=True
-        )
-        if result.returncode != 0:
-            return
-    except FileNotFoundError:
-        return
-
-    now = int(time.time())
-    for pid_str in result.stdout.strip().split("\n"):
-        if not pid_str:
-            continue
-        pid = int(pid_str)
-        if (FLEET_DIR / f"proc-{pid}.json").exists():
-            continue
-        try:
-            cwd = os.readlink(f"/proc/{pid}/cwd")
-            cmdline = Path(f"/proc/{pid}/cmdline").read_text().replace("\0", " ")
-        except OSError:
-            continue
-
-        if any(skip in cmdline for skip in ("daemon", "bg-pty", "bg-spare")):
-            continue
-
-        repo = os.path.basename(cwd)
-        FLEET_DIR.mkdir(parents=True, exist_ok=True)
-        status_file = FLEET_DIR / f"proc-{pid}.json"
-        status_file.write_text(
-            json.dumps(
-                {
-                    "session_id": f"proc-{pid}",
-                    "repo": repo,
-                    "cwd": cwd,
-                    "status": "discovered",
-                    "detail": f"PID {pid}",
-                    "ts": now,
-                    "started": now,
-                    "source": "process",
-                }
-            )
-        )
-
-    if FLEET_DIR.exists():
-        for f in FLEET_DIR.glob("proc-*.json"):
-            pid_match = re.search(r"proc-(\d+)", f.name)
-            if pid_match:
-                pid = int(pid_match.group(1))
-                try:
-                    os.kill(pid, 0)
-                except OSError:
-                    f.unlink(missing_ok=True)
-
-
-def read_sessions():
-    discover_processes()
-    if not FLEET_DIR.exists():
-        return []
-
-    hook_cwds = set()
-    all_sessions = []
-    for f in FLEET_DIR.glob("*.json"):
-        if f.name.startswith("proc-"):
-            continue
-        try:
-            data = json.loads(f.read_text())
-            hook_cwds.add(data.get("cwd", ""))
-            all_sessions.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
-
-    for f in FLEET_DIR.glob("proc-*.json"):
-        try:
-            data = json.loads(f.read_text())
-            if data.get("cwd", "") not in hook_cwds:
-                all_sessions.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
-
-    now = int(time.time())
-    for s in all_sessions:
-        s["age_seconds"] = now - s.get("ts", now)
-        s["needs_attention"] = s.get("status") == "idle" and s["age_seconds"] > 120
-
-    all_sessions.sort(key=lambda s: s.get("ts", 0), reverse=True)
-    return all_sessions
 
 
 @mcp.tool()
@@ -155,30 +63,33 @@ def fleet_sessions_needing_attention() -> str:
 @mcp.tool()
 def fleet_focus(query: str) -> str:
     """Focus the terminal window/tab running a Claude session. Accepts repo name, session ID, or PID. On Konsole, switches to the exact tab. On other terminals, raises the window."""
-    focus_script = Path.home() / ".claude" / "bin" / "fleet-focus.sh"
-    if not focus_script.exists():
-        return json.dumps({"error": "fleet-focus.sh not found"})
+    from claude_fleet_monitor.focus import focus
+    import io
+    import sys
+
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout = buf_out = io.StringIO()
+    sys.stderr = buf_err = io.StringIO()
     try:
-        result = subprocess.run(
-            [str(focus_script), query],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode == 0:
-            return json.dumps(
-                {"success": True, "message": result.stdout.strip()}
-            )
+        result = focus(query)
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+
+    if result:
         return json.dumps(
-            {"success": False, "error": result.stderr.strip()}
+            {"success": True, "message": buf_out.getvalue().strip()}
         )
-    except subprocess.TimeoutExpired:
-        return json.dumps({"error": "Focus command timed out"})
+    return json.dumps(
+        {"success": False, "error": buf_err.getvalue().strip()}
+    )
 
 
 @mcp.tool()
 def fleet_cleanup() -> str:
     """Remove status files for ended sessions older than 5 minutes."""
+    import time
+
     if not FLEET_DIR.exists():
         return json.dumps({"removed": 0})
     now = int(time.time())
