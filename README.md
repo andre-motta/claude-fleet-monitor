@@ -88,10 +88,9 @@ Just ask Claude: "what sessions are running?" or "focus on the autofix session".
 ## How It Works
 
 ```
-Claude Code Session A ──┐
-Claude Code Session B ──┤── hooks ──> ~/.claude/fleet/*.json <── MCP server
-Claude Code Session C ──┘                                    <── TUI monitor
-                                                             <── fleet-focus
+Claude Code Session A --\                                      <-- MCP server
+Claude Code Session B ---|-- hooks --> ~/.claude/fleet/*.json  <-- TUI monitor
+Claude Code Session C --/                                      <-- fleet-focus
 ```
 
 1. **Hooks** in `~/.claude/settings.json` fire on session events (start, prompt, tool use, stop, end)
