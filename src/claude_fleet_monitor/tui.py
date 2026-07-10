@@ -10,6 +10,7 @@ from claude_fleet_monitor.discovery import read_sessions
 STATUS_COLORS = {
     "running": 2,
     "idle": 3,
+    "waiting": 3,
     "started": 6,
     "error": 1,
     "ended": 8,
@@ -19,6 +20,7 @@ STATUS_COLORS = {
 STATUS_ICONS = {
     "running": "*",
     "idle": "=",
+    "waiting": "?",
     "started": ">",
     "error": "x",
     "ended": "-",

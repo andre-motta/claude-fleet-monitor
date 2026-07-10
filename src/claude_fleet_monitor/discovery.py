@@ -221,7 +221,8 @@ def read_sessions():
     now = int(time.time())
     for s in all_sessions:
         s["age_seconds"] = now - s.get("ts", now)
-        s["needs_attention"] = s.get("status") == "idle" and s["age_seconds"] > 120
+        status = s.get("status", "")
+        s["needs_attention"] = status == "waiting" or (status == "idle" and s["age_seconds"] > 120)
 
     all_sessions.sort(key=lambda s: s.get("repo", ""))
     return all_sessions

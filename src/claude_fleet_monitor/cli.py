@@ -19,6 +19,8 @@ HOOK_EVENTS = [
     ("Stop", "stop"),
     ("StopFailure", "stop-failure"),
     ("SessionEnd", "session-end"),
+    ("PermissionRequest", "permission-request"),
+    ("Elicitation", "elicitation"),
 ]
 
 

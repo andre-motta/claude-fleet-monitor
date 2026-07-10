@@ -136,6 +136,24 @@ def handle(event):
             existing["ts"] = now
             _write_status(status_file, existing)
 
+    elif event == "permission-request":
+        existing = _read_status(status_file)
+        if existing:
+            existing["status"] = "waiting"
+            existing["detail"] = f"permission needed: {tool_name or 'tool'}"
+            existing["tool"] = tool_name
+            existing["ts"] = now
+            _write_status(status_file, existing)
+
+    elif event == "elicitation":
+        existing = _read_status(status_file)
+        if existing:
+            existing["status"] = "waiting"
+            existing["detail"] = "waiting for user input"
+            existing["tool"] = ""
+            existing["ts"] = now
+            _write_status(status_file, existing)
+
     elif event == "session-end":
         existing = _read_status(status_file)
         if existing:
