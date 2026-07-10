@@ -139,9 +139,43 @@ def discover_processes():
                 f.unlink(missing_ok=True)
 
 
+def _is_pid_alive(pid_str):
+    if not pid_str:
+        return False
+    try:
+        os.kill(int(pid_str), 0)
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _cleanup_stale_sessions():
+    """Remove session files with dead or missing PIDs."""
+    if not FLEET_DIR.exists():
+        return
+    now = int(time.time())
+    for f in FLEET_DIR.glob("*.json"):
+        try:
+            data = json.loads(f.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        pid = data.get("pid", "")
+        status = data.get("status", "")
+        ts = data.get("ts", now)
+        age = now - ts
+
+        if status == "ended" and age > 300:
+            f.unlink(missing_ok=True)
+        elif pid and not _is_pid_alive(pid):
+            f.unlink(missing_ok=True)
+        elif not pid and age > 600:
+            f.unlink(missing_ok=True)
+
+
 def read_sessions():
     """Read all fleet session files, deduplicating proc-discovered vs hook-based."""
     discover_processes()
+    _cleanup_stale_sessions()
     if not FLEET_DIR.exists():
         return []
 
@@ -164,6 +198,25 @@ def read_sessions():
                 all_sessions.append(data)
         except (json.JSONDecodeError, OSError):
             continue
+
+    # Deduplicate: if multiple hook sessions share a PID, keep newest
+    seen_pids = {}
+    deduped = []
+    for s in all_sessions:
+        pid = s.get("pid", "")
+        if pid:
+            if pid in seen_pids:
+                prev = seen_pids[pid]
+                if s.get("ts", 0) > prev.get("ts", 0):
+                    deduped.remove(prev)
+                    seen_pids[pid] = s
+                    deduped.append(s)
+            else:
+                seen_pids[pid] = s
+                deduped.append(s)
+        else:
+            deduped.append(s)
+    all_sessions = deduped
 
     now = int(time.time())
     for s in all_sessions:
