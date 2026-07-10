@@ -68,6 +68,39 @@ get_pid_from_session() {
     fi
 }
 
+raise_window_by_pid() {
+    local pid="$1"
+
+    if command -v qdbus &>/dev/null && qdbus org.kde.KWin /Scripting 2>/dev/null | grep -q loadScript; then
+        local script
+        script=$(mktemp --suffix=.js)
+        cat > "$script" << JSEOF
+var windows = workspace.windowList();
+for (var i = 0; i < windows.length; i++) {
+    if (windows[i].pid === $pid) {
+        workspace.activeWindow = windows[i];
+        break;
+    }
+}
+JSEOF
+        local script_id
+        script_id=$(qdbus org.kde.KWin /Scripting org.kde.kwin.Scripting.loadScript "$script" 2>/dev/null)
+        if [[ "$script_id" =~ ^[0-9]+$ ]]; then
+            qdbus org.kde.KWin "/Scripting/Script$script_id" org.kde.kwin.Script.run 2>/dev/null
+        fi
+        rm -f "$script"
+        return 0
+    fi
+
+    if command -v xdotool &>/dev/null; then
+        local wid
+        wid=$(xdotool search --pid "$pid" 2>/dev/null | head -1)
+        [ -n "$wid" ] && xdotool windowactivate "$wid" 2>/dev/null && return 0
+    fi
+
+    return 1
+}
+
 focus_konsole() {
     local target_pid="$1"
     local konsole_service=""
@@ -94,10 +127,8 @@ focus_konsole() {
 
                         local konsole_pid
                         konsole_pid=$(echo "$svc" | grep -oP '\d+$')
-                        if [ -n "$konsole_pid" ] && command -v xdotool &>/dev/null; then
-                            local wid
-                            wid=$(xdotool search --pid "$konsole_pid" 2>/dev/null | head -1)
-                            [ -n "$wid" ] && xdotool windowactivate "$wid" 2>/dev/null
+                        if [ -n "$konsole_pid" ]; then
+                            raise_window_by_pid "$konsole_pid"
                         fi
 
                         echo "Focused Konsole session $session_id (PID $target_pid)"
@@ -114,18 +145,10 @@ focus_konsole() {
 focus_generic() {
     local target_pid="$1"
 
-    if ! command -v xdotool &>/dev/null; then
-        echo "No xdotool available for generic window focus" >&2
-        return 1
-    fi
-
     local ppid
     ppid=$(ps -o ppid= -p "$target_pid" 2>/dev/null | tr -d ' ')
     while [ -n "$ppid" ] && [ "$ppid" != "1" ]; do
-        local wid
-        wid=$(xdotool search --pid "$ppid" 2>/dev/null | head -1)
-        if [ -n "$wid" ]; then
-            xdotool windowactivate "$wid" 2>/dev/null
+        if raise_window_by_pid "$ppid"; then
             echo "Focused window for PID $ppid (parent of $target_pid)"
             return 0
         fi
