@@ -118,6 +118,11 @@ Claude Code Session C --/                                      <-- fleet-focus
 | `ENDED` | Session closed |
 | `DISCOVERED` | Found via process scan, no hook data yet |
 
+## Known Limitations
+
+- **Same-name tabs in different windows (Konsole/KDE):** When multiple sessions share the same repo name (e.g. two `autofix` sessions) and live in different Konsole windows, the focus command will switch to the correct tab but may raise the wrong window. Workaround: keep same-name sessions grouped in the same Konsole window.
+- **Wayland window activation:** On Wayland/KDE, window raising uses KWin scripting via DBus. Other Wayland compositors may not support programmatic window activation.
+
 ## Configuration
 
 ### Environment Variables

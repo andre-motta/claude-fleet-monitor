@@ -16,6 +16,17 @@ REPO_NAME=$(basename "$CWD")
 STATUS_FILE="${FLEET_DIR}/${SESSION_ID}.json"
 NOW=$(date +%s)
 
+CLAUDE_PID=""
+p=$$
+while [ "$p" != "1" ] && [ -n "$p" ]; do
+    cmd=$(cat "/proc/$p/cmdline" 2>/dev/null | tr '\0' ' ' | head -c 200)
+    if [[ "$cmd" == *"claude"* ]] && [[ "$cmd" != *"fleet-hook"* ]] && [[ "$cmd" != *"daemon"* ]] && [[ "$cmd" != *"bg-pty"* ]]; then
+        CLAUDE_PID="$p"
+        break
+    fi
+    p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
+done
+
 truncate_str() {
     local s="$1" max="${2:-80}"
     if [ ${#s} -gt "$max" ]; then
@@ -43,30 +54,32 @@ case "$EVENT" in
             --arg sid "$SESSION_ID" \
             --arg cwd "$CWD" \
             --arg repo "$REPO_NAME" \
+            --arg pid "$CLAUDE_PID" \
             --argjson ts "$NOW" \
-            '{session_id: $sid, repo: $repo, cwd: $cwd, status: "started", detail: "session started", ts: $ts, started: $ts}' \
+            '{session_id: $sid, repo: $repo, cwd: $cwd, pid: $pid, status: "started", detail: "session started", ts: $ts, started: $ts}' \
             > "$STATUS_FILE"
         ;;
     prompt-submit)
         if [ -f "$STATUS_FILE" ]; then
-            jq --argjson ts "$NOW" \
-                '.status = "running" | .detail = "processing prompt" | .ts = $ts' \
+            jq --argjson ts "$NOW" --arg pid "$CLAUDE_PID" \
+                '.status = "running" | .detail = "processing prompt" | .ts = $ts | if .pid == "" or .pid == null then .pid = $pid else . end' \
                 "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
         else
             jq -n \
                 --arg sid "$SESSION_ID" \
                 --arg cwd "$CWD" \
                 --arg repo "$REPO_NAME" \
+                --arg pid "$CLAUDE_PID" \
                 --argjson ts "$NOW" \
-                '{session_id: $sid, repo: $repo, cwd: $cwd, status: "running", detail: "processing prompt", ts: $ts, started: $ts}' \
+                '{session_id: $sid, repo: $repo, cwd: $cwd, pid: $pid, status: "running", detail: "processing prompt", ts: $ts, started: $ts}' \
                 > "$STATUS_FILE"
         fi
         ;;
     tool-use)
         DETAIL="using ${TOOL_NAME:-tool}"
         if [ -f "$STATUS_FILE" ]; then
-            jq --argjson ts "$NOW" --arg detail "$DETAIL" --arg tool "${TOOL_NAME:-}" \
-                '.status = "running" | .detail = $detail | .tool = $tool | .ts = $ts' \
+            jq --argjson ts "$NOW" --arg detail "$DETAIL" --arg tool "${TOOL_NAME:-}" --arg pid "$CLAUDE_PID" \
+                '.status = "running" | .detail = $detail | .tool = $tool | .ts = $ts | if (.pid == "" or .pid == null) and $pid != "" then .pid = $pid else . end' \
                 "$STATUS_FILE" > "${STATUS_FILE}.tmp" && mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
         fi
         ;;

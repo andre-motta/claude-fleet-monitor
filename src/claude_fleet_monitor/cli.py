@@ -162,21 +162,14 @@ def cmd_uninstall(args):
 
 
 def cmd_monitor(args):
-    bin_dir, _ = get_install_paths()
-    script = bin_dir / "fleet-monitor.sh"
-    if not script.exists():
-        print("Fleet monitor not installed. Run: claude-fleet install", file=sys.stderr)
-        sys.exit(1)
-    os.execvp(str(script), [str(script), str(args.refresh)])
+    from claude_fleet_monitor.tui import main as tui_main
+    tui_main(refresh=args.refresh)
 
 
 def cmd_focus(args):
-    bin_dir, _ = get_install_paths()
-    script = bin_dir / "fleet-focus.sh"
-    if not script.exists():
-        print("Fleet monitor not installed. Run: claude-fleet install", file=sys.stderr)
+    from claude_fleet_monitor.focus import focus
+    if not focus(args.query):
         sys.exit(1)
-    os.execvp(str(script), [str(script), args.query])
 
 
 def cmd_status(args):
