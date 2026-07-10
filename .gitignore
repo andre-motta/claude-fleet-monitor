@@ -7,3 +7,4 @@ build/
 *.egg
 .venv/
 src/claude_fleet_monitor/_version.py
+_demo/
