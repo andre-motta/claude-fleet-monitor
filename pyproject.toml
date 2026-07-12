@@ -21,6 +21,7 @@ classifiers = [
 
 [project.optional-dependencies]
 windows = ["windows-curses; sys_platform == 'win32'"]
+dev = ["pytest>=7.0"]
 
 [project.scripts]
 claude-fleet = "claude_fleet_monitor.cli:main"
@@ -38,3 +39,6 @@ version-file = "src/claude_fleet_monitor/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_fleet_monitor"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
