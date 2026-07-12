@@ -8,6 +8,8 @@ from tests.conftest import write_session
 def run_hook(monkeypatch, fleet_dir, event, stdin_data):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(stdin_data)))
     monkeypatch.setattr("claude_fleet_monitor.hook._find_claude_pid", lambda: "12345")
+    monkeypatch.setattr("claude_fleet_monitor.terminal_apis.capture_terminal_info",
+                        lambda: {"terminal": "test", "terminal_env": {"TEST": "1"}})
     from claude_fleet_monitor.hook import handle
     handle(event)
 
@@ -20,6 +22,8 @@ def test_session_start(fleet_dir, monkeypatch):
     assert data["status"] == "started"
     assert data["repo"] == "myrepo"
     assert data["pid"] == "12345"
+    assert data["terminal"] == "test"
+    assert data["terminal_env"] == {"TEST": "1"}
 
 
 def test_prompt_submit_creates_new(fleet_dir, monkeypatch):

@@ -82,10 +82,14 @@ def handle(event):
 
     if event == "session-start":
         _cleanup_stale_proc()
+        from claude_fleet_monitor.terminal_apis import capture_terminal_info
+        term_info = capture_terminal_info()
         _write_status(status_file, {
             "session_id": session_id, "repo": repo, "cwd": cwd,
             "pid": claude_pid, "status": "started",
             "detail": "session started", "ts": now, "started": now,
+            "terminal": term_info["terminal"],
+            "terminal_env": term_info["terminal_env"],
         })
 
     elif event == "prompt-submit":
@@ -98,10 +102,14 @@ def handle(event):
                 existing["pid"] = claude_pid
             _write_status(status_file, existing)
         else:
+            from claude_fleet_monitor.terminal_apis import capture_terminal_info
+            term_info = capture_terminal_info()
             _write_status(status_file, {
                 "session_id": session_id, "repo": repo, "cwd": cwd,
                 "pid": claude_pid, "status": "running",
                 "detail": "processing prompt", "ts": now, "started": now,
+                "terminal": term_info["terminal"],
+                "terminal_env": term_info["terminal_env"],
             })
 
     elif event == "tool-use":
