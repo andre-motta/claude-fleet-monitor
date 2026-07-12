@@ -9,12 +9,28 @@ Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 ## Features
 
-- **TUI Dashboard** -- live view of all Claude Code sessions with status, detail, and age
-- **Process Discovery** -- finds running sessions via `/proc` even before hooks fire
+- **TUI Dashboard** -- interactive curses UI with arrow key navigation and enter-to-focus
+- **Process Discovery** -- finds running sessions cross-platform even before hooks fire
 - **MCP Server** -- any Claude session can query fleet status programmatically
-- **Terminal Focus** -- switch to a session's Konsole tab (or raise its window on other terminals) by name or PID
+- **Terminal Focus** -- switch to a session's tab and raise the window, across 8 supported terminals
 - **Desktop Notifications** -- `notify-send` alerts when a session has been idle for over 2 minutes
-- **Hooks Integration** -- Claude Code hooks emit real-time status (running, idle, error) as sessions interact
+- **Hooks Integration** -- Claude Code hooks emit real-time status (running, idle, waiting, error) per session
+- **Per-Session Terminal Detection** -- each session captures its terminal type at hook time, not at focus time
+
+## Supported Terminals
+
+| Terminal | Tab Switching | Window Raise | Nested Support |
+|----------|:---:|:---:|:---:|
+| **KDE Konsole** | Yes (qdbus) | Yes (KWin) | -- |
+| **tmux** | Yes (tmux CLI) | Via parent terminal | Yes |
+| **zellij** | Yes (zellij CLI) | Via parent terminal | Yes |
+| **GNOME Terminal** | No | Yes (xdotool) | -- |
+| **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
+| **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- |
+| **Windows Terminal** | No | Yes (pywinctl) | -- |
+| **Generic fallback** | No | Best effort | -- |
+
+Nested terminals (e.g. tmux inside Konsole) are handled automatically: the focus command switches the tmux pane, then detects the parent terminal via process tree walking and raises that window too.
 
 ## Install
 
@@ -46,10 +62,11 @@ No need to re-run `claude-fleet install` or restart sessions. Hooks and MCP serv
 
 - `python3` >= 3.10
 
-Optional:
+Optional (for terminal focus):
 - `qdbus` -- Konsole tab switching (KDE)
-- `xdotool` -- generic window focus (X11)
-- `notify-send` -- desktop notifications
+- `xdotool` -- GNOME Terminal / X11 window focus
+- `pywinctl` -- Windows Terminal window focus
+- `notify-send` -- desktop notifications (Linux)
 
 ## Usage
 
@@ -60,21 +77,17 @@ claude-fleet monitor              # default 2s refresh
 claude-fleet monitor --refresh 5  # 5s refresh
 ```
 
-Or run the script directly:
-
-```bash
-~/.claude/bin/fleet-monitor.sh
-```
+Arrow keys to navigate, Enter to focus a session, `q` to quit.
 
 ### Focus a Session
 
 ```bash
 claude-fleet focus autofix         # by repo name
 claude-fleet focus 2467709         # by PID
-claude-fleet focus proc-2467709    # by session ID
+claude-fleet focus abc123          # by session ID prefix
 ```
 
-On Konsole: switches to the exact tab. On other terminals: raises the window.
+The focus command reads the session's stored terminal type and uses the right API. Works across Konsole, tmux, iTerm2, and others.
 
 ### Quick Status (no TUI)
 
@@ -90,7 +103,7 @@ Any Claude Code session with the fleet MCP server can use these tools:
 |------|-------------|
 | `fleet_status` | All sessions with summary counts |
 | `fleet_session` | Single session detail by ID or prefix |
-| `fleet_sessions_needing_attention` | Sessions idle over 2 minutes |
+| `fleet_sessions_needing_attention` | Sessions idle over 2 minutes or waiting for input |
 | `fleet_focus` | Focus terminal tab for a session |
 | `fleet_cleanup` | Remove stale ended session files |
 
@@ -99,15 +112,32 @@ Just ask Claude: "what sessions are running?" or "focus on the autofix session".
 ## How It Works
 
 ```
-Claude Code Session A --\                                      <-- MCP server
-Claude Code Session B ---|-- hooks --> ~/.claude/fleet/*.json  <-- TUI monitor
-Claude Code Session C --/                                      <-- fleet-focus
+                                                              <-- MCP server
+Claude Code sessions --\                                      <-- TUI monitor
+  (hooks per event)     |-- write --> ~/.claude/fleet/*.json   <-- CLI status
+                       /                                      <-- focus command
+  (process discovery) -
 ```
 
-1. **Hooks** in `~/.claude/settings.json` fire on session events (start, prompt, tool use, stop, end)
-2. Each hook writes/updates a JSON status file in `~/.claude/fleet/`
-3. **Process discovery** also scans `/proc` for `claude` processes to find sessions that started before hooks were installed
-4. The **TUI monitor**, **MCP server**, and **CLI** all read these status files
+1. **Hooks** fire on Claude Code events (start, prompt, tool use, stop, permission request, end)
+2. Each hook captures the session's **terminal type** and **PID**, writes to `~/.claude/fleet/`
+3. **Process discovery** scans for `claude` processes cross-platform to find sessions without hooks
+4. **Consumers** (TUI, MCP, CLI, focus) read the JSON files
+5. **Focus** reads the session's `terminal` field and dispatches to the right terminal API
+
+### Terminal Detection Flow
+
+```
+Hook fires inside session
+  --> detect terminal via env vars (TMUX, KONSOLE_VERSION, ITERM_SESSION_ID, ...)
+  --> capture terminal-specific env (socket paths, DBus service, session IDs)
+  --> store in fleet JSON: {"terminal": "tmux", "terminal_env": {"TMUX": "..."}}
+
+Focus command reads session JSON
+  --> get_terminal_api("tmux") --> TmuxAPI
+  --> find_tab(pid) --> switch_tab() --> raise_window()
+  --> for nested terminals: detect parent terminal, chain to parent API
+```
 
 ### Session States
 
@@ -115,15 +145,17 @@ Claude Code Session C --/                                      <-- fleet-focus
 |-------|---------|
 | `STARTED` | Session just began |
 | `RUNNING` | Processing a prompt or using tools |
-| `IDLE` | Finished responding, waiting for input |
+| `IDLE` | Finished responding, waiting for next prompt |
+| `WAITING` | Blocked on permission request or user input |
 | `ERROR` | Turn failed (API error) |
 | `ENDED` | Session closed |
 | `DISCOVERED` | Found via process scan, no hook data yet |
 
 ## Known Limitations
 
-- **Same-name tabs in different windows (Konsole/KDE):** When multiple sessions share the same repo name (e.g. two `autofix` sessions) and live in different Konsole windows, the focus command will switch to the correct tab but may raise the wrong window. Workaround: keep same-name sessions grouped in the same Konsole window.
+- **Same-name tabs in different windows (Konsole/KDE):** When multiple sessions share the same repo name and live in different Konsole windows, the focus command will switch to the correct tab but may raise the wrong window. Workaround: keep same-name sessions grouped in the same Konsole window.
 - **Wayland window activation:** On Wayland/KDE, window raising uses KWin scripting via DBus. Other Wayland compositors may not support programmatic window activation.
+- **GNOME Terminal / Windows Terminal:** No tab switching API available; window raise only.
 
 ## Configuration
 
@@ -140,16 +172,9 @@ claude-fleet uninstall              # removes everything including data
 claude-fleet uninstall --keep-data  # keeps ~/.claude/fleet/
 ```
 
-## Publishing
+## Contributing
 
-This project uses [trusted publishing](https://docs.pypi.org/trusted-publishers/) via GitHub Actions. To release:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The workflow builds and publishes to PyPI automatically.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR process.
 
 ## License
 
