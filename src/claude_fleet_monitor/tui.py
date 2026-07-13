@@ -40,19 +40,29 @@ def format_age(seconds):
 
 def focus_session(session):
     import threading
-    import io
+    import os as _os
     from claude_fleet_monitor.focus import focus
 
     def _focus_silent(sid):
         import sys as _sys
+        devnull = _os.open(_os.devnull, _os.O_WRONLY)
+        old_stdout_fd = _os.dup(1)
+        old_stderr_fd = _os.dup(2)
+        _os.dup2(devnull, 1)
+        _os.dup2(devnull, 2)
         old_stdout, old_stderr = _sys.stdout, _sys.stderr
-        _sys.stdout = io.StringIO()
-        _sys.stderr = io.StringIO()
+        _sys.stdout = open(_os.devnull, "w")
+        _sys.stderr = open(_os.devnull, "w")
         try:
             focus(sid)
         finally:
             _sys.stdout = old_stdout
             _sys.stderr = old_stderr
+            _os.dup2(old_stdout_fd, 1)
+            _os.dup2(old_stderr_fd, 2)
+            _os.close(old_stdout_fd)
+            _os.close(old_stderr_fd)
+            _os.close(devnull)
 
     sid = session.get("session_id", "")
     threading.Thread(target=_focus_silent, args=(sid,), daemon=True).start()
@@ -156,7 +166,7 @@ def run_tui(stdscr, refresh_interval):
 
             status = s.get("status", "?")
             repo = s.get("repo", "?")[:25]
-            detail = s.get("detail", "")
+            detail = s.get("detail", "").replace("\n", " ").replace("\r", "")
             age_str = format_age(s.get("age_seconds", 0))
             icon = STATUS_ICONS.get(status, "?")
             color_pair = STATUS_COLORS.get(status, 8)

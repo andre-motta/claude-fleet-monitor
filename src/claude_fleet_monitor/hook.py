@@ -126,7 +126,7 @@ def handle(event):
     elif event == "stop":
         existing = _read_status(status_file)
         if existing:
-            summary = (last_msg or "finished")[:120]
+            summary = (last_msg or "finished").replace("\n", " ").replace("\r", "")[:120]
             if len(last_msg or "") > 120:
                 summary += "..."
             existing["status"] = "idle"

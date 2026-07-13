@@ -143,19 +143,8 @@ def cmd_focus(args):
 
 
 def cmd_status(args):
-    if not FLEET_DIR.exists():
-        print("No fleet data. Run: claude-fleet install", file=sys.stderr)
-        sys.exit(1)
-
-    now = __import__("time").time()
-    sessions = []
-    for f in FLEET_DIR.glob("*.json"):
-        try:
-            data = json.loads(f.read_text())
-            data["age"] = int(now - data.get("ts", now))
-            sessions.append(data)
-        except (json.JSONDecodeError, OSError):
-            continue
+    from claude_fleet_monitor.discovery import read_sessions
+    sessions = read_sessions()
 
     if not sessions:
         print("No sessions found.")
@@ -165,12 +154,13 @@ def cmd_status(args):
     print(f"{'REPO':<26} {'STATUS':<12} {'DETAIL':<40} {'AGE':>6}")
     print("-" * 86)
     for s in sessions:
-        age = s["age"]
+        age = s.get("age_seconds", 0)
+        detail = s.get("detail", "").replace("\n", " ").replace("\r", "")[:40]
         age_str = f"{age}s" if age < 60 else f"{age // 60}m" if age < 3600 else f"{age // 3600}h{age % 3600 // 60}m"
         print(
             f"{s.get('repo', '?'):<26} "
             f"{s.get('status', '?').upper():<12} "
-            f"{s.get('detail', '')[:40]:<40} "
+            f"{detail:<40} "
             f"{age_str:>6}"
         )
 

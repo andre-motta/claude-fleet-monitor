@@ -105,13 +105,24 @@ def focus(query):
         print(f"PID {pid} is no longer running", file=sys.stderr)
         return False
 
-    terminal_type = session.get("terminal", "generic")
+    terminal_type = session.get("terminal", "")
     terminal_env = session.get("terminal_env", {})
-    api = get_terminal_api(terminal_type)
 
-    if api.focus(pid, terminal_env):
-        print(f"Focused {repo} via {api.name} (PID {pid})")
-        return True
+    if terminal_type:
+        api = get_terminal_api(terminal_type)
+        if api.focus(pid, terminal_env):
+            print(f"Focused {repo} via {api.name} (PID {pid})")
+            return True
+
+    # No terminal info or primary API failed; try Konsole and tmux
+    # (the only APIs with reliable find_tab via PID matching)
+    from claude_fleet_monitor.terminal_apis.konsole import KonsoleAPI
+    from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
+    for cls in (KonsoleAPI, TmuxAPI):
+        api = cls()
+        if api.focus(pid, {}):
+            print(f"Focused {repo} via {api.name} (PID {pid})")
+            return True
 
     print(f"Could not find terminal window for PID {pid} ({repo})", file=sys.stderr)
     return False
