@@ -26,7 +26,11 @@ class GenericAPI(TerminalAPI):
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
         if self._try_pywinctl(tab_id):
             return True
-        if self._try_xdotool(int(tab_id)):
+        try:
+            pid = int(tab_id)
+        except ValueError:
+            return False
+        if self._try_xdotool(pid):
             return True
         if sys.platform == "darwin" and self._try_osascript():
             return True
