@@ -54,7 +54,7 @@ class FleetScreen(Screen):
     def _poll(self) -> None:
         raw = read_sessions()
         sessions = [parse_session(s) for s in raw]
-        self.call_from_thread(self._update_ui, sessions)
+        self.app.call_from_thread(self._update_ui, sessions)
 
     def _update_ui(self, sessions: list[FleetSession]) -> None:
         self._all_sessions = sessions
