@@ -1,4 +1,4 @@
-"""Textual TUI for Claude Fleet Monitor."""
+"""Fleet monitoring screen for use within tongs."""
 
 from __future__ import annotations
 
@@ -7,8 +7,9 @@ import subprocess
 import threading
 
 from textual import work
-from textual.app import App, ComposeResult
+from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from claude_fleet_monitor.discovery import read_sessions
@@ -16,37 +17,14 @@ from claude_fleet_monitor.models import FleetSession, parse_session, format_age
 from claude_fleet_monitor.widgets.session_table import SessionTable
 
 
-class FleetMonitorApp(App):
-    """Standalone fleet monitoring TUI."""
-
-    TITLE = "Claude Fleet Monitor"
-
-    CSS = """
-    #summary-bar {
-        height: 1;
-        background: $accent 15%;
-        padding: 0 1;
-    }
-
-    #search-input {
-        display: none;
-        dock: bottom;
-    }
-
-    #search-input.visible {
-        display: block;
-    }
-
-    SessionTable {
-        height: 1fr;
-    }
-    """
+class FleetScreen(Screen):
+    """Fleet monitoring screen that can be pushed within a tongs app."""
 
     BINDINGS = [
-        Binding("q", "quit", "Quit", show=True),
+        Binding("escape", "go_back", "Back", show=True),
+        Binding("q", "go_back", "Back", show=False),
         Binding("r", "refresh", "Refresh", show=True, priority=True),
         Binding("slash", "toggle_search", "Search", show=True, key_display="/"),
-        Binding("escape", "clear_search", "Clear", show=False),
     ]
 
     def __init__(self, refresh_interval: int = 2):
@@ -58,17 +36,22 @@ class FleetMonitorApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Static(id="summary-bar")
-        yield SessionTable(id="session-table")
-        yield Input(placeholder="Filter by repo or detail...", id="search-input")
+        yield Static(id="fleet-summary")
+        yield SessionTable(id="fleet-table")
+        yield Input(placeholder="Filter by repo or detail...", id="fleet-search")
         yield Footer()
 
     def on_mount(self) -> None:
-        self.set_interval(self.refresh_interval, self._poll_sessions)
-        self._poll_sessions()
+        self.sub_title = "Fleet Monitor"
+        self._timer = self.set_interval(self.refresh_interval, self._poll)
+        self._poll()
 
-    @work(thread=True, group="poll")
-    def _poll_sessions(self) -> None:
+    def on_unmount(self) -> None:
+        if hasattr(self, "_timer"):
+            self._timer.stop()
+
+    @work(thread=True, group="fleet-poll")
+    def _poll(self) -> None:
         raw = read_sessions()
         sessions = [parse_session(s) for s in raw]
         self.call_from_thread(self._update_ui, sessions)
@@ -78,7 +61,7 @@ class FleetMonitorApp(App):
         self._notify_idle(sessions)
         filtered = self._apply_filter(sessions)
         self._update_summary(filtered)
-        table = self.query_one("#session-table", SessionTable)
+        table = self.query_one("#fleet-table", SessionTable)
         table.set_sessions(filtered)
 
     def _apply_filter(self, sessions: list[FleetSession]) -> list[FleetSession]:
@@ -97,7 +80,7 @@ class FleetMonitorApp(App):
         text = f"{len(sessions)} sessions | {active} active | {idle} idle"
         if attention:
             text += f" | {attention} need input"
-        bar = self.query_one("#summary-bar", Static)
+        bar = self.query_one("#fleet-summary", Static)
         bar.update(text)
 
     def _notify_idle(self, sessions: list[FleetSession]) -> None:
@@ -120,8 +103,11 @@ class FleetMonitorApp(App):
             elif not s.needs_attention and s.session_id in self._notified:
                 self._notified.discard(s.session_id)
 
+    def action_go_back(self) -> None:
+        self.app.pop_screen()
+
     def action_refresh(self) -> None:
-        self._poll_sessions()
+        self._poll()
         self.notify("Refreshed", timeout=2)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
@@ -143,38 +129,25 @@ class FleetMonitorApp(App):
         threading.Thread(target=_run, daemon=True).start()
 
     def action_toggle_search(self) -> None:
-        search_input = self.query_one("#search-input", Input)
-        if search_input.has_class("visible"):
-            self._close_search(search_input)
+        search_input = self.query_one("#fleet-search", Input)
+        if search_input.display:
+            search_input.display = False
+            search_input.value = ""
+            self._search_query = ""
+            self._update_ui(self._all_sessions)
+            self.query_one("#fleet-table", SessionTable).focus()
         else:
-            search_input.add_class("visible")
+            search_input.display = True
             search_input.focus()
 
-    def action_clear_search(self) -> None:
-        search_input = self.query_one("#search-input", Input)
-        if search_input.has_class("visible"):
-            self._close_search(search_input)
-
-    def _close_search(self, search_input: Input) -> None:
-        search_input.remove_class("visible")
-        search_input.value = ""
-        self._search_query = ""
-        self._update_ui(self._all_sessions)
-        self.query_one("#session-table", SessionTable).focus()
-
     def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id == "search-input":
+        if event.input.id == "fleet-search":
             self._search_query = event.value
             filtered = self._apply_filter(self._all_sessions)
             self._update_summary(filtered)
-            table = self.query_one("#session-table", SessionTable)
+            table = self.query_one("#fleet-table", SessionTable)
             table.set_sessions(filtered)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "search-input":
-            self.query_one("#session-table", SessionTable).focus()
-
-
-def main(refresh: int = 2) -> None:
-    app = FleetMonitorApp(refresh_interval=refresh)
-    app.run()
+        if event.input.id == "fleet-search":
+            self.query_one("#fleet-table", SessionTable).focus()

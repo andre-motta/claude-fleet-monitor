@@ -5,7 +5,10 @@ description = "Fleet monitoring for Claude Code sessions - TUI dashboard, MCP se
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-dependencies = ["mcp[cli]>=1.0.0"]
+dependencies = [
+    "textual>=1.0",
+    "mcp[cli]>=1.0.0",
+]
 authors = [
     {name = "Andre Motta"},
 ]
@@ -20,12 +23,15 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-windows = ["windows-curses; sys_platform == 'win32'"]
-dev = ["pytest>=7.0"]
+tongs = ["tongs>=0.1"]
+dev = ["pytest>=7.0", "pytest-asyncio>=0.24"]
 
 [project.scripts]
 claude-fleet = "claude_fleet_monitor.cli:main"
 claude-fleet-hook = "claude_fleet_monitor.hook:main"
+
+[project.entry-points."tongs.plugins"]
+fleet-monitor = "claude_fleet_monitor.tongs_plugin:FleetMonitorPlugin"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]

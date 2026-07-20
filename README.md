@@ -9,7 +9,8 @@ Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 ## Features
 
-- **TUI Dashboard** -- interactive curses UI with arrow key navigation and enter-to-focus
+- **TUI Dashboard** -- Textual-based interactive UI with search/filter, status-colored rows, and click-to-focus
+- **tongs Plugin** -- embeds as a screen in [tongs](https://github.com/andre-motta/tongs) via the TongsPlugin ABC
 - **Process Discovery** -- finds running sessions cross-platform even before hooks fire
 - **MCP Server** -- any Claude session can query fleet status programmatically
 - **Terminal Focus** -- switch to a session's tab and raise the window, across 8 supported terminals
@@ -50,6 +51,16 @@ claude-fleet install
 
 Restart your Claude Code sessions after the first install to activate hooks.
 
+### tongs Integration
+
+To use the fleet monitor as a plugin inside [tongs](https://github.com/andre-motta/tongs):
+
+```bash
+pip install claude-fleet-monitor[tongs]
+```
+
+Then launch tongs and open the command palette (Ctrl+P) to find "Fleet Monitor".
+
 ### Upgrading
 
 ```bash
@@ -61,6 +72,7 @@ No need to re-run `claude-fleet install` or restart sessions. Hooks and MCP serv
 ### Dependencies
 
 - `python3` >= 3.10
+- `textual` >= 1.0
 
 Optional (for terminal focus):
 - `qdbus` -- Konsole tab switching (KDE)
@@ -77,7 +89,7 @@ claude-fleet monitor              # default 2s refresh
 claude-fleet monitor --refresh 5  # 5s refresh
 ```
 
-Arrow keys to navigate, Enter to focus a session, `q` to quit.
+Navigate with arrow keys or mouse. Press Enter or click a row to focus that session's terminal. Press `/` to search/filter by repo name, detail, or status. Press `q` to quit.
 
 ### Focus a Session
 
@@ -114,15 +126,15 @@ Just ask Claude: "what sessions are running?" or "focus on the autofix session".
 ```
                                                               <-- MCP server
 Claude Code sessions --\                                      <-- TUI monitor
-  (hooks per event)     |-- write --> ~/.claude/fleet/*.json   <-- CLI status
-                       /                                      <-- focus command
-  (process discovery) -
+  (hooks per event)     |-- write --> ~/.claude/fleet/*.json   <-- tongs plugin
+                       /                                      <-- CLI status
+  (process discovery) -                                       <-- focus command
 ```
 
 1. **Hooks** fire on Claude Code events (start, prompt, tool use, stop, permission request, end)
 2. Each hook captures the session's **terminal type** and **PID**, writes to `~/.claude/fleet/`
 3. **Process discovery** scans for `claude` processes cross-platform to find sessions without hooks
-4. **Consumers** (TUI, MCP, CLI, focus) read the JSON files
+4. **Consumers** (TUI, MCP, tongs plugin, CLI, focus) read the JSON files
 5. **Focus** reads the session's `terminal` field and dispatches to the right terminal API
 
 ### Terminal Detection Flow
@@ -150,6 +162,34 @@ Focus command reads session JSON
 | `ERROR` | Turn failed (API error) |
 | `ENDED` | Session closed |
 | `DISCOVERED` | Found via process scan, no hook data yet |
+
+## Architecture
+
+```
+src/claude_fleet_monitor/
+    models.py           # SessionStatus enum, FleetSession dataclass
+    hook.py             # Claude Code hook handler
+    discovery.py        # Process discovery, session file I/O
+    tui.py              # Textual standalone app (FleetMonitorApp)
+    cli.py              # claude-fleet CLI entry point
+    focus.py            # Session lookup + terminal focus dispatch
+    mcp_server.py       # FastMCP server
+    tongs_plugin.py     # TongsPlugin ABC implementation
+    widgets/
+        session_table.py  # SessionTable(DataTable) widget
+    views/
+        fleet_screen.py   # FleetScreen(Screen) for tongs
+    terminal_apis/
+        base.py           # TerminalAPI ABC
+        konsole.py        # KDE Konsole
+        tmux.py           # tmux
+        zellij.py         # zellij
+        gnome.py          # GNOME Terminal
+        iterm2.py         # iTerm2
+        macos_terminal.py # macOS Terminal.app
+        windows_terminal.py # Windows Terminal
+        generic.py        # Fallback
+```
 
 ## Known Limitations
 

@@ -132,8 +132,9 @@ def cmd_uninstall(args):
 
 
 def cmd_monitor(args):
-    from claude_fleet_monitor.tui import main as tui_main
-    tui_main(refresh=args.refresh)
+    from claude_fleet_monitor.tui import FleetMonitorApp
+    app = FleetMonitorApp(refresh_interval=args.refresh)
+    app.run()
 
 
 def cmd_focus(args):

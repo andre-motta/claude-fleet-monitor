@@ -7,11 +7,15 @@ Fleet monitoring for Claude Code sessions. Pure Python, cross-platform.
 ```
 Claude Code sessions --> hook.py --> ~/.claude/fleet/*.json
                             |                 |
-                    captures terminal    +-----+-----+-----+
-                    type + env vars      |     |     |     |
-                                    discovery mcp   tui  focus
-                                      .py   _server .py   .py
-                                             .py          |
+                    captures terminal    +-----+-----+------+------+
+                    type + env vars      |     |     |      |      |
+                                    discovery mcp   tui   focus  tongs
+                                      .py   _server .py    .py  _plugin
+                                             .py     |           .py
+                                                  widgets/   views/
+                                               session_table fleet_screen
+                                                  .py         .py
+                                                          |
                                                    terminal_apis/
                                                      konsole.py
                                                      tmux.py
@@ -24,8 +28,12 @@ Claude Code sessions --> hook.py --> ~/.claude/fleet/*.json
 
 - `hook.py`: Claude Code hook handler. Receives events via stdin JSON, writes session status to fleet dir. Captures terminal type and PID per session.
 - `discovery.py`: Shared module. Cross-platform process discovery (`/proc` on Linux, `lsof`/`ps` on macOS, `tasklist` on Windows). Reads/deduplicates/cleans session files. Used by all consumers.
+- `models.py`: Typed data models. `SessionStatus` enum, `FleetSession` frozen dataclass, `parse_session()` converter, `format_age()` utility.
 - `mcp_server.py`: FastMCP server exposing fleet tools to Claude Code sessions.
-- `tui.py`: Curses-based interactive dashboard. Arrow keys navigate, Enter focuses session.
+- `tui.py`: Textual-based interactive dashboard (`FleetMonitorApp`). Polling, search/filter, desktop notifications, session focus.
+- `widgets/session_table.py`: `SessionTable(DataTable)` widget with status-colored rows. Shared between standalone TUI and tongs screen.
+- `views/fleet_screen.py`: `FleetScreen(Screen)` for embedding in tongs. Same features as standalone but escape pops back.
+- `tongs_plugin.py`: `FleetMonitorPlugin(TongsPlugin)` ABC implementation. Optional tongs dependency. Registers command palette entry and screen.
 - `focus.py`: Session lookup and PID resolution. Delegates to terminal APIs for actual focus.
 - `cli.py`: Entry point for `claude-fleet` command. Handles install/uninstall, delegates to tui/focus/status.
 
