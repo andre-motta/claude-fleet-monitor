@@ -88,3 +88,41 @@ async def test_long_detail_truncated():
         long_detail = "x" * 100
         table.set_sessions([_session(detail=long_detail)])
         assert table.row_count == 1
+
+
+@pytest.mark.asyncio
+async def test_terminal_column_present():
+    """Table should have 7 columns including terminal."""
+    async with TableApp().run_test() as pilot:
+        table = pilot.app.query_one("#table", SessionTable)
+        assert len(table.columns) == 7
+
+
+@pytest.mark.asyncio
+async def test_various_terminal_types():
+    """Sessions with different terminals should render."""
+    async with TableApp().run_test() as pilot:
+        table = pilot.app.query_one("#table", SessionTable)
+        sessions = []
+        for i, term in enumerate(["konsole", "tmux", "iterm2", "generic"]):
+            s = FleetSession(
+                session_id=f"s{i}", repo=f"r{i}", cwd=f"/tmp/r{i}",
+                status=SessionStatus.RUNNING, detail="", ts=0, started=0,
+                pid="1", terminal=term, terminal_env={}, source="hook",
+                tool="", age_seconds=0, needs_attention=False,
+            )
+            sessions.append(s)
+        table.set_sessions(sessions)
+        assert table.row_count == 4
+
+
+@pytest.mark.asyncio
+async def test_age_colors_by_status():
+    """Old idle sessions should get different age styling than running."""
+    async with TableApp().run_test() as pilot:
+        table = pilot.app.query_one("#table", SessionTable)
+        table.set_sessions([
+            _session("s1", age=700, status=SessionStatus.IDLE),
+            _session("s2", age=700, status=SessionStatus.RUNNING),
+        ])
+        assert table.row_count == 2

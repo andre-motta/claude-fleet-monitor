@@ -7,6 +7,7 @@ from claude_fleet_monitor.models import (
     SessionStatus,
     format_age,
     parse_session,
+    sort_sessions,
 )
 
 
@@ -89,3 +90,54 @@ class TestFormatAge:
 
     def test_exact_hour(self):
         assert format_age(3600) == "1h0m"
+
+
+def _make(repo="r", status="running", age=0, attention=False):
+    return parse_session({
+        "session_id": f"{repo}-{status}",
+        "repo": repo,
+        "cwd": f"/tmp/{repo}",
+        "status": status,
+        "age_seconds": age,
+        "needs_attention": attention,
+    })
+
+
+class TestSortSessions:
+    def test_sort_by_repo(self):
+        sessions = [_make("beta"), _make("alpha")]
+        result = sort_sessions(sessions, "repo")
+        assert [s.repo for s in result] == ["alpha", "beta"]
+
+    def test_sort_by_attention(self):
+        s1 = _make("a", attention=False)
+        s2 = _make("b", "waiting", attention=True)
+        result = sort_sessions([s1, s2], "attention")
+        assert result[0].needs_attention is True
+
+    def test_sort_by_status(self):
+        s1 = _make("a", "idle")
+        s2 = _make("b", "running")
+        result = sort_sessions([s1, s2], "status")
+        assert result[0].status == SessionStatus.RUNNING
+
+    def test_sort_by_age(self):
+        s1 = _make("a", age=10)
+        s2 = _make("b", age=100)
+        result = sort_sessions([s1, s2], "age")
+        assert result[0].age_seconds == 100
+
+
+class TestFleetSessionMethods:
+    def test_summary_line(self):
+        s = _make("myrepo", "running", age=30)
+        line = s.summary_line()
+        assert "myrepo" in line
+        assert "RUNNING" in line
+
+    def test_to_json(self):
+        import json
+        s = _make("myrepo")
+        data = json.loads(s.to_json())
+        assert data["repo"] == "myrepo"
+        assert data["status"] == "running"

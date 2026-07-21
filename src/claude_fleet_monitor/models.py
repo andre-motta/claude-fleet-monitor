@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import Enum
 
@@ -14,6 +15,19 @@ class SessionStatus(Enum):
     ERROR = "error"
     ENDED = "ended"
     DISCOVERED = "discovered"
+
+
+STATUS_PRIORITY = {
+    SessionStatus.WAITING: 0,
+    SessionStatus.ERROR: 1,
+    SessionStatus.RUNNING: 2,
+    SessionStatus.STARTED: 3,
+    SessionStatus.IDLE: 4,
+    SessionStatus.DISCOVERED: 5,
+    SessionStatus.ENDED: 6,
+}
+
+SORT_KEYS = ["attention", "status", "age", "repo"]
 
 
 @dataclass(frozen=True)
@@ -32,6 +46,29 @@ class FleetSession:
     tool: str
     age_seconds: int = 0
     needs_attention: bool = False
+
+    def summary_line(self) -> str:
+        return (
+            f"{self.repo} | {self.status.value.upper()} | "
+            f"{self.detail} | {format_age(self.age_seconds)} | PID {self.pid}"
+        )
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "session_id": self.session_id,
+            "repo": self.repo,
+            "cwd": self.cwd,
+            "status": self.status.value,
+            "detail": self.detail,
+            "ts": self.ts,
+            "started": self.started,
+            "pid": self.pid,
+            "terminal": self.terminal,
+            "tool": self.tool,
+            "source": self.source,
+            "age_seconds": self.age_seconds,
+            "needs_attention": self.needs_attention,
+        }, indent=2)
 
 
 def parse_session(data: dict) -> FleetSession:
@@ -64,3 +101,16 @@ def format_age(seconds: int) -> str:
     if seconds < 3600:
         return f"{seconds // 60}m"
     return f"{seconds // 3600}h{seconds % 3600 // 60}m"
+
+
+def sort_sessions(
+    sessions: list[FleetSession], key: str = "repo"
+) -> list[FleetSession]:
+    if key == "attention":
+        return sorted(sessions, key=lambda s: (not s.needs_attention, STATUS_PRIORITY.get(s.status, 9), s.repo.lower()))
+    elif key == "status":
+        return sorted(sessions, key=lambda s: (STATUS_PRIORITY.get(s.status, 9), s.repo.lower()))
+    elif key == "age":
+        return sorted(sessions, key=lambda s: -s.age_seconds)
+    else:
+        return sorted(sessions, key=lambda s: s.repo.lower())

@@ -4,15 +4,24 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import threading
 
+from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from claude_fleet_monitor.discovery import read_sessions
-from claude_fleet_monitor.models import FleetSession, parse_session, format_age
+from claude_fleet_monitor.models import (
+    SORT_KEYS,
+    FleetSession,
+    format_age,
+    parse_session,
+    sort_sessions,
+)
+from claude_fleet_monitor.widgets.detail_panel import DetailPanel
 from claude_fleet_monitor.widgets.session_table import SessionTable
 
 
@@ -47,19 +56,35 @@ class FleetMonitorApp(App):
         Binding("r", "refresh", "Refresh", show=True, priority=True),
         Binding("slash", "toggle_search", "Search", show=True, key_display="/"),
         Binding("escape", "clear_search", "Clear", show=False),
+        Binding("s", "cycle_sort", "Sort", show=True),
+        Binding("d", "toggle_detail", "Detail", show=True),
+        Binding("n", "next_attention", "Next", show=True),
+        Binding("N", "prev_attention", "Prev", show=False),
+        Binding("o", "open_cwd", "Open dir", show=True),
+        Binding("c", "copy_info", "Copy", show=True),
+        Binding("C", "copy_json", "JSON", show=False),
+        Binding("1", "filter_status('running')", "Running", show=False),
+        Binding("2", "filter_status('idle')", "Idle", show=False),
+        Binding("3", "filter_status('waiting')", "Waiting", show=False),
+        Binding("4", "filter_status('error')", "Error", show=False),
+        Binding("0", "filter_status('')", "All", show=False),
     ]
 
-    def __init__(self, refresh_interval: int = 2):
+    def __init__(self, refresh_interval: int = 2, notify_level: str = "all"):
         super().__init__()
         self.refresh_interval = refresh_interval
+        self.notify_level = notify_level
         self._all_sessions: list[FleetSession] = []
         self._notified: set[str] = set()
         self._search_query = ""
+        self._status_filter = ""
+        self._sort_key = "repo"
 
     def compose(self) -> ComposeResult:
         yield Header()
         yield Static(id="summary-bar")
         yield SessionTable(id="session-table")
+        yield DetailPanel(id="detail-panel")
         yield Input(placeholder="Filter by repo or detail...", id="search-input")
         yield Footer()
 
@@ -77,34 +102,64 @@ class FleetMonitorApp(App):
         self._all_sessions = sessions
         self._notify_idle(sessions)
         filtered = self._apply_filter(sessions)
+        filtered = sort_sessions(filtered, self._sort_key)
         self._update_summary(filtered)
         table = self.query_one("#session-table", SessionTable)
         table.set_sessions(filtered)
 
     def _apply_filter(self, sessions: list[FleetSession]) -> list[FleetSession]:
-        if not self._search_query:
-            return sessions
-        q = self._search_query.lower()
-        return [
-            s for s in sessions
-            if q in s.repo.lower() or q in s.detail.lower() or q in s.status.value.lower()
-        ]
+        result = sessions
+        if self._status_filter:
+            result = [s for s in result if s.status.value == self._status_filter]
+        if self._search_query:
+            q = self._search_query.lower()
+            result = [
+                s for s in result
+                if q in s.repo.lower() or q in s.detail.lower() or q in s.status.value.lower()
+            ]
+        return result
 
     def _update_summary(self, sessions: list[FleetSession]) -> None:
-        active = sum(1 for s in sessions if s.status.value in ("running", "started"))
-        idle = sum(1 for s in sessions if s.status.value == "idle")
-        attention = sum(1 for s in sessions if s.needs_attention)
-        text = f"{len(sessions)} sessions | {active} active | {idle} idle"
+        total = len(self._all_sessions)
+        active = sum(1 for s in self._all_sessions if s.status.value in ("running", "started"))
+        idle = sum(1 for s in self._all_sessions if s.status.value == "idle")
+        attention = sum(1 for s in self._all_sessions if s.needs_attention)
+
+        text = Text()
+        text.append(f"{total} sessions", style="bold")
+        text.append(" | ")
+        text.append(f"{active} active", style="green")
+        text.append(" | ")
+        text.append(f"{idle} idle", style="yellow")
         if attention:
-            text += f" | {attention} need input"
+            text.append(" | ")
+            text.append(f"{attention} need input", style="bold yellow")
+
+        text.append("  ")
+        text.append(f"[sort:{self._sort_key}]", style="dim")
+        if self._status_filter:
+            text.append(f" [filter:{self._status_filter}]", style="dim cyan")
+        if self.notify_level != "all":
+            text.append(f" (notify:{self.notify_level})", style="dim")
+
+        shown = len(sessions)
+        if shown != total:
+            text.append(f"  showing {shown}/{total}", style="dim")
+
         bar = self.query_one("#summary-bar", Static)
         bar.update(text)
 
     def _notify_idle(self, sessions: list[FleetSession]) -> None:
+        if self.notify_level == "none":
+            return
         if not shutil.which("notify-send"):
             return
         for s in sessions:
-            if s.needs_attention and s.session_id not in self._notified:
+            should_notify = s.needs_attention
+            if self.notify_level == "waiting":
+                should_notify = s.status.value == "waiting"
+
+            if should_notify and s.session_id not in self._notified:
                 self._notified.add(s.session_id)
                 subprocess.Popen(
                     [
@@ -117,12 +172,100 @@ class FleetMonitorApp(App):
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-            elif not s.needs_attention and s.session_id in self._notified:
+                if s.status.value == "waiting":
+                    sys.stdout.write("\a")
+                    sys.stdout.flush()
+            elif not should_notify and s.session_id in self._notified:
                 self._notified.discard(s.session_id)
+
+    def _get_selected_session(self) -> FleetSession | None:
+        table = self.query_one("#session-table", SessionTable)
+        sid = table.get_selected_session_id()
+        if not sid:
+            return None
+        return next((s for s in self._all_sessions if s.session_id == sid), None)
+
+    # -- Actions --
 
     def action_refresh(self) -> None:
         self._poll_sessions()
         self.notify("Refreshed", timeout=2)
+
+    def action_cycle_sort(self) -> None:
+        idx = SORT_KEYS.index(self._sort_key) if self._sort_key in SORT_KEYS else -1
+        self._sort_key = SORT_KEYS[(idx + 1) % len(SORT_KEYS)]
+        self._update_ui(self._all_sessions)
+        self.notify(f"Sort: {self._sort_key}", timeout=2)
+
+    def action_filter_status(self, status: str) -> None:
+        if self._status_filter == status:
+            self._status_filter = ""
+        else:
+            self._status_filter = status
+        self._update_ui(self._all_sessions)
+        label = self._status_filter or "all"
+        self.notify(f"Filter: {label}", timeout=2)
+
+    def action_toggle_detail(self) -> None:
+        panel = self.query_one("#detail-panel", DetailPanel)
+        if panel.has_class("visible"):
+            panel.remove_class("visible")
+        else:
+            panel.add_class("visible")
+            session = self._get_selected_session()
+            panel.set_session(session)
+
+    def action_next_attention(self) -> None:
+        self._jump_attention(forward=True)
+
+    def action_prev_attention(self) -> None:
+        self._jump_attention(forward=False)
+
+    def _jump_attention(self, forward: bool) -> None:
+        table = self.query_one("#session-table", SessionTable)
+        if table.row_count == 0:
+            return
+        filtered = self._apply_filter(self._all_sessions)
+        filtered = sort_sessions(filtered, self._sort_key)
+        attention_indices = [i for i, s in enumerate(filtered) if s.needs_attention]
+        if not attention_indices:
+            self.notify("No sessions need attention", timeout=2)
+            return
+        current = table.cursor_coordinate.row
+        if forward:
+            target = next((i for i in attention_indices if i > current), attention_indices[0])
+        else:
+            target = next((i for i in reversed(attention_indices) if i < current), attention_indices[-1])
+        table.move_cursor(row=target)
+
+    def action_open_cwd(self) -> None:
+        session = self._get_selected_session()
+        if not session or not session.cwd:
+            return
+        if sys.platform == "darwin":
+            cmd = ["open", session.cwd]
+        elif sys.platform == "win32":
+            cmd = ["explorer", session.cwd]
+        else:
+            cmd = ["xdg-open", session.cwd]
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.notify(f"Opened: {session.cwd}", timeout=2)
+
+    def action_copy_info(self) -> None:
+        session = self._get_selected_session()
+        if not session:
+            return
+        self.copy_to_clipboard(session.summary_line())
+        self.notify("Copied summary", timeout=2)
+
+    def action_copy_json(self) -> None:
+        session = self._get_selected_session()
+        if not session:
+            return
+        self.copy_to_clipboard(session.to_json())
+        self.notify("Copied JSON", timeout=2)
+
+    # -- Events --
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         sid = str(event.row_key.value)
@@ -130,6 +273,17 @@ class FleetMonitorApp(App):
         if session:
             self._do_focus(session)
             self.notify(f"Focused: {session.repo}", timeout=2)
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        panel = self.query_one("#detail-panel", DetailPanel)
+        if not panel.has_class("visible"):
+            return
+        if event.row_key is None:
+            panel.set_session(None)
+            return
+        sid = str(event.row_key.value)
+        session = next((s for s in self._all_sessions if s.session_id == sid), None)
+        panel.set_session(session)
 
     def _do_focus(self, session: FleetSession) -> None:
         from claude_fleet_monitor.focus import focus
@@ -166,6 +320,7 @@ class FleetMonitorApp(App):
         if event.input.id == "search-input":
             self._search_query = event.value
             filtered = self._apply_filter(self._all_sessions)
+            filtered = sort_sessions(filtered, self._sort_key)
             self._update_summary(filtered)
             table = self.query_one("#session-table", SessionTable)
             table.set_sessions(filtered)
@@ -175,6 +330,6 @@ class FleetMonitorApp(App):
             self.query_one("#session-table", SessionTable).focus()
 
 
-def main(refresh: int = 2) -> None:
-    app = FleetMonitorApp(refresh_interval=refresh)
+def main(refresh: int = 2, notify: str = "all") -> None:
+    app = FleetMonitorApp(refresh_interval=refresh, notify_level=notify)
     app.run()

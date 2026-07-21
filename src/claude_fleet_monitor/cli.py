@@ -133,7 +133,7 @@ def cmd_uninstall(args):
 
 def cmd_monitor(args):
     from claude_fleet_monitor.tui import FleetMonitorApp
-    app = FleetMonitorApp(refresh_interval=args.refresh)
+    app = FleetMonitorApp(refresh_interval=args.refresh, notify_level=args.notify)
     app.run()
 
 
@@ -180,6 +180,8 @@ def main():
 
     p_monitor = sub.add_parser("monitor", help="Launch TUI dashboard")
     p_monitor.add_argument("--refresh", type=int, default=2, help="Refresh interval in seconds")
+    p_monitor.add_argument("--notify", choices=["all", "waiting", "none"], default="all",
+                           help="Notification level: all, waiting-only, or none")
 
     p_focus = sub.add_parser("focus", help="Focus terminal tab for a session")
     p_focus.add_argument("query", help="Repo name, session ID, or PID")
