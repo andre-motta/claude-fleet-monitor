@@ -41,6 +41,7 @@ def test_detect_iterm2(monkeypatch):
     monkeypatch.delenv("TMUX", raising=False)
     monkeypatch.delenv("ZELLIJ", raising=False)
     monkeypatch.delenv("KONSOLE_VERSION", raising=False)
+    monkeypatch.delenv("TERM_PROGRAM", raising=False)
     monkeypatch.setenv("ITERM_SESSION_ID", "w0t0p0:12345")
     from claude_fleet_monitor.terminal_apis import detect_terminal
     t = detect_terminal()
@@ -56,6 +57,28 @@ def test_detect_macos_terminal(monkeypatch):
     from claude_fleet_monitor.terminal_apis import detect_terminal
     t = detect_terminal()
     assert t.name == "macos_terminal"
+
+
+def test_detect_ghostty(monkeypatch):
+    monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("ZELLIJ", raising=False)
+    monkeypatch.delenv("KONSOLE_VERSION", raising=False)
+    monkeypatch.setenv("TERM_PROGRAM", "ghostty")
+    from claude_fleet_monitor.terminal_apis import detect_terminal
+    t = detect_terminal()
+    assert t.name == "ghostty"
+
+
+def test_detect_ghostty_capture_env(monkeypatch):
+    monkeypatch.delenv("TMUX", raising=False)
+    monkeypatch.delenv("ZELLIJ", raising=False)
+    monkeypatch.delenv("KONSOLE_VERSION", raising=False)
+    monkeypatch.setenv("TERM_PROGRAM", "ghostty")
+    monkeypatch.setenv("GHOSTTY_BIN_DIR", "/usr/bin")
+    from claude_fleet_monitor.terminal_apis import capture_terminal_info
+    info = capture_terminal_info()
+    assert info["terminal"] == "ghostty"
+    assert info["terminal_env"]["GHOSTTY_BIN_DIR"] == "/usr/bin"
 
 
 def test_detect_gnome(monkeypatch):

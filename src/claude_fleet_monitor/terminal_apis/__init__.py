@@ -4,6 +4,7 @@ from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.konsole import KonsoleAPI
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
 from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
+from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
 from claude_fleet_monitor.terminal_apis.gnome import GnomeAPI
 from claude_fleet_monitor.terminal_apis.iterm2 import ITerm2API
 from claude_fleet_monitor.terminal_apis.macos_terminal import MacOSTerminalAPI
@@ -14,6 +15,7 @@ TERMINALS: list[type[TerminalAPI]] = [
     TmuxAPI,
     ZellijAPI,
     KonsoleAPI,
+    GhosttyAPI,
     ITerm2API,
     MacOSTerminalAPI,
     GnomeAPI,

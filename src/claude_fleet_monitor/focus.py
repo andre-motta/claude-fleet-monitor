@@ -114,11 +114,10 @@ def focus(query):
             print(f"Focused {repo} via {api.name} (PID {pid})")
             return True
 
-    # No terminal info or primary API failed; try Konsole and tmux
-    # (the only APIs with reliable find_tab via PID matching)
+    from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
     from claude_fleet_monitor.terminal_apis.konsole import KonsoleAPI
     from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
-    for cls in (KonsoleAPI, TmuxAPI):
+    for cls in (KonsoleAPI, TmuxAPI, GhosttyAPI):
         api = cls()
         if api.focus(pid, {}):
             print(f"Focused {repo} via {api.name} (PID {pid})")

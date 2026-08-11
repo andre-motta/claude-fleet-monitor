@@ -7,6 +7,7 @@ from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
 TERMINAL_PROCESS_NAMES = {
     "konsole": "konsole",
+    "ghostty": "ghostty",
     "gnome-terminal": "gnome",
     "gnome-terminal-server": "gnome",
     "iTerm2": "iterm2",

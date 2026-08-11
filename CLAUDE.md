@@ -45,6 +45,7 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `konsole.py`: KDE Konsole via qdbus + KWin scripting
 - `tmux.py`: tmux via CLI. Detects parent terminal for window raising.
 - `zellij.py`: zellij via CLI. Detects parent terminal for window raising.
+- `ghostty.py`: Ghostty via GTK DBus. Window raise via `org.gtk.Application.Activate` + KWin fallback. Tab switching via ydotool/xdotool Alt+N (requires ydotoold on Wayland).
 - `gnome.py`: GNOME Terminal via xdotool (no tab switching API)
 - `iterm2.py`: iTerm2 via osascript
 - `macos_terminal.py`: macOS Terminal.app via osascript
@@ -52,7 +53,7 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `generic.py`: Fallback using pywinctl/xdotool/osascript
 - `__init__.py`: `detect_terminal()`, `capture_terminal_info()`, `get_terminal_api()`
 
-Detection order: tmux > zellij > konsole > iterm2 > macos_terminal > gnome > windows_terminal > generic. tmux/zellij first because they run inside other terminals.
+Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > windows_terminal > generic. tmux/zellij first because they run inside other terminals.
 
 Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields.
 
