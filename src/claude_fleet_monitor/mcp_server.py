@@ -11,7 +11,7 @@ mcp = FastMCP("claude-fleet")
 
 @mcp.tool()
 def fleet_status() -> str:
-    """Get status of all Claude Code sessions. Returns repo, status, detail, and whether each session needs attention."""
+    """Get all Claude Code and Codex session statuses."""
     sessions = read_sessions()
     if not sessions:
         return json.dumps({"sessions": [], "summary": "No active sessions"})
@@ -62,7 +62,7 @@ def fleet_sessions_needing_attention() -> str:
 
 @mcp.tool()
 def fleet_focus(query: str) -> str:
-    """Focus the terminal window/tab running a Claude session. Accepts repo name, session ID, or PID. On Konsole, switches to the exact tab. On other terminals, raises the window."""
+    """Focus the terminal running an agent session by repo, session ID, or PID."""
     from claude_fleet_monitor.focus import focus
     import io
     import sys

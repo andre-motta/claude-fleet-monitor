@@ -41,6 +41,7 @@ class DetailPanel(Static):
         detail = session.detail.replace("\n", " ").replace("\r", "")
 
         lines = Text()
+        lines.append(f"{session.agent}  ", style="dim")
         lines.append(session.repo, style="bold")
         lines.append(f"  {session.status.value.upper()}", style=style)
         lines.append(f"  Age: {format_age(session.age_seconds)}")

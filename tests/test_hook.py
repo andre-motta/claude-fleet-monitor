@@ -5,13 +5,13 @@ import time
 from tests.conftest import write_session
 
 
-def run_hook(monkeypatch, fleet_dir, event, stdin_data):
+def run_hook(monkeypatch, fleet_dir, event, stdin_data, agent="claude"):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(stdin_data)))
-    monkeypatch.setattr("claude_fleet_monitor.hook._find_claude_pid", lambda: "12345")
+    monkeypatch.setattr("claude_fleet_monitor.hook._find_agent_pid", lambda value: "12345")
     monkeypatch.setattr("claude_fleet_monitor.terminal_apis.capture_terminal_info",
                         lambda: {"terminal": "test", "terminal_env": {"TEST": "1"}})
     from claude_fleet_monitor.hook import handle
-    handle(event)
+    handle(event, agent)
 
 
 def test_session_start(fleet_dir, monkeypatch):
@@ -24,6 +24,16 @@ def test_session_start(fleet_dir, monkeypatch):
     assert data["pid"] == "12345"
     assert data["terminal"] == "test"
     assert data["terminal_env"] == {"TEST": "1"}
+    assert data["agent"] == "claude"
+
+
+def test_codex_session_start(fleet_dir, monkeypatch):
+    run_hook(monkeypatch, fleet_dir, "session-start", {
+        "session_id": "thr_123", "cwd": "/tmp/myrepo"
+    }, agent="codex")
+    data = json.loads((fleet_dir / "thr_123.json").read_text())
+    assert data["agent"] == "codex"
+    assert data["status"] == "started"
 
 
 def test_prompt_submit_creates_new(fleet_dir, monkeypatch):

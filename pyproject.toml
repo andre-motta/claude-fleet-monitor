@@ -1,7 +1,7 @@
 [project]
 name = "claude-fleet-monitor"
 dynamic = ["version"]
-description = "Fleet monitoring for Claude Code sessions - TUI dashboard, MCP server, and terminal focus"
+description = "Fleet monitoring for Claude Code and Codex sessions"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ dependencies = [
 authors = [
     {name = "Andre Motta"},
 ]
-keywords = ["claude", "claude-code", "mcp", "monitoring", "fleet"]
+keywords = ["claude", "claude-code", "codex", "mcp", "monitoring", "fleet"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

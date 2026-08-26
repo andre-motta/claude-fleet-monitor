@@ -46,16 +46,18 @@ class FleetSession:
     tool: str
     age_seconds: int = 0
     needs_attention: bool = False
+    agent: str = "claude"
 
     def summary_line(self) -> str:
         return (
-            f"{self.repo} | {self.status.value.upper()} | "
+            f"{self.agent} | {self.repo} | {self.status.value.upper()} | "
             f"{self.detail} | {format_age(self.age_seconds)} | PID {self.pid}"
         )
 
     def to_json(self) -> str:
         return json.dumps({
             "session_id": self.session_id,
+            "agent": self.agent,
             "repo": self.repo,
             "cwd": self.cwd,
             "status": self.status.value,
@@ -79,6 +81,7 @@ def parse_session(data: dict) -> FleetSession:
 
     return FleetSession(
         session_id=data.get("session_id", ""),
+        agent=data.get("agent", "claude"),
         repo=data.get("repo", ""),
         cwd=data.get("cwd", ""),
         status=status,

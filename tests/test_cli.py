@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 
 def test_install_creates_hooks(settings_file, monkeypatch):
@@ -13,6 +14,19 @@ def test_install_creates_hooks(settings_file, monkeypatch):
     assert "Elicitation" in settings["hooks"]
 
 
+def test_install_creates_codex_hooks(settings_file, monkeypatch):
+    monkeypatch.setattr("shutil.which", lambda x: f"/usr/bin/{x}")
+    from claude_fleet_monitor import cli
+    cli.cmd_install(None)
+    hooks = json.loads(cli.CODEX_HOOKS_FILE.read_text())["hooks"]
+    assert set(hooks) == {
+        "SessionStart", "UserPromptSubmit", "PreToolUse", "Stop",
+        "SessionEnd", "PermissionRequest",
+    }
+    assert "--agent codex" in hooks["SessionStart"][0]["hooks"][0]["command"]
+    assert hooks["SessionStart"][0]["matcher"] == "startup|resume|clear"
+
+
 def test_install_creates_mcp_server(settings_file, monkeypatch):
     monkeypatch.setattr("shutil.which", lambda x: f"/usr/bin/{x}")
     from claude_fleet_monitor.cli import cmd_install
@@ -23,6 +37,35 @@ def test_install_creates_mcp_server(settings_file, monkeypatch):
     assert settings["mcpServers"]["fleet"]["args"] == ["-m", "claude_fleet_monitor.mcp_server"]
 
 
+def test_install_codex_mcp_uses_codex_cli(monkeypatch):
+    from claude_fleet_monitor import cli
+    monkeypatch.setattr(cli, "_get_codex_mcp", lambda command: None)
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    cli._install_codex_mcp("/usr/bin/codex")
+    assert calls == [[
+        "/usr/bin/codex", "mcp", "add", "fleet", "--", cli.sys.executable,
+        "-m", "claude_fleet_monitor.mcp_server",
+    ]]
+
+
+def test_install_codex_mcp_preserves_name_conflict(monkeypatch):
+    from claude_fleet_monitor import cli
+    monkeypatch.setattr(cli, "_get_codex_mcp", lambda command: {
+        "transport": {"command": "other", "args": []}
+    })
+    def fail_run(*args, **kwargs):
+        raise AssertionError("Codex MCP config should not be replaced")
+
+    monkeypatch.setattr(cli.subprocess, "run", fail_run)
+    cli._install_codex_mcp("/usr/bin/codex")
+
+
 def test_install_idempotent(settings_file, monkeypatch):
     monkeypatch.setattr("shutil.which", lambda x: f"/usr/bin/{x}")
     from claude_fleet_monitor.cli import cmd_install
@@ -30,6 +73,11 @@ def test_install_idempotent(settings_file, monkeypatch):
     cmd_install(None)
     settings = json.loads(settings_file.read_text())
     for event_hooks in settings["hooks"].values():
+        fleet_hooks = [h for h in event_hooks if "claude-fleet-hook" in json.dumps(h)]
+        assert len(fleet_hooks) == 1
+    from claude_fleet_monitor import cli
+    codex_hooks = json.loads(cli.CODEX_HOOKS_FILE.read_text())["hooks"]
+    for event_hooks in codex_hooks.values():
         fleet_hooks = [h for h in event_hooks if "claude-fleet-hook" in json.dumps(h)]
         assert len(fleet_hooks) == 1
 
@@ -58,6 +106,9 @@ def test_uninstall_removes_hooks(settings_file, monkeypatch):
     settings = json.loads(settings_file.read_text())
     assert "hooks" not in settings or not settings["hooks"]
     assert "fleet" not in settings.get("mcpServers", {})
+    from claude_fleet_monitor import cli
+    codex_hooks = json.loads(cli.CODEX_HOOKS_FILE.read_text())
+    assert "hooks" not in codex_hooks or not codex_hooks["hooks"]
 
 
 def test_uninstall_preserves_other_hooks(settings_file, monkeypatch):

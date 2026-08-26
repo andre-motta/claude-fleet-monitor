@@ -1,11 +1,13 @@
 # Claude Fleet Monitor
 
-Fleet monitoring for Claude Code sessions. Pure Python, cross-platform.
+Fleet monitoring for Claude Code and Codex sessions. Pure Python, cross-platform.
 
 ## Architecture
 
 ```
-Claude Code sessions --> hook.py --> ~/.claude/fleet/*.json
+Claude Code sessions --\
+                       +--> hook.py --> ~/.claude/fleet/*.json
+Codex sessions --------/
                             |                 |
                     captures terminal    +-----+-----+------+------+
                     type + env vars      |     |     |      |      |
@@ -26,16 +28,16 @@ Claude Code sessions --> hook.py --> ~/.claude/fleet/*.json
 
 ### Modules
 
-- `hook.py`: Claude Code hook handler. Receives events via stdin JSON, writes session status to fleet dir. Captures terminal type and PID per session.
+- `hook.py`: Claude Code and Codex hook handler. Receives events via stdin JSON, writes session status to the fleet directory, and tags the source agent. Captures terminal type and PID per session.
 - `discovery.py`: Shared module. Cross-platform process discovery (`/proc` on Linux, `lsof`/`ps` on macOS, `tasklist` on Windows). Reads/deduplicates/cleans session files. Used by all consumers.
 - `models.py`: Typed data models. `SessionStatus` enum, `FleetSession` frozen dataclass, `parse_session()` converter, `format_age()` utility.
-- `mcp_server.py`: FastMCP server exposing fleet tools to Claude Code sessions.
+- `mcp_server.py`: FastMCP server exposing fleet tools to Claude Code and Codex sessions.
 - `tui.py`: Textual-based interactive dashboard (`FleetMonitorApp`). Polling, search/filter, desktop notifications, session focus.
 - `widgets/session_table.py`: `SessionTable(DataTable)` widget with status-colored rows. Shared between standalone TUI and tongs screen.
 - `views/fleet_screen.py`: `FleetScreen(Screen)` for embedding in tongs. Same features as standalone but escape pops back.
 - `tongs_plugin.py`: `FleetMonitorPlugin(TongsPlugin)` ABC implementation. Optional tongs dependency. Registers command palette entry and screen.
 - `focus.py`: Session lookup and PID resolution. Delegates to terminal APIs for actual focus.
-- `cli.py`: Entry point for `claude-fleet` command. Handles install/uninstall, delegates to tui/focus/status.
+- `cli.py`: Entry point for `claude-fleet` command. Installs Claude Code and Codex hooks and MCP configuration, then delegates to tui/focus/status.
 
 ### Terminal APIs (`terminal_apis/`)
 

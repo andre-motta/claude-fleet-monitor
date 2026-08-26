@@ -1,4 +1,4 @@
-"""Claude Code hook handler - writes session status to fleet directory."""
+"""Agent hook handler that writes session status to the fleet directory."""
 
 import json
 import os
@@ -9,8 +9,8 @@ from pathlib import Path
 FLEET_DIR = Path(os.environ.get("FLEET_DIR", Path.home() / ".claude" / "fleet"))
 
 
-def _find_claude_pid():
-    """Walk up the process tree to find the parent claude process."""
+def _find_agent_pid(agent):
+    """Walk up the process tree to find the parent agent process."""
     pid = os.getpid()
     while pid > 1:
         try:
@@ -25,8 +25,10 @@ def _find_claude_pid():
         except (OSError, Exception):
             break
 
-        if "claude" in cmdline and "fleet-hook" not in cmdline and "hook.py" not in cmdline:
-            if "daemon" not in cmdline and "bg-pty" not in cmdline:
+        cmdline_lower = cmdline.lower()
+        if agent in cmdline_lower and "fleet-hook" not in cmdline_lower and "hook.py" not in cmdline_lower:
+            excluded = ("daemon", "bg-pty", "codex-linux-sandbox")
+            if not any(name in cmdline_lower for name in excluded):
                 return str(pid)
 
         try:
@@ -66,7 +68,10 @@ def _cleanup_stale_proc():
             f.unlink(missing_ok=True)
 
 
-def handle(event):
+def handle(event, agent="claude"):
+    if agent not in ("claude", "codex"):
+        raise ValueError(f"unsupported agent: {agent}")
+
     FLEET_DIR.mkdir(parents=True, exist_ok=True)
 
     stdin_data = json.loads(sys.stdin.read())
@@ -78,7 +83,7 @@ def handle(event):
     repo = os.path.basename(cwd)
     status_file = FLEET_DIR / f"{session_id}.json"
     now = int(time.time())
-    claude_pid = _find_claude_pid()
+    agent_pid = _find_agent_pid(agent)
 
     if event == "session-start":
         _cleanup_stale_proc()
@@ -86,7 +91,7 @@ def handle(event):
         term_info = capture_terminal_info()
         _write_status(status_file, {
             "session_id": session_id, "repo": repo, "cwd": cwd,
-            "pid": claude_pid, "status": "started",
+            "pid": agent_pid, "agent": agent, "status": "started",
             "detail": "session started", "ts": now, "started": now,
             "terminal": term_info["terminal"],
             "terminal_env": term_info["terminal_env"],
@@ -98,15 +103,16 @@ def handle(event):
             existing["status"] = "running"
             existing["detail"] = "processing prompt"
             existing["ts"] = now
+            existing["agent"] = agent
             if not existing.get("pid"):
-                existing["pid"] = claude_pid
+                existing["pid"] = agent_pid
             _write_status(status_file, existing)
         else:
             from claude_fleet_monitor.terminal_apis import capture_terminal_info
             term_info = capture_terminal_info()
             _write_status(status_file, {
                 "session_id": session_id, "repo": repo, "cwd": cwd,
-                "pid": claude_pid, "status": "running",
+                "pid": agent_pid, "agent": agent, "status": "running",
                 "detail": "processing prompt", "ts": now, "started": now,
                 "terminal": term_info["terminal"],
                 "terminal_env": term_info["terminal_env"],
@@ -119,8 +125,9 @@ def handle(event):
             existing["detail"] = f"using {tool_name or 'tool'}"
             existing["tool"] = tool_name
             existing["ts"] = now
+            existing["agent"] = agent
             if not existing.get("pid"):
-                existing["pid"] = claude_pid
+                existing["pid"] = agent_pid
             _write_status(status_file, existing)
 
     elif event == "stop":
@@ -175,7 +182,13 @@ def handle(event):
 def main():
     if len(sys.argv) < 2:
         sys.exit(1)
-    handle(sys.argv[1])
+    agent = "claude"
+    if "--agent" in sys.argv:
+        index = sys.argv.index("--agent")
+        if index + 1 >= len(sys.argv):
+            sys.exit(1)
+        agent = sys.argv[index + 1]
+    handle(sys.argv[1], agent)
 
 
 if __name__ == "__main__":

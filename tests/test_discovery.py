@@ -1,7 +1,19 @@
 import json
 import time
+from types import SimpleNamespace
 
 from tests.conftest import write_session
+
+
+def test_find_agent_processes_includes_claude_and_codex(monkeypatch):
+    def fake_run(command, **kwargs):
+        pid = "101\n" if command[-1] == "claude" else "202\n"
+        return SimpleNamespace(returncode=0, stdout=pid)
+
+    monkeypatch.setattr("claude_fleet_monitor.discovery.sys.platform", "linux")
+    monkeypatch.setattr("claude_fleet_monitor.discovery.subprocess.run", fake_run)
+    from claude_fleet_monitor.discovery import _find_agent_processes
+    assert _find_agent_processes() == [("claude", 101), ("codex", 202)]
 
 
 def test_read_sessions_empty(fleet_dir, monkeypatch):
@@ -52,6 +64,18 @@ def test_read_sessions_proc_shows_when_no_hook(fleet_dir, monkeypatch):
     sessions = read_sessions()
     assert len(sessions) == 1
     assert sessions[0]["session_id"] == "proc-99999"
+
+
+def test_read_sessions_keeps_codex_process_with_claude_hook(fleet_dir, monkeypatch):
+    monkeypatch.setattr("claude_fleet_monitor.discovery.discover_processes", lambda: None)
+    monkeypatch.setattr("claude_fleet_monitor.discovery._cleanup_stale_sessions", lambda: None)
+    write_session(fleet_dir, "claude-1", "myrepo", "/tmp/myrepo",
+                  pid="11111", agent="claude")
+    write_session(fleet_dir, "proc-22222", "myrepo", "/tmp/myrepo",
+                  source="process", agent="codex")
+    from claude_fleet_monitor.discovery import read_sessions
+    sessions = read_sessions()
+    assert {session["agent"] for session in sessions} == {"claude", "codex"}
 
 
 def test_needs_attention_idle_over_2min(fleet_dir, monkeypatch):

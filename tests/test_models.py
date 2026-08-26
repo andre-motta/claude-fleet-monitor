@@ -33,6 +33,7 @@ class TestParseSession:
         now = int(time.time())
         data = {
             "session_id": "s1",
+            "agent": "codex",
             "repo": "proj",
             "cwd": "/home/user/proj",
             "status": "running",
@@ -49,6 +50,7 @@ class TestParseSession:
         }
         s = parse_session(data)
         assert s.status == SessionStatus.RUNNING
+        assert s.agent == "codex"
         assert s.pid == "12345"
         assert s.terminal == "konsole"
         assert s.tool == "Bash"
@@ -66,6 +68,7 @@ class TestParseSession:
     def test_empty_dict(self):
         s = parse_session({})
         assert s.session_id == ""
+        assert s.agent == "claude"
         assert s.source == "hook"
 
     def test_frozen(self):

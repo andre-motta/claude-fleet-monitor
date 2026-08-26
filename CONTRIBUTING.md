@@ -14,7 +14,7 @@ pip install -e ".[dev]"
 pytest
 ```
 
-Tests use `tmp_path` fixtures and mock the filesystem. No running Claude sessions or terminal emulators needed.
+Tests use `tmp_path` fixtures and mock the filesystem. No running Claude Code or Codex sessions or terminal emulators are needed.
 
 ## Code Style
 
@@ -33,9 +33,9 @@ hooks (hook.py)  -->  ~/.claude/fleet/*.json  <--  discovery.py
                                               <--  focus.py
 ```
 
-- **hook.py**: Claude Code hook handler, writes session status JSON on each event.
+- **hook.py**: Claude Code and Codex hook handler, writes session status JSON on each event.
 - **discovery.py**: Cross-platform process discovery + session reading/dedup/cleanup. Shared by all consumers.
-- **mcp_server.py**: MCP server exposing fleet tools to Claude Code sessions.
+- **mcp_server.py**: MCP server exposing fleet tools to Claude Code and Codex sessions.
 - **tui.py**: Curses-based interactive dashboard.
 - **focus.py**: Cross-platform terminal window/tab focus (KDE/GNOME/macOS/Windows).
 - **cli.py**: Entry point for `claude-fleet` command.

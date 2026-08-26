@@ -18,7 +18,7 @@ class TerminalAPI(ABC):
 
     @abstractmethod
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
-        """Find the terminal tab/pane ID for a claude process PID."""
+        """Find the terminal tab or pane ID for an agent process PID."""
 
     @abstractmethod
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:

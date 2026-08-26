@@ -17,6 +17,7 @@ def _session(
 ) -> FleetSession:
     return FleetSession(
         session_id=sid,
+        agent="claude",
         repo=repo,
         cwd=f"/tmp/{repo}",
         status=status,
@@ -92,10 +93,10 @@ async def test_long_detail_truncated():
 
 @pytest.mark.asyncio
 async def test_terminal_column_present():
-    """Table should have 7 columns including terminal."""
+    """Table should include agent and terminal columns."""
     async with TableApp().run_test() as pilot:
         table = pilot.app.query_one("#table", SessionTable)
-        assert len(table.columns) == 7
+        assert len(table.columns) == 8
 
 
 @pytest.mark.asyncio
@@ -107,6 +108,7 @@ async def test_various_terminal_types():
         for i, term in enumerate(["konsole", "tmux", "iterm2", "generic"]):
             s = FleetSession(
                 session_id=f"s{i}", repo=f"r{i}", cwd=f"/tmp/r{i}",
+                agent="claude",
                 status=SessionStatus.RUNNING, detail="", ts=0, started=0,
                 pid="1", terminal=term, terminal_env={}, source="hook",
                 tool="", age_seconds=0, needs_attention=False,

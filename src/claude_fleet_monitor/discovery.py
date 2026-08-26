@@ -1,4 +1,4 @@
-"""Cross-platform process discovery and session reading for Claude Fleet Monitor."""
+"""Cross-platform process discovery and fleet session reading."""
 
 import json
 import os
@@ -64,41 +64,47 @@ def _get_tty(pid):
         return ""
 
 
-def _find_claude_pids():
-    """Find PIDs of running claude processes, cross-platform."""
+def _find_agent_processes():
+    """Find running Claude Code and Codex processes, cross-platform."""
     try:
         if sys.platform == "win32":
-            result = subprocess.run(
-                ["tasklist", "/FI", "IMAGENAME eq claude.exe", "/FO", "CSV", "/NH"],
-                capture_output=True, text=True, timeout=5
-            )
-            pids = []
-            for line in result.stdout.strip().split("\n"):
-                parts = line.strip().strip('"').split('","')
-                if len(parts) >= 2 and parts[0] == "claude.exe":
-                    pids.append(int(parts[1]))
-            return pids
+            processes = []
+            for agent in ("claude", "codex"):
+                result = subprocess.run(
+                    ["tasklist", "/FI", f"IMAGENAME eq {agent}.exe", "/FO", "CSV", "/NH"],
+                    capture_output=True, text=True, timeout=5
+                )
+                for line in result.stdout.strip().split("\n"):
+                    parts = line.strip().strip('"').split('","')
+                    if len(parts) >= 2 and parts[0].lower() == f"{agent}.exe":
+                        processes.append((agent, int(parts[1])))
+            return processes
         else:
-            result = subprocess.run(
-                ["pgrep", "-x", "claude"], capture_output=True, text=True, timeout=5
-            )
-            if result.returncode != 0:
-                return []
-            return [int(p) for p in result.stdout.strip().split("\n") if p]
+            processes = []
+            for agent in ("claude", "codex"):
+                result = subprocess.run(
+                    ["pgrep", "-x", agent], capture_output=True, text=True, timeout=5
+                )
+                if result.returncode == 0:
+                    processes.extend(
+                        (agent, int(pid))
+                        for pid in result.stdout.strip().split("\n") if pid
+                    )
+            return processes
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
 
 
 def discover_processes():
-    """Find running Claude processes and create status files for undiscovered ones."""
-    pids = _find_claude_pids()
-    if not pids:
+    """Create status files for agent processes not yet reported by hooks."""
+    processes = _find_agent_processes()
+    if not processes:
         return
 
     now = int(time.time())
     FLEET_DIR.mkdir(parents=True, exist_ok=True)
 
-    for pid in pids:
+    for agent, pid in processes:
         proc_file = FLEET_DIR / f"proc-{pid}.json"
         if proc_file.exists():
             continue
@@ -117,6 +123,7 @@ def discover_processes():
             json.dumps(
                 {
                     "session_id": f"proc-{pid}",
+                    "agent": agent,
                     "repo": repo,
                     "cwd": cwd,
                     "status": "discovered",
@@ -179,14 +186,14 @@ def read_sessions():
     if not FLEET_DIR.exists():
         return []
 
-    hook_cwds = set()
+    hook_sessions = set()
     all_sessions = []
     for f in FLEET_DIR.glob("*.json"):
         if f.name.startswith("proc-"):
             continue
         try:
             data = json.loads(f.read_text())
-            hook_cwds.add(data.get("cwd", ""))
+            hook_sessions.add((data.get("agent", "claude"), data.get("cwd", "")))
             all_sessions.append(data)
         except (json.JSONDecodeError, OSError):
             continue
@@ -194,7 +201,8 @@ def read_sessions():
     for f in FLEET_DIR.glob("proc-*.json"):
         try:
             data = json.loads(f.read_text())
-            if data.get("cwd", "") not in hook_cwds:
+            identity = (data.get("agent", "claude"), data.get("cwd", ""))
+            if identity not in hook_sessions:
                 all_sessions.append(data)
         except (json.JSONDecodeError, OSError):
             continue

@@ -5,17 +5,17 @@
 [![License](https://img.shields.io/pypi/l/claude-fleet-monitor)](https://github.com/andre-motta/claude-fleet-monitor/blob/main/LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/claude-fleet-monitor)](https://pypi.org/project/claude-fleet-monitor/)
 
-Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions. See all your running sessions at a glance, get notified when one needs input, and jump to the right terminal tab instantly.
+Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [Codex](https://learn.chatgpt.com/codex) sessions. See all your running agent sessions at a glance, get notified when one needs input, and jump to the right terminal tab instantly.
 
 ## Features
 
 - **TUI Dashboard** -- Textual-based interactive UI with search/filter, status-colored rows, and click-to-focus
 - **tongs Plugin** -- embeds as a screen in [tongs](https://github.com/andre-motta/tongs) via the TongsPlugin ABC
-- **Process Discovery** -- finds running sessions cross-platform even before hooks fire
-- **MCP Server** -- any Claude session can query fleet status programmatically
+- **Process Discovery** -- finds running Claude Code and Codex sessions cross-platform even before hooks fire
+- **MCP Server** -- Claude Code and Codex sessions can query fleet status programmatically
 - **Terminal Focus** -- switch to a session's tab and raise the window, across 8 supported terminals
 - **Desktop Notifications** -- `notify-send` alerts when a session has been idle for over 2 minutes
-- **Hooks Integration** -- Claude Code hooks emit real-time status (running, idle, waiting, error) per session
+- **Hooks Integration** -- Claude Code and Codex hooks emit real-time status (running, idle, waiting, error) per session
 - **Per-Session Terminal Detection** -- each session captures its terminal type at hook time, not at focus time
 
 ## Supported Terminals
@@ -49,7 +49,7 @@ pip install .
 claude-fleet install
 ```
 
-Restart your Claude Code sessions after the first install to activate hooks.
+The installer updates Claude Code's `~/.claude/settings.json`, writes Codex hooks to `~/.codex/hooks.json`, and registers the fleet MCP server with both agents. Restart your sessions after the first install. Codex requires you to review and trust the installed hooks through `/hooks` before they run.
 
 ### tongs Integration
 
@@ -109,7 +109,7 @@ claude-fleet status
 
 ### MCP Tools
 
-Any Claude Code session with the fleet MCP server can use these tools:
+Any Claude Code or Codex session with the fleet MCP server can use these tools:
 
 | Tool | Description |
 |------|-------------|
@@ -119,21 +119,24 @@ Any Claude Code session with the fleet MCP server can use these tools:
 | `fleet_focus` | Focus terminal tab for a session |
 | `fleet_cleanup` | Remove stale ended session files |
 
-Just ask Claude: "what sessions are running?" or "focus on the autofix session".
+Ask your agent: "what sessions are running?" or "focus on the autofix session".
 
 ## How It Works
 
 ```
                                                               <-- MCP server
 Claude Code sessions --\                                      <-- TUI monitor
-  (hooks per event)     |-- write --> ~/.claude/fleet/*.json   <-- tongs plugin
-                       /                                      <-- CLI status
-  (process discovery) -                                       <-- focus command
+  (hooks per event)     |                                      <-- tongs plugin
+                       |-- write --> ~/.claude/fleet/*.json    <-- CLI status
+Codex sessions --------|                                      <-- focus command
+  (hooks per event)     |
+                       /
+  (process discovery) -
 ```
 
-1. **Hooks** fire on Claude Code events (start, prompt, tool use, stop, permission request, end)
+1. **Hooks** fire on Claude Code and Codex events (start, prompt, tool use, stop, permission request, end)
 2. Each hook captures the session's **terminal type** and **PID**, writes to `~/.claude/fleet/`
-3. **Process discovery** scans for `claude` processes cross-platform to find sessions without hooks
+3. **Process discovery** scans for `claude` and `codex` processes cross-platform to find sessions without hooks
 4. **Consumers** (TUI, MCP, tongs plugin, CLI, focus) read the JSON files
 5. **Focus** reads the session's `terminal` field and dispatches to the right terminal API
 
@@ -168,7 +171,7 @@ Focus command reads session JSON
 ```
 src/claude_fleet_monitor/
     models.py           # SessionStatus enum, FleetSession dataclass
-    hook.py             # Claude Code hook handler
+    hook.py             # Claude Code and Codex hook handler
     discovery.py        # Process discovery, session file I/O
     tui.py              # Textual standalone app (FleetMonitorApp)
     cli.py              # claude-fleet CLI entry point
@@ -203,12 +206,12 @@ src/claude_fleet_monitor/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FLEET_DIR` | `~/.claude/fleet` | Directory for session status files |
+| `FLEET_DIR` | `~/.claude/fleet` | Shared directory for Claude Code and Codex session status files |
 
 ### Uninstall
 
 ```bash
-claude-fleet uninstall              # removes everything including data
+claude-fleet uninstall              # removes hooks, MCP config, and data
 claude-fleet uninstall --keep-data  # keeps ~/.claude/fleet/
 ```
 

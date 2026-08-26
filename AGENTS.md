@@ -39,7 +39,7 @@ pytest
 ```
 
 - Mock the filesystem, not the functions. Use `tmp_path` and `monkeypatch` to set `FLEET_DIR`.
-- Don't require running Claude sessions, terminal emulators, or display servers.
+- Don't require running Claude Code or Codex sessions, terminal emulators, or display servers.
 - Test cross-platform logic by mocking `sys.platform` and platform-specific calls.
 - Terminal detection tests: mock env vars, verify right terminal detected (see `tests/test_terminal_apis.py`).
 

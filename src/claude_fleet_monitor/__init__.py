@@ -1,4 +1,4 @@
-"""Claude Fleet Monitor - Fleet monitoring for Claude Code sessions."""
+"""Fleet monitoring for Claude Code and Codex sessions."""
 
 from claude_fleet_monitor._version import __version__
 

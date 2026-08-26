@@ -55,6 +55,7 @@ class SessionTable(DataTable):
     def on_mount(self) -> None:
         self.add_column("!", key="attention", width=2)
         self.add_column("", key="icon", width=2)
+        self.add_column("Agent", key="agent", width=7)
         self.add_column("Repo", key="repo", width=24)
         self.add_column("Status", key="status", width=12)
         self.add_column("Term", key="terminal", width=5)
@@ -87,6 +88,7 @@ class SessionTable(DataTable):
             self.add_row(
                 attention,
                 icon,
+                Text(s.agent[:6], style="dim"),
                 Text(s.repo[:23], style="bold"),
                 status,
                 Text(term, style="dim"),

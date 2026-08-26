@@ -30,7 +30,7 @@ def _make_plugin_class():
             return [
                 (
                     "Fleet Monitor",
-                    "View Claude Code session fleet",
+                    "View Claude Code and Codex session fleet",
                     self._open_fleet,
                 ),
             ]

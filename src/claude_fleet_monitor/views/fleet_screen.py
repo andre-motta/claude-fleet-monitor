@@ -98,7 +98,8 @@ class FleetScreen(Screen):
             q = self._search_query.lower()
             result = [
                 s for s in result
-                if q in s.repo.lower() or q in s.detail.lower() or q in s.status.value.lower()
+                if q in s.agent.lower() or q in s.repo.lower()
+                or q in s.detail.lower() or q in s.status.value.lower()
             ]
         return result
 
