@@ -248,6 +248,43 @@ def test_uninstall_removes_only_owned_paths(tmp_path, monkeypatch):
     assert not config_path.exists()
 
 
+def test_partial_uninstall_preserves_valid_retry_state(tmp_path, monkeypatch):
+    from claude_fleet_monitor import pi_install
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_path = config_dir / pi_install.PI_CONFIG_NAME
+    config_path.write_text(json.dumps({
+        "schema_version": 1,
+        "owner": "claude-fleet-monitor",
+        "hook_path": "/hook",
+        "extension_path": "/current",
+        "managed_paths": ["/current", "/old"],
+    }))
+    attempts = []
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", str(config_dir))
+
+    def first_attempt(command, operation, path):
+        attempts.append(str(path))
+        return completed(1, stderr="busy") if str(path) == "/old" else completed()
+
+    monkeypatch.setattr(pi_install, "_run_pi_package", first_attempt)
+    assert not pi_install.uninstall_pi("/path/pi")
+    assert attempts == ["/current", "/old"]
+    saved = pi_install._read_owned_config(config_path)
+    assert saved["managed_paths"] == ["/current", "/old"]
+
+    attempts.clear()
+    monkeypatch.setattr(
+        pi_install,
+        "_run_pi_package",
+        lambda command, operation, path: attempts.append(str(path)) or completed(),
+    )
+    assert pi_install.uninstall_pi("/path/pi")
+    assert attempts == ["/current", "/old"]
+    assert not config_path.exists()
+
+
 def test_repeated_uninstall_succeeds_when_pi_is_no_longer_installed(
     tmp_path, monkeypatch
 ):

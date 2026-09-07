@@ -123,12 +123,13 @@ function send(payload, final) {
     }, timeout);
     child.once("error", () => finish(false));
     child.once("close", (code) => finish(code === 0));
-    child.stdin.once("error", () => finish(false));
+    child.stdin.once("error", () => {
+      try { child.kill(); } catch { finish(false); }
+    });
     try {
       child.stdin.end(JSON.stringify(payload));
     } catch {
-      try { child.kill(); } catch {}
-      finish(false);
+      try { child.kill(); } catch { finish(false); }
     }
   });
 }

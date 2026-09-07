@@ -255,6 +255,8 @@ def uninstall_pi(pi_command: str | None) -> bool:
         if not _remove_succeeded(result):
             remaining.append(value)
     if remaining:
+        if isinstance(extension_path, str) and extension_path not in remaining:
+            remaining.insert(0, extension_path)
         config["managed_paths"] = remaining
         try:
             _save_owned_config(config_path, config)

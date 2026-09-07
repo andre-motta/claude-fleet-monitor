@@ -246,6 +246,28 @@ console.log(JSON.stringify({ threw }));
     assert output == {"threw": False}
 
 
+def test_bridge_kills_hook_that_closes_stdin_but_stays_alive(tmp_path):
+    records, output = run_bridge(
+        tmp_path,
+        """
+ctx.cwd = 'x'.repeat(2 * 1024 * 1024);
+const started = Date.now();
+fire('session_start', { reason: 'startup' });
+await new Promise((resolve) => setTimeout(resolve, 500));
+console.log(JSON.stringify({ elapsed: Date.now() - started }));
+""",
+        hook_body=(
+            "#!/usr/bin/env python3\n"
+            "import os, time\n"
+            "os.close(0)\n"
+            "time.sleep(10)\n"
+        ),
+        timeout=4,
+    )
+    assert records == []
+    assert output["elapsed"] < 2000
+
+
 def test_bridge_shutdown_discards_saturated_queue_and_sends_end(tmp_path):
     records, output = run_bridge(
         tmp_path,

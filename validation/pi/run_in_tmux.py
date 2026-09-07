@@ -60,28 +60,33 @@ def run(timeout):
         if started.returncode != 0:
             print(started.stderr.strip(), file=sys.stderr)
             return started.returncode
-        retained = subprocess.run(
-            [*server, "set-option", "-t", "fleet-pi-validation", "remain-on-exit", "on"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if retained.returncode != 0:
-            print(retained.stderr.strip(), file=sys.stderr)
-            return retained.returncode
-        command = [
-            *server,
-            "respawn-pane", "-k",
-            "-t", "fleet-pi-validation:0.0",
-            "-c", str(validator.parents[2]),
-            shlex.join(inside),
-        ]
-        started = subprocess.run(command, capture_output=True, text=True, timeout=10)
-        if started.returncode != 0:
-            print(started.stderr.strip(), file=sys.stderr)
-            return started.returncode
-        deadline = time.monotonic() + timeout
         try:
+            retained = subprocess.run(
+                [
+                    *server, "set-option", "-t", "fleet-pi-validation",
+                    "remain-on-exit", "on",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if retained.returncode != 0:
+                print(retained.stderr.strip(), file=sys.stderr)
+                return retained.returncode
+            command = [
+                *server,
+                "respawn-pane", "-k",
+                "-t", "fleet-pi-validation:0.0",
+                "-c", str(validator.parents[2]),
+                shlex.join(inside),
+            ]
+            started = subprocess.run(
+                command, capture_output=True, text=True, timeout=10
+            )
+            if started.returncode != 0:
+                print(started.stderr.strip(), file=sys.stderr)
+                return started.returncode
+            deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
                 if status.exists():
                     break
@@ -121,11 +126,14 @@ def run(timeout):
                 sys.stderr.write(errors.read_text())
             return returncode
         finally:
-            subprocess.run(
-                [*server, "kill-server"],
-                capture_output=True,
-                timeout=5,
-            )
+            try:
+                subprocess.run(
+                    [*server, "kill-server"],
+                    capture_output=True,
+                    timeout=5,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
 
 
 def main():
