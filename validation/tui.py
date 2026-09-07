@@ -44,7 +44,12 @@ async def validate():
                 assert table.row_count == 1
                 assert app._get_selected_session().agent == "pi"
                 await pilot.press("d")
-                assert app.query_one(DetailPanel).has_class("visible")
+                panel = app.query_one(DetailPanel)
+                assert panel.has_class("visible")
+                rendered = str(panel.render())
+                assert all(value in rendered for value in (
+                    "pi", "fixture-pi", "WAITING", "synthetic UI fixture",
+                ))
                 await pilot.press("0", "slash")
                 search = app.query_one("#search-input", Input)
                 search.value = "codex"
@@ -56,6 +61,7 @@ async def validate():
                 await pilot.press("n")
                 assert app._get_selected_session().agent == "pi"
                 await pilot.press("q")
+                assert not app.is_running
     print("PASS: headless Textual app load, status/search filters, details, attention and quit")
 
 
