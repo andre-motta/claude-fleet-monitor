@@ -17,11 +17,12 @@ contract. A successful KWin script launch does not establish window activation.
 Correct the related Konsole and Zellij capability-table claims.
 
 Astra owns isolated `feat/terminal-focus`; Luna xhigh authors the correction in
-`feat/konsole-qdbus`, with independent Sol high review. The established child-PR
-and final-main-PR workflow continues on this feature branch. The earlier
-`feat/harnesses-desktop` branch was delivered and cleaned up. Reviewed local
-commits are signed off, and Astra verifies all six hosted checks before child
-integration. Final main merge and another release remain CTO-gated.
+`feat/konsole-qdbus`, with independent Sol high review. Andre subsequently
+authorized publishing the combined reviewed change directly as a PR against
+`main`, superseding the proposed child-PR step for this terminal follow-up.
+The earlier `feat/harnesses-desktop` branch was delivered and cleaned up.
+Reviewed local commits are signed off; all six hosted checks remain required.
+Main merge and another release remain CTO-gated.
 
 Tmux routing, new terminal adapters, the Tongs desktop module, and ChatGPT focus
 retain separate scope and acceptance. This first slice does not close #32.
