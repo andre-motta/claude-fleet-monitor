@@ -141,6 +141,11 @@ stored producer sequence, writes a private temporary file, flushes it and
 atomically replaces the record. Readers therefore see the old or new complete
 JSON document. A denied or unsafe write leaves the known record intact.
 
+Discoverable native adapters also use a bounded lock keyed by harness and native
+session around ancestry resolution, record selection, write and unresolved
+placeholder removal. An in-flight unresolved event therefore cannot recreate a
+placeholder behind a completed identified migration.
+
 Legacy Claude and Codex hooks do not supply a producer sequence. Fleet serializes
 their updates with the same lock and records `arrival_sequence`, so concurrent
 writes have a defined local receipt order. That receipt order is not proof of

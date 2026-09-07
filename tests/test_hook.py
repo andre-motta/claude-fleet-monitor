@@ -1,5 +1,6 @@
 import io
 import json
+import threading
 
 import pytest
 
@@ -357,3 +358,75 @@ def test_native_alias_ignores_payload_pid_and_sequence(fleet_dir, monkeypatch):
     assert handle("prompt-submit", "claude")
     assert calls == [None, None]
     assert "sequence" not in read_new_record(fleet_dir)
+
+
+def test_identified_migration_serializes_inflight_unresolved_write(
+    fleet_dir, monkeypatch
+):
+    import claude_fleet_monitor.hook as hook
+    from claude_fleet_monitor.discovery import read_session_records
+
+    payload = {"session_id": "race", "cwd": "/tmp/repo"}
+
+    class ThreadInput:
+        def read(self, size=-1):
+            return json.dumps(payload)
+
+    process = ProcessInfo(
+        12345, 1, "claude", "claude", ("claude",), "/tmp/repo", "100"
+    )
+    identified_resolved = threading.Event()
+
+    def resolve(*args):
+        if threading.current_thread().name == "identified":
+            identified_resolved.set()
+            return process
+        return None
+
+    monkeypatch.setattr("sys.stdin", ThreadInput())
+    monkeypatch.setattr(hook, "resolve_process_identity", resolve)
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.capture_terminal_info",
+        lambda: {"terminal": "test", "terminal_env": {}},
+    )
+    assert hook.handle("session-start", "claude")
+
+    entered_write = threading.Event()
+    release_write = threading.Event()
+    real_write = hook.write_session_record
+
+    def delayed_write(record):
+        if threading.current_thread().name == "unresolved":
+            entered_write.set()
+            assert release_write.wait(1)
+        return real_write(record)
+
+    monkeypatch.setattr(hook, "write_session_record", delayed_write)
+    results = {}
+    unresolved = threading.Thread(
+        target=lambda: results.setdefault(
+            "unresolved", hook.handle("prompt-submit", "claude")
+        ),
+        name="unresolved",
+    )
+    identified = threading.Thread(
+        target=lambda: results.setdefault(
+            "identified", hook.handle("prompt-submit", "claude")
+        ),
+        name="identified",
+    )
+    unresolved.start()
+    assert entered_write.wait(1)
+    identified.start()
+    assert not identified_resolved.wait(0.05)
+    release_write.set()
+    unresolved.join(1)
+    identified.join(1)
+
+    assert results == {"unresolved": True, "identified": True}
+    stored = read_session_records()
+    assert [(item["process_identity"], item["instance_id"]) for item in stored] == [
+        ("identified", "12345:100")
+    ]
+    list(fleet_dir.glob("*.json"))[0].unlink()
+    assert read_session_records() == []

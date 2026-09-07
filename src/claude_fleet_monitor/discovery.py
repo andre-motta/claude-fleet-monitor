@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -516,9 +517,7 @@ def _validate_record(data) -> dict | None:
 
 
 @contextmanager
-def _record_lock(canonical_id: str):
-    digest = canonical_id.rsplit(":", 1)[-1]
-    path = FLEET_DIR / f".fleet-v{SCHEMA_VERSION}-{digest}.lock"
+def _file_lock(path: Path):
     if path.exists() and not _path_is_regular(path):
         raise OSError("unsafe lock entry")
     flags = os.O_RDWR | os.O_CREAT
@@ -566,6 +565,33 @@ def _record_lock(canonical_id: str):
             import fcntl
             fcntl.flock(descriptor, fcntl.LOCK_UN)
         os.close(descriptor)
+
+
+@contextmanager
+def _record_lock(canonical_id: str):
+    digest = canonical_id.rsplit(":", 1)[-1]
+    path = FLEET_DIR / f".fleet-v{SCHEMA_VERSION}-{digest}.lock"
+    with _file_lock(path):
+        yield
+
+
+@contextmanager
+def session_identity_lock(harness_id: str, session_id: str):
+    if (
+        get_harness(harness_id) is None
+        or not _valid_text(session_id, MAX_ID_LENGTH, allow_empty=False)
+        or not _store_available(create=True)
+    ):
+        raise OSError("invalid session identity lock")
+    identity = json.dumps(
+        [harness_id, session_id],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    digest = hashlib.sha256(identity).hexdigest()
+    path = FLEET_DIR / f".fleet-identity-v{SCHEMA_VERSION}-{digest}.lock"
+    with _file_lock(path):
+        yield
 
 
 def _write_record_atomic(path: Path, data: dict) -> None:

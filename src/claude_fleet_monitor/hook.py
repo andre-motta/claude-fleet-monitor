@@ -16,6 +16,7 @@ from claude_fleet_monitor.discovery import (
     read_session_record,
     read_stored_sessions,
     resolve_process_identity,
+    session_identity_lock,
     write_session_record,
 )
 from claude_fleet_monitor.harnesses import ProcessIdentity, get_harness
@@ -137,42 +138,26 @@ def _normalized_update(agent, payload):
     return status, detail, tool, event_id
 
 
-def handle(event, agent="claude"):
-    harness = get_harness(agent)
-    if harness is None:
-        raise ValueError(f"unsupported agent: {agent}")
-    if not harness.supports_event(event):
-        return False
-
-    payload = _read_payload()
-    if payload is None:
-        return False
-    try:
-        session_id = _text(payload, "session_id", MAX_ID_LENGTH, required=True)
-        cwd = _text(payload, "cwd", MAX_PATH_LENGTH, required=True)
-        timestamp = _integer(payload, "ts")
-        if event == "fleet-event":
-            supplied_pid = _integer(payload, "pid")
-            sequence = _integer(payload, "sequence")
-            status, detail, tool, event_id = _normalized_update(agent, payload)
-            supplied_instance = _text(
-                payload, "instance_id", MAX_ID_LENGTH, required=True
-            )
-        else:
-            supplied_pid = None
-            sequence = None
-            status, detail, tool = _event_update(event, payload)
-            event_id = f"{agent}.{event}"
-            supplied_instance = ""
-    except ValueError:
-        return False
-
-    if harness.process_identity is ProcessIdentity.EMITTER and supplied_pid is None:
-        return False
-    if harness.process_identity is ProcessIdentity.EMITTER and sequence is None:
-        return False
+def _store_event(
+    harness,
+    event,
+    agent,
+    session_id,
+    cwd,
+    timestamp,
+    supplied_pid,
+    supplied_instance,
+    sequence,
+    status,
+    detail,
+    tool,
+    event_id,
+):
     process = resolve_process_identity(
-        agent, supplied_pid if harness.process_identity is ProcessIdentity.EMITTER else None
+        agent,
+        supplied_pid
+        if harness.process_identity is ProcessIdentity.EMITTER
+        else None,
     )
     if harness.process_identity is ProcessIdentity.EMITTER and process is None:
         return False
@@ -190,15 +175,16 @@ def handle(event, agent="claude"):
         process_identity = "identified"
     else:
         existing = _existing_record(agent, session_id, "", str(process.pid))
-        instance_id = (
-            existing.get("instance_id", "") if existing else ""
-        )
+        instance_id = existing.get("instance_id", "") if existing else ""
         if not instance_id:
             instance_id = f"{process.pid}:{uuid.uuid4().hex}"
         process_identity = "identified"
     if process is not None and existing is None and not supplied_instance:
         existing = _unresolved_record(agent, session_id)
-    if event not in {"session-start", "prompt-submit", "fleet-event"} and existing is None:
+    if (
+        event not in {"session-start", "prompt-submit", "fleet-event"}
+        and existing is None
+    ):
         return False
 
     now = int(time.time()) if timestamp is None else timestamp
@@ -206,14 +192,20 @@ def handle(event, agent="claude"):
     if existing is None or event == "session-start":
         terminal_info = _capture_terminal_info()
     terminal = (
-        terminal_info["terminal"] if terminal_info is not None
+        terminal_info["terminal"]
+        if terminal_info is not None
         else existing.get("terminal", "")
     )
     terminal_env = (
-        terminal_info["terminal_env"] if terminal_info is not None
+        terminal_info["terminal_env"]
+        if terminal_info is not None
         else existing.get("terminal_env", {})
     )
-    started = now if existing is None or event == "session-start" else existing.get("started", now)
+    started = (
+        now
+        if existing is None or event == "session-start"
+        else existing.get("started", now)
+    )
     canonical_id = canonical_session_id(agent, session_id, instance_id)
     process_pid = str(process.pid) if process is not None else ""
     process_start = process.start_token if process is not None else ""
@@ -259,6 +251,64 @@ def handle(event, agent="claude"):
     ):
         delete_session_record(agent, session_id, UNRESOLVED_INSTANCE_ID)
     return written
+
+
+def handle(event, agent="claude"):
+    harness = get_harness(agent)
+    if harness is None:
+        raise ValueError(f"unsupported agent: {agent}")
+    if not harness.supports_event(event):
+        return False
+
+    payload = _read_payload()
+    if payload is None:
+        return False
+    try:
+        session_id = _text(payload, "session_id", MAX_ID_LENGTH, required=True)
+        cwd = _text(payload, "cwd", MAX_PATH_LENGTH, required=True)
+        timestamp = _integer(payload, "ts")
+        if event == "fleet-event":
+            supplied_pid = _integer(payload, "pid")
+            sequence = _integer(payload, "sequence")
+            status, detail, tool, event_id = _normalized_update(agent, payload)
+            supplied_instance = _text(
+                payload, "instance_id", MAX_ID_LENGTH, required=True
+            )
+        else:
+            supplied_pid = None
+            sequence = None
+            status, detail, tool = _event_update(event, payload)
+            event_id = f"{agent}.{event}"
+            supplied_instance = ""
+    except ValueError:
+        return False
+
+    if harness.process_identity is ProcessIdentity.EMITTER and supplied_pid is None:
+        return False
+    if harness.process_identity is ProcessIdentity.EMITTER and sequence is None:
+        return False
+    arguments = (
+        harness,
+        event,
+        agent,
+        session_id,
+        cwd,
+        timestamp,
+        supplied_pid,
+        supplied_instance,
+        sequence,
+        status,
+        detail,
+        tool,
+        event_id,
+    )
+    if harness.process_identity is ProcessIdentity.DISCOVERABLE:
+        try:
+            with session_identity_lock(agent, session_id):
+                return _store_event(*arguments)
+        except OSError:
+            return False
+    return _store_event(*arguments)
 
 
 def main():
