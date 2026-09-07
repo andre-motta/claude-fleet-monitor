@@ -30,19 +30,20 @@ tell application "iTerm2"
                 if unique ID of s is "{tab_id}" then
                     select t
                     select s
-                    return
+                    return "focused"
                 end if
             end repeat
         end repeat
     end repeat
 end tell
+return "not-found"
 '''
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["osascript", "-e", script],
-                capture_output=True, timeout=5
+                capture_output=True, text=True, timeout=5
             )
-            return True
+            return result.returncode == 0 and result.stdout.strip() == "focused"
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
@@ -53,10 +54,10 @@ tell application "iTerm2"
 end tell
 '''
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True, timeout=5
             )
-            return True
+            return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False

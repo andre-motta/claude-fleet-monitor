@@ -1,65 +1,97 @@
 import io
 import json
-import time
+import threading
 
+import pytest
+
+from claude_fleet_monitor.discovery import ProcessInfo
 from tests.conftest import write_session
 
 
-def run_hook(monkeypatch, fleet_dir, event, stdin_data, agent="claude"):
+def read_new_record(fleet_dir):
+    paths = list(fleet_dir.glob("fleet-v1-*.json"))
+    assert len(paths) == 1
+    return json.loads(paths[0].read_text())
+
+
+def run_hook(
+    monkeypatch,
+    event,
+    stdin_data,
+    agent="claude",
+    process_start="100",
+    resolved=True,
+):
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(stdin_data)))
-    monkeypatch.setattr("claude_fleet_monitor.hook._find_agent_pid", lambda value: "12345")
-    monkeypatch.setattr("claude_fleet_monitor.terminal_apis.capture_terminal_info",
-                        lambda: {"terminal": "test", "terminal_env": {"TEST": "1"}})
+    process = ProcessInfo(
+        pid=12345,
+        ppid=1,
+        name=agent,
+        executable=agent,
+        argv=(agent,),
+        cwd=stdin_data.get("cwd"),
+        start_token=process_start,
+    )
+    monkeypatch.setattr(
+        "claude_fleet_monitor.hook.resolve_process_identity",
+        lambda value, supplied=None: process if resolved else None,
+    )
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.capture_terminal_info",
+        lambda: {"terminal": "test", "terminal_env": {"TEST": "1"}},
+    )
     from claude_fleet_monitor.hook import handle
-    handle(event, agent)
+    return handle(event, agent)
 
 
 def test_session_start(fleet_dir, monkeypatch):
-    run_hook(monkeypatch, fleet_dir, "session-start", {
+    assert run_hook(monkeypatch, "session-start", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
+    data = read_new_record(fleet_dir)
     assert data["status"] == "started"
     assert data["repo"] == "myrepo"
     assert data["pid"] == "12345"
+    assert data["instance_id"] == "12345:100"
+    assert data["schema_version"] == 1
+    assert data["canonical_id"].startswith("fleet:v1:claude:")
     assert data["terminal"] == "test"
     assert data["terminal_env"] == {"TEST": "1"}
     assert data["agent"] == "claude"
 
 
 def test_codex_session_start(fleet_dir, monkeypatch):
-    run_hook(monkeypatch, fleet_dir, "session-start", {
+    run_hook(monkeypatch, "session-start", {
         "session_id": "thr_123", "cwd": "/tmp/myrepo"
     }, agent="codex")
-    data = json.loads((fleet_dir / "thr_123.json").read_text())
+    data = read_new_record(fleet_dir)
     assert data["agent"] == "codex"
     assert data["status"] == "started"
 
 
 def test_prompt_submit_creates_new(fleet_dir, monkeypatch):
-    run_hook(monkeypatch, fleet_dir, "prompt-submit", {
+    run_hook(monkeypatch, "prompt-submit", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
+    data = read_new_record(fleet_dir)
     assert data["status"] == "running"
     assert data["detail"] == "processing prompt"
 
 
-def test_prompt_submit_updates_existing(fleet_dir, monkeypatch):
+def test_prompt_submit_migrates_legacy_record(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "prompt-submit", {
+    run_hook(monkeypatch, "prompt-submit", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
-    assert data["status"] == "running"
+    assert read_new_record(fleet_dir)["status"] == "running"
 
 
 def test_tool_use(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "tool-use", {
+    run_hook(monkeypatch, "tool-use", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo", "tool_name": "Bash"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
+    data = read_new_record(fleet_dir)
     assert data["status"] == "running"
     assert data["detail"] == "using Bash"
     assert data["tool"] == "Bash"
@@ -67,68 +99,334 @@ def test_tool_use(fleet_dir, monkeypatch):
 
 def test_stop(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "stop", {
+    run_hook(monkeypatch, "stop", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo",
         "last_assistant_message": "Fixed the bug"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
+    data = read_new_record(fleet_dir)
     assert data["status"] == "idle"
     assert data["detail"] == "Fixed the bug"
 
 
 def test_stop_truncates_long_message(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    long_msg = "x" * 200
-    run_hook(monkeypatch, fleet_dir, "stop", {
+    run_hook(monkeypatch, "stop", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo",
-        "last_assistant_message": long_msg
+        "last_assistant_message": "x" * 200,
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
-    assert len(data["detail"]) <= 124
+    assert len(read_new_record(fleet_dir)["detail"]) <= 123
 
 
 def test_stop_failure(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "stop-failure", {
+    run_hook(monkeypatch, "stop-failure", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
-    assert data["status"] == "error"
+    assert read_new_record(fleet_dir)["status"] == "error"
 
 
 def test_permission_request(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "permission-request", {
+    run_hook(monkeypatch, "permission-request", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo", "tool_name": "Bash"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
+    data = read_new_record(fleet_dir)
     assert data["status"] == "waiting"
     assert "permission needed" in data["detail"]
 
 
 def test_elicitation(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "elicitation", {
+    run_hook(monkeypatch, "elicitation", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
-    assert data["status"] == "waiting"
-    assert "user input" in data["detail"]
+    assert "user input" in read_new_record(fleet_dir)["detail"]
 
 
 def test_session_end(fleet_dir, monkeypatch):
     write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="12345")
-    run_hook(monkeypatch, fleet_dir, "session-end", {
+    run_hook(monkeypatch, "session-end", {
         "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
-    assert data["status"] == "ended"
+    assert read_new_record(fleet_dir)["status"] == "ended"
 
 
-def test_tool_use_backfills_pid(fleet_dir, monkeypatch):
-    write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo", pid="")
-    run_hook(monkeypatch, fleet_dir, "tool-use", {
-        "session_id": "test-sess", "cwd": "/tmp/myrepo", "tool_name": "Read"
+def test_unknown_event_does_not_touch_store(fleet_dir, monkeypatch):
+    assert not run_hook(monkeypatch, "future-event", {
+        "session_id": "test-sess", "cwd": "/tmp/myrepo"
     })
-    data = json.loads((fleet_dir / "test-sess.json").read_text())
-    assert data["pid"] == "12345"
+    assert list(fleet_dir.iterdir()) == []
+
+
+def test_malformed_payload_preserves_record(fleet_dir, monkeypatch):
+    legacy = fleet_dir / "test-sess.json"
+    write_session(fleet_dir, "test-sess", "myrepo", "/tmp/myrepo")
+    before = legacy.read_bytes()
+    monkeypatch.setattr("sys.stdin", io.StringIO('{"session_id":'))
+    from claude_fleet_monitor.hook import handle
+    assert not handle("prompt-submit")
+    assert legacy.read_bytes() == before
+
+
+def test_oversized_payload_is_rejected(fleet_dir, monkeypatch):
+    monkeypatch.setattr("sys.stdin", io.StringIO(" " * (64 * 1024 + 1)))
+    from claude_fleet_monitor.hook import handle
+    assert not handle("session-start")
+    assert list(fleet_dir.iterdir()) == []
+
+
+def test_raw_lone_surrogate_payload_is_rejected(fleet_dir, monkeypatch):
+    monkeypatch.setattr("sys.stdin", io.StringIO("\ud800"))
+    from claude_fleet_monitor.hook import handle
+    assert not handle("session-start")
+    assert list(fleet_dir.iterdir()) == []
+
+
+def test_huge_json_integer_payload_is_rejected(fleet_dir, monkeypatch):
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO('{"session_id":"probe","ts":' + "9" * 5000 + "}"),
+    )
+    from claude_fleet_monitor.hook import handle
+    assert not handle("session-start")
+    assert list(fleet_dir.iterdir()) == []
+
+
+def test_future_timestamp_cannot_replace_known_state(fleet_dir, monkeypatch):
+    run_hook(monkeypatch, "session-start", {
+        "session_id": "test-sess", "cwd": "/tmp/myrepo", "sequence": 1
+    })
+    before = read_new_record(fleet_dir)
+    accepted = run_hook(monkeypatch, "prompt-submit", {
+        "session_id": "test-sess",
+        "cwd": "/tmp/myrepo",
+        "sequence": 2,
+        "ts": before["ts"] + 1000,
+    })
+    assert not accepted
+    assert read_new_record(fleet_dir) == before
+
+
+def test_missing_platform_start_token_reuses_random_instance(fleet_dir, monkeypatch):
+    payload = {"session_id": "test-sess", "cwd": "/tmp/myrepo"}
+    assert run_hook(monkeypatch, "session-start", payload, process_start="")
+    first = read_new_record(fleet_dir)
+    assert run_hook(monkeypatch, "prompt-submit", payload, process_start="")
+    second = read_new_record(fleet_dir)
+    assert second["instance_id"] == first["instance_id"]
+    assert second["status"] == "running"
+
+
+def test_lone_surrogate_identifier_is_rejected(fleet_dir, monkeypatch):
+    assert not run_hook(monkeypatch, "session-start", {
+        "session_id": "\ud800", "cwd": "/tmp/myrepo"
+    })
+    assert list(fleet_dir.iterdir()) == []
+
+
+def test_native_lifecycle_survives_unavailable_process(fleet_dir, monkeypatch):
+    payload = {"session_id": "native", "cwd": "/tmp/repo"}
+    assert run_hook(
+        monkeypatch, "session-start", payload, resolved=False
+    )
+    first = read_new_record(fleet_dir)
+    assert first["instance_id"] == "unresolved"
+    assert first["process_identity"] == "unresolved"
+    assert first["pid"] == ""
+    assert first["process_start"] == ""
+    assert first["focus_target"]["kind"] == "unavailable"
+
+    assert run_hook(
+        monkeypatch,
+        "tool-use",
+        {**payload, "tool_name": "Read"},
+        resolved=False,
+    )
+    second = read_new_record(fleet_dir)
+    assert second["instance_id"] == first["instance_id"]
+    assert second["arrival_sequence"] == 2
+    assert second["detail"] == "using Read"
+
+
+def test_native_non_start_event_does_not_create_missing_record(
+    fleet_dir, monkeypatch
+):
+    assert not run_hook(
+        monkeypatch,
+        "session-end",
+        {"session_id": "missing", "cwd": "/tmp/repo"},
+        resolved=False,
+    )
+    assert list(fleet_dir.glob("*.json")) == []
+
+
+def test_unresolved_native_record_is_superseded_when_identified(
+    fleet_dir, monkeypatch
+):
+    from claude_fleet_monitor.discovery import read_session_records
+
+    payload = {"session_id": "native", "cwd": "/tmp/repo"}
+    assert run_hook(
+        monkeypatch, "session-start", payload, resolved=False
+    )
+    unresolved = read_new_record(fleet_dir)
+    assert run_hook(monkeypatch, "prompt-submit", payload)
+
+    stored = read_session_records()
+    assert len(list(fleet_dir.glob("*.json"))) == 1
+    assert len(stored) == 1
+    assert stored[0]["instance_id"] == "12345:100"
+    assert stored[0]["process_identity"] == "identified"
+    assert stored[0]["started"] == unresolved["started"]
+
+    list(fleet_dir.glob("*.json"))[0].unlink()
+    assert read_session_records() == []
+
+
+def test_failed_identified_migration_preserves_unresolved_record(
+    fleet_dir, monkeypatch
+):
+    payload = {"session_id": "native", "cwd": "/tmp/repo"}
+    assert run_hook(
+        monkeypatch, "session-start", payload, resolved=False
+    )
+    before = read_new_record(fleet_dir)
+    monkeypatch.setattr(
+        "claude_fleet_monitor.hook.write_session_record", lambda record: False
+    )
+    assert not run_hook(monkeypatch, "prompt-submit", payload)
+    assert read_new_record(fleet_dir) == before
+
+
+def test_windows_native_event_without_ancestry_never_signals_pid(
+    fleet_dir, monkeypatch
+):
+    import os
+    from types import SimpleNamespace
+
+    import claude_fleet_monitor.hook as hook
+
+    monkeypatch.setattr(
+        os, "kill", lambda *args: pytest.fail("native hook must not signal a PID")
+    )
+    monkeypatch.setattr(
+        hook,
+        "sys",
+        SimpleNamespace(
+            platform="win32",
+            stdin=io.StringIO(json.dumps({
+                "session_id": "windows", "cwd": r"C:\repo"
+            })),
+        ),
+    )
+    monkeypatch.setattr(hook, "resolve_process_identity", lambda *args: None)
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.capture_terminal_info",
+        lambda: {"terminal": "windows_terminal", "terminal_env": {
+            "WT_SESSION": "guid"
+        }},
+    )
+    assert hook.handle("session-start", "codex")
+    assert read_new_record(fleet_dir)["process_identity"] == "unresolved"
+
+
+def test_native_alias_ignores_payload_pid_and_sequence(fleet_dir, monkeypatch):
+    from claude_fleet_monitor.hook import handle
+
+    calls = []
+    process = ProcessInfo(
+        12345, 1, "claude", "claude", ("claude",), "/tmp/repo", "100"
+    )
+    monkeypatch.setattr(
+        "claude_fleet_monitor.hook.resolve_process_identity",
+        lambda harness, supplied=None: calls.append(supplied) or process,
+    )
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.capture_terminal_info",
+        lambda: {"terminal": "test", "terminal_env": {}},
+    )
+    payload = {
+        "session_id": "native",
+        "cwd": "/tmp/repo",
+        "pid": 99999,
+        "sequence": 99999,
+    }
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
+    assert handle("session-start", "claude")
+    payload["sequence"] = 1
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
+    assert handle("prompt-submit", "claude")
+    assert calls == [None, None]
+    assert "sequence" not in read_new_record(fleet_dir)
+
+
+def test_identified_migration_serializes_inflight_unresolved_write(
+    fleet_dir, monkeypatch
+):
+    import claude_fleet_monitor.hook as hook
+    from claude_fleet_monitor.discovery import read_session_records
+
+    payload = {"session_id": "race", "cwd": "/tmp/repo"}
+
+    class ThreadInput:
+        def read(self, size=-1):
+            return json.dumps(payload)
+
+    process = ProcessInfo(
+        12345, 1, "claude", "claude", ("claude",), "/tmp/repo", "100"
+    )
+    identified_resolved = threading.Event()
+
+    def resolve(*args):
+        if threading.current_thread().name == "identified":
+            identified_resolved.set()
+            return process
+        return None
+
+    monkeypatch.setattr("sys.stdin", ThreadInput())
+    monkeypatch.setattr(hook, "resolve_process_identity", resolve)
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.capture_terminal_info",
+        lambda: {"terminal": "test", "terminal_env": {}},
+    )
+    assert hook.handle("session-start", "claude")
+
+    entered_write = threading.Event()
+    release_write = threading.Event()
+    real_write = hook.write_session_record
+
+    def delayed_write(record):
+        if threading.current_thread().name == "unresolved":
+            entered_write.set()
+            assert release_write.wait(1)
+        return real_write(record)
+
+    monkeypatch.setattr(hook, "write_session_record", delayed_write)
+    results = {}
+    unresolved = threading.Thread(
+        target=lambda: results.setdefault(
+            "unresolved", hook.handle("prompt-submit", "claude")
+        ),
+        name="unresolved",
+    )
+    identified = threading.Thread(
+        target=lambda: results.setdefault(
+            "identified", hook.handle("prompt-submit", "claude")
+        ),
+        name="identified",
+    )
+    unresolved.start()
+    assert entered_write.wait(1)
+    identified.start()
+    assert not identified_resolved.wait(0.05)
+    release_write.set()
+    unresolved.join(1)
+    identified.join(1)
+
+    assert results == {"unresolved": True, "identified": True}
+    stored = read_session_records()
+    assert [(item["process_identity"], item["instance_id"]) for item in stored] == [
+        ("identified", "12345:100")
+    ]
+    list(fleet_dir.glob("*.json"))[0].unlink()
+    assert read_session_records() == []

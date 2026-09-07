@@ -44,7 +44,7 @@ def test_read_sessions_dedup_proc_vs_hook(fleet_dir, monkeypatch):
     assert sessions[0]["session_id"] == "abc-123"
 
 
-def test_read_sessions_dedup_same_pid_keeps_newest(fleet_dir, monkeypatch):
+def test_read_sessions_keeps_distinct_sessions_with_same_pid(fleet_dir, monkeypatch):
     monkeypatch.setattr("claude_fleet_monitor.discovery.discover_processes", lambda: None)
     monkeypatch.setattr("claude_fleet_monitor.discovery._cleanup_stale_sessions", lambda: None)
     now = int(time.time())
@@ -52,8 +52,9 @@ def test_read_sessions_dedup_same_pid_keeps_newest(fleet_dir, monkeypatch):
     write_session(fleet_dir, "new-session", "myrepo", "/tmp/myrepo", pid="12345", ts=now)
     from claude_fleet_monitor.discovery import read_sessions
     sessions = read_sessions()
-    assert len(sessions) == 1
-    assert sessions[0]["session_id"] == "new-session"
+    assert {session["session_id"] for session in sessions} == {
+        "old-session", "new-session"
+    }
 
 
 def test_read_sessions_proc_shows_when_no_hook(fleet_dir, monkeypatch):
@@ -121,9 +122,8 @@ def test_cleanup_removes_ended_sessions(fleet_dir, monkeypatch):
 
 def test_cleanup_keeps_recent_ended(fleet_dir, monkeypatch):
     monkeypatch.setattr("claude_fleet_monitor.discovery.discover_processes", lambda: None)
-    import os
     write_session(fleet_dir, "ended-new", "myrepo", "/tmp/myrepo",
-                  status="ended", pid=str(os.getpid()))
+                  status="ended", pid="")
     from claude_fleet_monitor.discovery import _cleanup_stale_sessions
     _cleanup_stale_sessions()
     assert (fleet_dir / "ended-new.json").exists()

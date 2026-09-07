@@ -1,0 +1,17 @@
+FROM docker.io/library/python:3.12-slim-bookworm
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        bash \
+        dash \
+        zsh \
+        fish \
+        ksh \
+        mksh \
+        tcsh \
+        busybox \
+        yash \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1

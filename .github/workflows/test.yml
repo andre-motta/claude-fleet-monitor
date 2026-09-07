@@ -2,13 +2,25 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - feat/harnesses-desktop
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - 'feat/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       matrix:
         python-version: ["3.10", "3.12", "3.13"]
@@ -26,3 +38,57 @@ jobs:
 
       - name: Run tests
         run: pytest -v
+
+      - name: Validate headless TUI journey
+        run: python validation/tui.py
+
+  workflow-lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and verify actionlint
+        run: |
+          set -euo pipefail
+          archive='actionlint_1.7.12_linux_amd64.tar.gz'
+          url='https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz'
+          expected_sha256='8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8'
+          tool_dir="$RUNNER_TEMP/actionlint"
+          archive_path="$tool_dir/$archive"
+          mkdir -p "$tool_dir"
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --retry 3 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 120 \
+            --proto '=https' \
+            --tlsv1.2 \
+            --output "$archive_path" \
+            "$url"
+          test -s "$archive_path"
+          actual_sha256="$(sha256sum "$archive_path" | awk '{print $1}')"
+          test "$actual_sha256" = "$expected_sha256"
+          tar -xzf "$archive_path" -C "$tool_dir" actionlint
+          actionlint="$tool_dir/actionlint"
+          test -x "$actionlint"
+          "$actionlint" -version
+
+      - name: Lint workflow files
+        run: |
+          set -euo pipefail
+          actionlint="$RUNNER_TEMP/actionlint/actionlint"
+          workflow_dir="$GITHUB_WORKSPACE/.github/workflows"
+          workflows=("$workflow_dir"/*.yml)
+          test -e "${workflows[0]}"
+          "$actionlint" \
+            -no-color \
+            -shellcheck= \
+            -pyflakes= \
+            "${workflows[@]}"

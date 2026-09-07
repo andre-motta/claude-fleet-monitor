@@ -1,0 +1,15 @@
+{
+  "name": "claude-fleet-monitor-pi",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional Pi lifecycle bridge for Claude Fleet Monitor",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/fleet-monitor.js"
+    ]
+  }
+}

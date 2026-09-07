@@ -14,6 +14,7 @@ def _session(
     detail: str = "processing",
     age: int = 30,
     attention: bool = False,
+    canonical_id: str = "",
 ) -> FleetSession:
     return FleetSession(
         session_id=sid,
@@ -31,6 +32,7 @@ def _session(
         tool="",
         age_seconds=age,
         needs_attention=attention,
+        canonical_id=canonical_id,
     )
 
 
@@ -72,6 +74,17 @@ async def test_get_selected_empty():
     async with TableApp().run_test() as pilot:
         table = pilot.app.query_one("#table", SessionTable)
         assert table.get_selected_session_id() is None
+
+
+@pytest.mark.asyncio
+async def test_canonical_ids_allow_duplicate_native_session_ids():
+    async with TableApp().run_test() as pilot:
+        table = pilot.app.query_one("#table", SessionTable)
+        table.set_sessions([
+            _session("shared", "alpha", canonical_id="fleet:v1:claude:a"),
+            _session("shared", "beta", canonical_id="fleet:v1:codex:b"),
+        ])
+        assert table.row_count == 2
 
 
 @pytest.mark.asyncio

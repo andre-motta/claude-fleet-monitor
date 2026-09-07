@@ -94,9 +94,9 @@ class SessionTable(DataTable):
                 Text(term, style="dim"),
                 Text(detail),
                 Text(format_age(s.age_seconds), style=_age_style(s)),
-                key=s.session_id,
+                key=s.identity,
             )
-            if current_key and s.session_id == current_key.value:
+            if current_key and s.identity == current_key.value:
                 restore_row = i
 
         if restore_row is not None:

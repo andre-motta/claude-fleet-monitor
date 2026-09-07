@@ -1,13 +1,13 @@
 """Generic fallback terminal API. Window raise only, no tab switching."""
 
 import subprocess
-import sys
 
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
 
 class GenericAPI(TerminalAPI):
     name = "generic"
+    selection_supported = False
 
     @staticmethod
     def detect() -> bool:
@@ -32,8 +32,6 @@ class GenericAPI(TerminalAPI):
             return False
         if self._try_xdotool(pid):
             return True
-        if sys.platform == "darwin" and self._try_osascript():
-            return True
         return False
 
     @staticmethod
@@ -57,28 +55,11 @@ class GenericAPI(TerminalAPI):
             )
             wid = result.stdout.strip().split("\n")[0] if result.stdout.strip() else ""
             if wid:
-                subprocess.run(
+                activated = subprocess.run(
                     ["xdotool", "windowactivate", wid],
                     capture_output=True, timeout=5
                 )
-                return True
+                return activated.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
         return False
-
-    @staticmethod
-    def _try_osascript() -> bool:
-        script = '''
-tell application "System Events"
-    set frontApp to first application process whose frontmost is true
-    set frontmost of frontApp to true
-end tell
-'''
-        try:
-            subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True, timeout=5
-            )
-            return True
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return False

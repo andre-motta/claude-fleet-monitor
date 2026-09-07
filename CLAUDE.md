@@ -1,6 +1,10 @@
 # Claude Fleet Monitor
 
-Fleet monitoring for Claude Code and Codex sessions. Pure Python, cross-platform.
+Fleet monitoring for Claude Code and Codex sessions. The core is pure Python and cross-platform.
+The approved Pi integration may package an optional dependency-free JavaScript extension.
+
+See [docs/SDLC.md](docs/SDLC.md) for the adopted agent workflow, approval gates
+and [active planning](docs/work/harnesses-desktop.md).
 
 ## Architecture
 
@@ -88,7 +92,7 @@ pytest
 
 ## Style
 
-- Pure Python, no bash/jq dependencies in Python code
+- Pure Python core, with the approved optional Pi JavaScript bridge isolated from startup; no bash/jq dependencies in Python code
 - Module-level imports (function-level only for circular deps or optional deps)
 - No comments unless the "why" is non-obvious
 - No em-dashes in text or commits

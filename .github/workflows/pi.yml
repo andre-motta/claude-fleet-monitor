@@ -1,0 +1,125 @@
+name: Pi validation
+
+on:
+  push:
+    branches:
+      - main
+      - feat/harnesses-desktop
+  pull_request:
+    branches:
+      - main
+      - 'feat/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pi-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record checkout metadata
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/pi-validation"
+          mkdir -p "$evidence_dir"
+          {
+            printf 'checkout_commit=%s\n' "$(git rev-parse HEAD)"
+            printf 'checkout_tree=%s\n' "$(git rev-parse 'HEAD^{tree}')"
+            printf 'intended_provider=synthetic localhost HTTP fixture\n'
+            printf 'intended_pi_process=real installed Pi CLI process\n'
+            printf 'intended_hook_process=real claude-fleet-hook process\n'
+            printf 'intended_tmux_process_and_pane=real detached tmux server and pane selection\n'
+            printf 'intended_model_calls=none\n'
+            printf 'intended_gui_window_focus=not exercised\n'
+            printf 'observed_outcomes=evidence.json, diagnostics.txt and validator-exit-code.txt\n'
+          } > "$evidence_dir/metadata.txt"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.1"
+
+      - name: Ensure tmux is available
+        run: |
+          set -euo pipefail
+          if ! command -v tmux >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends tmux
+          fi
+          tmux -V
+
+      - name: Install project with dev dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Install pinned Pi CLI
+        run: |
+          set -euo pipefail
+          pi_prefix="$RUNNER_TEMP/pi-prefix"
+          pi_home="$RUNNER_TEMP/pi-home"
+          mkdir -p "$pi_prefix" "$pi_home" "$RUNNER_TEMP/npm-cache"
+          export HOME="$pi_home"
+          export USERPROFILE="$pi_home"
+          export NPM_CONFIG_USERCONFIG="$pi_home/npmrc"
+          export NPM_CONFIG_CACHE="$RUNNER_TEMP/npm-cache"
+          npm install --global --prefix "$pi_prefix" \
+            '@earendil-works/pi-coding-agent@0.85.0'
+          printf '%s\n' "$pi_prefix/bin" >> "$GITHUB_PATH"
+          pi_version="$("$pi_prefix/bin/pi" --version)"
+          test "$pi_version" = '0.85.0'
+          npm ls --global --prefix "$pi_prefix" --depth=0 \
+            '@earendil-works/pi-coding-agent@0.85.0'
+          {
+            printf 'python_version=%s\n' "$(python --version 2>&1)"
+            printf 'node_version=%s\n' "$(node --version)"
+            printf 'npm_version=%s\n' "$(npm --version)"
+            printf 'tmux_version=%s\n' "$(tmux -V)"
+            printf 'pi_package=@earendil-works/pi-coding-agent@0.85.0\n'
+            printf 'pi_version=%s\n' "$pi_version"
+          } >> "$RUNNER_TEMP/pi-validation/metadata.txt"
+
+      - name: Run Pi lifecycle validation
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/pi-validation"
+          pi_home="$RUNNER_TEMP/pi-home"
+          export HOME="$pi_home"
+          export USERPROFILE="$pi_home"
+          export PI_CODING_AGENT_DIR="$RUNNER_TEMP/pi-config"
+          export PI_OFFLINE=1
+          export PI_TELEMETRY=0
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/pi-xdg-config"
+          export XDG_DATA_HOME="$RUNNER_TEMP/pi-xdg-data"
+          export XDG_CACHE_HOME="$RUNNER_TEMP/pi-xdg-cache"
+          mkdir -p "$pi_home" "$PI_CODING_AGENT_DIR" \
+            "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+          status=0
+          python validation/pi/run_in_tmux.py --timeout 120 \
+            > "$evidence_dir/evidence.json" \
+            2> "$evidence_dir/diagnostics.txt" || status=$?
+          printf '%s\n' "$status" > "$evidence_dir/validator-exit-code.txt"
+          printf 'validator_exit_code=%s\n' "$status" \
+            >> "$evidence_dir/metadata.txt"
+          test "$status" -eq 0
+
+      - name: Upload Pi validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pi-validation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pi-validation/
+          if-no-files-found: error
+          retention-days: 7

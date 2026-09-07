@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/pypi/l/claude-fleet-monitor)](https://github.com/andre-motta/claude-fleet-monitor/blob/main/LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/claude-fleet-monitor)](https://pypi.org/project/claude-fleet-monitor/)
 
-Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [Codex](https://learn.chatgpt.com/codex) sessions. See all your running agent sessions at a glance, get notified when one needs input, and jump to the right terminal tab instantly.
+Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [Codex](https://learn.chatgpt.com/codex) sessions, with optional [Pi](https://github.com/earendil-works/pi) lifecycle integration. See all your running agent sessions at a glance, get notified when one needs input, and jump to the right terminal tab instantly.
 
 ## Features
 
@@ -13,25 +13,64 @@ Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 - **tongs Plugin** -- embeds as a screen in [tongs](https://github.com/andre-motta/tongs) via the TongsPlugin ABC
 - **Process Discovery** -- finds running Claude Code and Codex sessions cross-platform even before hooks fire
 - **MCP Server** -- Claude Code and Codex sessions can query fleet status programmatically
-- **Terminal Focus** -- switch to a session's tab and raise the window, across 8 supported terminals
+- **Terminal Focus** -- switch to a session's tab and raise the window, across supported terminal backends
 - **Desktop Notifications** -- `notify-send` alerts when a session has been idle for over 2 minutes
 - **Hooks Integration** -- Claude Code and Codex hooks emit real-time status (running, idle, waiting, error) per session
 - **Per-Session Terminal Detection** -- each session captures its terminal type at hook time, not at focus time
 
+## Harness support
+
+The support matrix separates lifecycle ingestion from process identity and
+focus. A lifecycle event does not by itself prove that a process is
+discoverable, that a terminal target can be selected, or that a desktop window
+can be activated. See the [adapter author guide](docs/harness-adapters.md) and
+the implemented [event, identity and focus contract](docs/work/harness-contract.md)
+before adding another harness.
+
+| Harness | Lifecycle ingestion | Process identity | Terminal selection | GUI window activation | MCP consumer access | Native harness MCP registration |
+| --- | --- | --- | --- | --- | --- | --- |
+| Claude Code | Installed native hooks for start, prompt, tool, permission, stop, failure, elicitation and end | Discoverable by registered exact process names and ancestry; unresolved records are explicit when process evidence is unavailable | Captured terminal metadata is dispatched to the matching backend; result is complete, partial, unavailable or failed according to observed operations | Desktop conversation targets have no accepted backend; parent-terminal activation is backend-specific | Fleet MCP is available to configured Claude Code sessions | Fleet MCP is registered in Claude Code settings by the default installer |
+| Codex | Installed native hooks for start, prompt, tool, permission, stop and end | Discoverable by registered exact process names and ancestry; unresolved records are explicit when process evidence is unavailable | Captured terminal metadata is dispatched to the matching backend; result is complete, partial, unavailable or failed according to observed operations | Desktop conversation targets have no accepted backend; parent-terminal activation is backend-specific | Fleet MCP is available to configured Codex sessions | When the Codex CLI is available, the default installer registers Fleet MCP through the Codex MCP configuration |
+| Pi | Optional dependency-free extension emits normalized `fleet-event` records | Emitter supplies the exact Pi PID, native session ID, extension instance and sequence; Pi is not process-name discovered | Accepted live validation selected the exact tmux pane for a real Pi process; other terminal backends require their own evidence | No live desktop GUI result is claimed; detached tmux has no GUI parent and reports activation separately | Fleet consumers can read Pi records, but Pi itself has no Fleet MCP client | None; Pi installation adds the lifecycle extension only |
+
+The evidence behind this table has defined limits:
+
+- The strict [shell validation](validation/shells/README.md) runs the existing
+  hook through nine real shells in rootless Podman. Its 18 lifecycle cases,
+  nine manual quoted-path controls and 108 generated-command checks use
+  synthetic payloads. They do not prove live Claude or Codex processes, TTY
+  discovery, terminal focus or GUI activation.
+- The [Pi validation](validation/pi/README.md) runs a real Pi 0.85.0 process
+  with Node.js 22.23.1 and Python 3.12.14 against a synthetic localhost
+  provider. It validates lifecycle behavior and exact tmux pane selection in an
+  isolated server. It does not claim a desktop window result.
+- Platform-specific process and terminal behavior in the regular test suite is
+  mocked. No live Claude or Codex runtime or desktop GUI acceptance is included
+  in this matrix.
+
 ## Supported Terminals
+
+The table lists implemented backend capabilities. Runtime availability,
+selected-target proof and window activation vary by environment and are
+reported as structured focus outcomes; the harness evidence limits above do
+not turn this inventory into live acceptance on every operating system.
 
 | Terminal | Tab Switching | Window Raise | Nested Support |
 |----------|:---:|:---:|:---:|
 | **KDE Konsole** | Yes (qdbus) | Yes (KWin) | -- |
 | **tmux** | Yes (tmux CLI) | Via parent terminal | Yes |
 | **zellij** | Yes (zellij CLI) | Via parent terminal | Yes |
+| **Ghostty (Linux)** | Best effort (ydotool/xdotool) | GTK DBus / KWin | -- |
 | **GNOME Terminal** | No | Yes (xdotool) | -- |
 | **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
 | **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- |
 | **Windows Terminal** | No | Yes (pywinctl) | -- |
 | **Generic fallback** | No | Best effort | -- |
 
-Nested terminals (e.g. tmux inside Konsole) are handled automatically: the focus command switches the tmux pane, then detects the parent terminal via process tree walking and raises that window too.
+Nested terminals (e.g. tmux inside Konsole) are handled automatically: the
+focus command attempts exact pane selection, then attempts parent-terminal
+activation when that integration is available. The structured result reports
+partial or unavailable outcomes separately.
 
 ## Install
 
@@ -49,7 +88,22 @@ pip install .
 claude-fleet install
 ```
 
-The installer updates Claude Code's `~/.claude/settings.json`, writes Codex hooks to `~/.codex/hooks.json`, and registers the fleet MCP server with both agents. Restart your sessions after the first install. Codex requires you to review and trust the installed hooks through `/hooks` before they run.
+The installer updates Claude Code's `~/.claude/settings.json`, writes Codex
+hooks to `~/.codex/hooks.json`, and registers the Fleet MCP server for Claude
+Code and, when the Codex CLI is available, Codex. Restart your sessions after
+the first install. Codex requires you to review and trust the installed hooks
+through `/hooks` before they run.
+
+Pi support is optional and requires Pi 0.84.4 or newer:
+
+```bash
+claude-fleet install --agent pi
+```
+
+This installs the dependency-free Pi lifecycle extension packaged with Fleet.
+It preserves other Pi extensions and does not register an MCP server. See the
+[Pi integration guide](docs/pi.md) for lifecycle, privacy, upgrade and removal
+behavior. `--agent all` installs Claude Code, Codex and Pi together.
 
 ### tongs Integration
 
@@ -67,7 +121,10 @@ Then launch tongs and open the command palette (Ctrl+P) to find "Fleet Monitor".
 pip install --upgrade claude-fleet-monitor
 ```
 
-No need to re-run `claude-fleet install` or restart sessions. Hooks and MCP server point to pip-installed entry points, so upgrades take effect immediately.
+Claude Code and Codex hooks point to pip-installed entry points, so their
+upgrades take effect immediately. If Fleet moves to another virtual environment,
+run `claude-fleet install --agent pi` again to update Pi's exact extension and
+hook paths.
 
 ### Dependencies
 
@@ -79,6 +136,9 @@ Optional (for terminal focus):
 - `xdotool` -- GNOME Terminal / X11 window focus
 - `pywinctl` -- Windows Terminal window focus
 - `notify-send` -- desktop notifications (Linux)
+
+Optional agent integration:
+- Pi >= 0.84.4 and Node.js, installed separately
 
 ## Usage
 
@@ -99,7 +159,9 @@ claude-fleet focus 2467709         # by PID
 claude-fleet focus abc123          # by session ID prefix
 ```
 
-The focus command reads the session's stored terminal type and uses the right API. Works across Konsole, tmux, iTerm2, and others.
+The focus command reads the session's stored terminal type and uses the right
+API. It reports complete, partial or unavailable outcomes, with capability and
+evidence varying by terminal backend.
 
 ### Quick Status (no TUI)
 
@@ -130,11 +192,13 @@ Claude Code sessions --\                                      <-- TUI monitor
                        |-- write --> ~/.claude/fleet/*.json    <-- CLI status
 Codex sessions --------|                                      <-- focus command
   (hooks per event)     |
+Pi sessions ------------|
+  (optional extension)  |
                        /
   (process discovery) -
 ```
 
-1. **Hooks** fire on Claude Code and Codex events (start, prompt, tool use, stop, permission request, end)
+1. **Hooks** fire on Claude Code and Codex events; the optional Pi extension translates Pi lifecycle events
 2. Each hook captures the session's **terminal type** and **PID**, writes to `~/.claude/fleet/`
 3. **Process discovery** scans for `claude` and `codex` processes cross-platform to find sessions without hooks
 4. **Consumers** (TUI, MCP, tongs plugin, CLI, focus) read the JSON files
@@ -175,6 +239,8 @@ src/claude_fleet_monitor/
     discovery.py        # Process discovery, session file I/O
     tui.py              # Textual standalone app (FleetMonitorApp)
     cli.py              # claude-fleet CLI entry point
+    pi_install.py       # Optional Pi package lifecycle
+    pi_extension/       # Dependency-free packaged Pi bridge
     focus.py            # Session lookup + terminal focus dispatch
     mcp_server.py       # FastMCP server
     tongs_plugin.py     # TongsPlugin ABC implementation
@@ -187,6 +253,7 @@ src/claude_fleet_monitor/
         konsole.py        # KDE Konsole
         tmux.py           # tmux
         zellij.py         # zellij
+        ghostty.py        # Ghostty (Linux GTK DBus)
         gnome.py          # GNOME Terminal
         iterm2.py         # iTerm2
         macos_terminal.py # macOS Terminal.app
@@ -213,11 +280,17 @@ src/claude_fleet_monitor/
 ```bash
 claude-fleet uninstall              # removes hooks, MCP config, and data
 claude-fleet uninstall --keep-data  # keeps ~/.claude/fleet/
+claude-fleet uninstall --agent pi   # removes only Fleet's owned Pi extension
 ```
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR process.
+Harness contributors should follow the [adapter author guide](docs/harness-adapters.md)
+and the [implemented harness contract](docs/work/harness-contract.md).
+Agent-led initiatives follow [the SDLC profile](docs/SDLC.md).
+Future desktop UI and ChatGPT focus work is tracked in
+[harnesses and desktop](docs/work/harnesses-desktop.md).
 
 ## License
 
