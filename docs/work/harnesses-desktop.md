@@ -2,7 +2,8 @@
 
 Status: **staged design approved; local engineering in progress**. Andre approved
 the design and requested GitHub issue publication/maintenance on 2026-09-07.
-Code branch/PR publication, merging and releases remain separately gated.
+The later feature-branch publication authorization is recorded below and in
+SDLC.md. Final merge into main and release actions retain their CTO gate.
 Baseline: Agent SDLC 0.1.0, source
 `4e851d1b8a903aa8bebceea078860a21152ee8e8`; [project profile](../SDLC.md).
 Repository baseline: `e651c81751c90e5fb6bfb70c8cc0ff17de364953` on `main`.
@@ -201,8 +202,8 @@ The approved package is published to GitHub. Feature parents are
 [D #21](https://github.com/andre-motta/claude-fleet-monitor/issues/21),
 [C #22](https://github.com/andre-motta/claude-fleet-monitor/issues/22) and
 [S #23](https://github.com/andre-motta/claude-fleet-monitor/issues/23).
-B0 is an independent baseline bug. B0, C1 and S1 are assigned; other items remain
-planned until their dependency revisions and specified gates are satisfied.
+B0 is an independent baseline bug. This initial work graph is preserved below;
+current candidate and publication states are recorded in the later execution notes.
 
 | Item / draft title | Owner runtime | Dependencies | Owned areas and outcome | Acceptance |
 | --- | --- | --- | --- | --- |
@@ -235,7 +236,7 @@ and WSL/SSH boundaries. This is a candidate inventory, not an added support clai
   distinguishable. Unsupported outcomes and operation failures cannot count as
   successful focus. Do not edit users' shell startup files merely to run tests.
 
-Dependencies are acyclic. No dependency is integrated for this initiative yet.
+Dependencies are acyclic. Readiness is determined by verified integration commits.
 C1 can run alongside H1 after approval. H1 owns shared files until integrated;
 H2/C2 changes to CLI/config/focus must be serialized if ownership overlaps.
 Desktop contract work belongs to Tongs and is an external prerequisite, not an
@@ -286,15 +287,16 @@ no check has been silently waived. Adoption is locally integrated. At that hando
 current approved assignments are recorded below.
 Resume by inspecting branch/worktree/tracker state and verified dependency
 commits. Design approval and scoped issue publication are recorded; proceed with
-ready implementation. Code publication remains a separate gate.
+ready implementation. The later issue-level feature-branch authorization below supersedes the initial publication restriction.
 
 ## Execution authorization and assignments, 2026-09-07
 
 On 2026-09-07, Andre approved the staged design, authorized GitHub issue
 publication and maintenance, and expanded scope to broad shell compatibility
 inventory and validation. Concrete additional
-terminal implementations follow evidence and the existing architecture. It does
-not grant code publication or waive live-platform acceptance.
+terminal implementations follow evidence and the existing architecture. That initial approval did
+not grant code publication or waive live-platform acceptance; the subsequent
+publication authority below extends the former and preserves the latter.
 
 | Item | Actual agent/runtime | Branch | Verified assignment base | State |
 | --- | --- | --- | --- | --- |
@@ -309,3 +311,32 @@ Each has an isolated worktree. B0 owns only dependency metadata and new MCP
 regression tests; C1 owns its new evidence/prototype; S1 owns its new compatibility
 evidence. Astra owns this shared record and issue maintenance. Baseline rerun:
 86 passed, 4 optional Tongs skips. No implementation dependency is integrated yet.
+
+
+## Feature-branch publication authorization, 2026-09-07
+
+Andre authorized issue-linked commits and separate gated changes, then selected
+`feat/harnesses-desktop` as Astra's integration branch with `feat/<sub-feature>`
+child branches and PRs. Astra may merge child PRs after independent review and
+required checks pass. The final PR into main follows combined validation; final
+main merge remains the CTO gate. This is a project-specific authorization within
+the pinned workflow, not a global skill-version change.
+
+[G0 #34](https://github.com/andre-motta/claude-fleet-monitor/issues/34) bootstraps
+the reviewed adoption documents, this authority and CI for feature-targeted PRs.
+It precedes the first product PR, B0 #24. Subsequent ready issue PRs are based on
+verified feature integration commits; their merge does not itself close an issue
+whose intended delivery target is main. Child merges preserve their issue links.
+
+The local investigation remains ahead of publication: B0 and initial C1/S1
+evidence have reviewed local candidates. H1 candidate `eea9001` is undergoing
+corrections after a concurrent unresolved-session supersession race was found.
+The corrected shell validator has passed strict checks on an H1 draft, but the
+final exact H1 revision still requires approval and combined verification. H2
+is not dispatched. These local observations do not imply feature-branch delivery.
+
+The existing Python matrix will gate the bootstrap and first product PR. The
+strict Podman job arrives with the shell validation item after the foundation
+passes it. Standard public-repository GitHub runners are the intended execution
+environment; no paid larger runner is required by the current design. Live
+desktop checks remain separate from hosted headless tests.

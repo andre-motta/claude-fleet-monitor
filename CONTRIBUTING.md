@@ -44,7 +44,7 @@ hooks (hook.py)  -->  ~/.claude/fleet/*.json  <--  discovery.py
 
 For substantial agent-led work, follow [docs/SDLC.md](docs/SDLC.md), including
 isolated worktrees, independent review, signed-off local commits within approved
-scope, and CTO design/publication gates. Ordinary contributors can use the PR
+scope, and the feature-branch/CTO gates in the profile. Ordinary contributors can use the PR
 process below without installing the private orchestration skill.
 
 ## Pull Requests

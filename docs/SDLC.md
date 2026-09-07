@@ -1,95 +1,109 @@
 # Fleet Monitor SDLC profile
 
 Fleet Monitor adopts Agent SDLC **0.1.0**, source commit
-`4e851d1b8a903aa8bebceea078860a21152ee8e8`. The installed skill's
-`references/workflow.md` matches that source revision. This profile records the
-project policy so ordinary contributors do not need access to the private skill.
-An updated skill does not change an active initiative's pinned workflow.
+`4e851d1b8a903aa8bebceea078860a21152ee8e8`. The installed workflow matches that
+revision. Active work retains this baseline; an installed skill update does not
+change the initiative. The project-specific publication authority below records
+Andre's subsequent instructions for this initiative.
 
 ## Project settings
 
 | Setting | Project value |
 | --- | --- |
-| Repository and tracker | Public `andre-motta/claude-fleet-monitor` on GitHub; use Issues and PRs, reuse existing scope, native sub-issue/blocking links when available, readable dependencies otherwise |
-| Default and integration target | `main`; Astra tests a combined candidate before local promotion |
-| Worktrees | One isolated worktree and `codex/<initiative>/<item>` branch per assignment; use a writable worktree directory outside the primary checkout; record actual paths in local handoffs |
-| Runtime | Python >=3.10; CI tests 3.10, 3.12, 3.13 on Ubuntu |
+| Repository and tracker | Public `andre-motta/claude-fleet-monitor`; GitHub Issues and PRs, native sub-issue/blocking links plus readable dependencies |
+| Default branch | `main`; final integration remains subject to CTO acceptance |
+| Feature integration | `feat/harnesses-desktop`, owned by Astra |
+| Worktrees | One isolated worktree and `feat/<sub-feature>` branch per assignment; preserve earlier `codex/` worktrees as historical candidates until migrated |
+| Runtime | Python >=3.10; CI matrix 3.10, 3.12, 3.13 on Ubuntu 24.04 |
 | Setup | `python3 -m venv .venv`, then `.venv/bin/python -m pip install -e ".[dev]"`; Windows uses `.venv/Scripts/python.exe` |
-| Focused checks | Relevant pytest modules and `git diff --check` |
-| Integrated checks | Full `python -m pytest`; available local Python matrix before publication, CI matrix required after approved PR publication and before merge; include `.[dev,tongs]` when changing Tongs integration |
-| Documentation checks | Relative links, command accuracy, policy consistency, and `git diff --check`; no documentation build or lint job currently configured |
-| Platforms | Preserve existing Linux, macOS, Windows behavior; use mocked OS tests plus live evidence for any newly claimed terminal/desktop capability |
-| Functional evidence | Actual affected CLI/TUI/harness/desktop journeys; record app versions, OS/display server, focus target and observed result; label synthetic fixtures and mocked tests |
-| Commit rules | Imperative title under 50 characters, blank line, one-line body explaining why, then trailers; `git commit -s`; Codex co-author records actual model without context size |
-| Tracker authority | The 2026-09-07 follow-up authorizes publication and maintenance of this approved initiative's GitHub issues, dependency links and public-safe progress |
-| Upstream path | CTO-approved review branch push and PR; code publication not yet approved for this initiative; merge, direct push, tags, releases and deployment require their own covered authorization |
-| Publication effects | PRs targeting `main` and pushes to `main` run tests; `v*` tag pushes build and publish to PyPI using the `pypi` environment; no Pages workflow found |
-| Evidence and initiatives | `docs/work/<initiative>.md`; public-safe evidence only, no private conversation content, credentials or personal absolute paths |
+| Focused checks | Relevant pytest modules, applicable functional checks and `git diff --check` |
+| Integrated checks | Full pytest and available local Python matrix; `.[dev,tongs]` when changing Tongs integration; actual affected CLI/MCP/harness journeys |
+| Hosted gates | Python matrix on PRs into `main` and `feat/**`, plus pushes to `main` and the feature integration branch; strict Podman shell job is added with its validated implementation |
+| Documentation checks | Relative links, command accuracy, policy consistency and `git diff --check` |
+| Platforms | Preserve Linux/macOS/Windows behavior using platform mocks; require live evidence for newly claimed terminal or desktop capabilities |
+| Commit rules | Imperative title under 50 characters, blank line, one-line why body, issue reference and trailers; `git commit -s`; actual Codex model co-author without context-size annotation |
+| Tracker authority | Publish and maintain this initiative's issues, links and public-safe progress |
+| Publication authority | Reviewed, locally passing issue branches may be pushed and opened as child PRs into `feat/harnesses-desktop`; Astra may merge them after required CI passes; final validated PR into `main` is authorized |
+| Reserved CTO gate | Final merge into `main`; direct main pushes, tags, releases and deployments require covered authorization |
+| Publication effects | Feature and main CI as above; `v*` tags publish to PyPI using the `pypi` environment; no Pages workflow found |
+| Evidence | Public-safe records under `docs/work/` and validation artifacts; no private conversation content, credentials or personal absolute paths |
 
-Run commands using the environment's Python. Standard tests do not require live
-agents, terminals or display servers. Optional skips must be reported and are
-not proof of optional integration. A new runtime dependency requires discussion.
+Use the environment's Python. Standard tests must not require live agents,
+terminals or display servers. Report optional skips separately. Container shell
+execution, mocked OS behavior and live desktop focus are distinct evidence.
+A new runtime dependency still requires discussion.
 
 ## Roles and authority
 
-Andre is CTO. Astra (`gpt-6-astra`, configured reasoning) leads architecture,
-design, writing direction, orchestration and integration. Sol (`gpt-5.6-sol`,
-`high`) handles senior work and independent review. Luna (`gpt-5.6-luna`, `xhigh`)
-handles bounded work under Sol review. Select those actual runtimes. An author
-cannot independently review their own change. Check actual host capacity at dispatch, including the orchestrator; schedule
-only ready, disjoint assignments within that capacity.
+Andre is CTO. Astra (`gpt-6-astra`, configured reasoning) owns architecture,
+design, orchestration, shared tracking and integration. Sol (`gpt-5.6-sol`,
+`high`) handles senior implementation and independent review. Luna
+(`gpt-5.6-luna`, `xhigh`) handles bounded work under independent Sol review.
+Select these actual runtimes and respect available concurrency. Authors cannot
+independently approve their own changes.
 
-The 2026-09-07 user request authorizes workflow adoption, local planning and
-isolated worktrees. Signed-off local commits for that adoption are authorized.
-After design approval, contributors may commit within their assigned scope
-without per-commit approval, and only Astra performs validated local integration.
-Preserve unrelated edits and occupied default-branch checkouts; retain the tested
-candidate if promotion would disrupt an existing checkout.
+The initial request authorized adoption, isolated worktrees and signed-off local
+commits. The staged harness design, MCP repair, optional Pi bridge, ChatGPT Linux
+investigation and broader shell validation were subsequently approved. Concrete
+ChatGPT focus mechanisms and the Tongs desktop host retain their specified
+research/design gates. Tongs remains a separate repository with separate authority.
 
-Major work has two CTO gates: design and upstream acceptance. Present concrete
-architecture, dependencies and acceptance criteria at the design gate. Present
-exact tested commits, evidence, independent review, limitations and proposed
-upstream actions at publication. Run all locally available required checks first.
-If CI requires a published branch/PR, request that scoped publication explicitly
-with the CI check pending; then require passing CI and acceptance before merge.
-Unavailable required checks need explicit scoped CTO waiver before acceptance,
-and a CI failure reopens verification rather than implying approval to merge. Changes to approved scope or material design
-return to the design gate. The CTO approved the staged harness design, MCP repair and ChatGPT Linux
-investigation on 2026-09-07, then authorized GitHub tracking and broader shell/terminal
-validation. Dependent desktop production mechanisms and Tongs host contracts
-retain their specified decision gates. Routine corrections within approved scope proceed autonomously.
+Andre then authorized issue-by-issue upstream submissions and the feature-branch
+PR model. This explicitly extends the baseline skill's default publication rule:
+contributors may push their assigned `feat/` branch and open a PR into the named
+feature branch after Astra confirms readiness. Astra owns child PR merge decisions
+and may merge after independent review, local checks and required hosted checks
+pass. Contributors do not merge shared branches or publish outside that scope.
 
-Track planned, ready, assigned, review, locally integrated, CTO accepted and
-upstream delivered separately. A local commit or open PR does not close an issue.
-Before dispatch, verify dependency integration commits. Only Astra maintains
-shared tracking. Contributors return base/head revisions, diff and evidence;
-independent Sol review must inspect the actual candidate and record required
-corrections before integration. Recheck combined changes on integration.
+Publish one ready issue evolution at a time. Link commits and PRs to the issue;
+keep dependent publication queued until its predecessor is accepted into the
+feature branch. Local engineering may continue on independently ready work in
+isolated worktrees. Bootstrap #34 establishes this gate before the first product
+repair, #24. Preserve existing historical candidates and verify exact dependency
+commits when preparing each child branch.
+
+The final PR into `main` follows combined validation, including the new test gates.
+Its creation is authorized, but merging it remains Andre's acceptance gate.
+Present tested commits, independent review, functional evidence and any unmet
+checks. Changed candidates require affected verification again. Required checks
+that cannot run remain unmet unless Andre explicitly waives that scope. A failed
+check is not permission to merge or weaken the gate.
+
+## State and integration
+
+Track planned, ready, assigned, review, locally integrated, feature integrated,
+CTO accepted and delivered to `main` separately. A child PR merged into the feature
+branch is not delivery to `main`. Keep issues open until their intended delivery
+target contains the accepted work; record feature integration commits meanwhile.
+
+Only Astra integrates and maintains shared tracking. Confirm author base/head,
+independent Sol verdict, resolved findings and applicable checks before each
+integration. Re-test combined changes after conflicts or dependency updates.
+Preserve dirty checkouts and unrelated user work. Record failed checks as well
+as successful reruns, and identify synthetic, mocked and live evidence explicitly.
 
 ## Reconciled instructions
 
-- The general per-commit approval rule has an explicit exception for adopted,
-  approved Agent SDLC work. This adoption and its local documentation commits
-  are explicitly authorized; feature implementation within the subsequently
-  approved baseline also permits autonomous signed-off local commits. DCO and existing message conventions remain mandatory.
-- Ordinary fork/PR guidance in CONTRIBUTING remains available. Assigned agents
-  use isolated worktrees and the two CTO gates described here.
-- Existing process/filesystem boundaries still apply: discovery owns shared
-  discovery and session access; the hook writes fleet events, CLI install/uninstall
-  owns harness configuration, and terminal APIs own terminal OS integration.
-  These explicit responsibilities clarify the overly broad instruction that
-  *all* I/O must be in discovery. Existing violations are backlog findings, not
-  permission to replicate them.
-- Hooks remain fast, with no network or heavy imports. Ordinary imports remain
-  module-level except circular or optional dependencies. Cross-platform rules,
-  no shell scripts, and hook/discovery writes restricted to FLEET_DIR remain.
-- The approved harness baseline permits a small dependency-free optional Pi
-  JavaScript extension packaged with the Python distribution. The core remains
-  Python. Desktop target abstractions are approved; the concrete ChatGPT focus
-  mechanism still requires C1 evidence and acceptance before C2 implementation.
+- The general per-commit approval rule allows autonomous signed-off local commits
+  for this adopted and approved initiative. DCO and message conventions remain.
+- The user's later `feat/` branch instruction takes precedence over the earlier
+  `codex/` assignment convention. Historical worktrees need not be discarded.
+- The baseline skill's default contributor publication restriction is narrowed
+  by the explicit child-PR authority above. Main acceptance remains reserved.
+- Existing fork/PR guidance remains available to ordinary contributors; agents
+  use the assigned worktree, independent review and issue gates.
+- Discovery owns shared discovery/session access; hooks emit fleet events;
+  CLI install/uninstall owns harness configuration; terminal APIs own terminal
+  OS integration. Existing violations do not justify duplicating them.
+- Hooks stay fast, with no network or heavy imports. Ordinary imports remain
+  module-level except optional/circular cases. No shell scripts; hook/discovery
+  writes stay within FLEET_DIR.
+- The approved design permits a small dependency-free optional Pi JavaScript
+  extension packaged with the Python distribution. The core remains Python.
+  Concrete ChatGPT desktop routing still requires accepted C1 evidence.
 
 ## Active initiative
 
 See [harnesses and desktop](work/harnesses-desktop.md) and the saved
-[desktop feature](work/desktop.md). The staged design and public issue maintenance are approved. Code publication
-remains pending; see the initiative for unresolved dependent decisions. Tongs is a separate repository with separate authority.
+[desktop feature](work/desktop.md). Publication follows the issue-level feature
+branch gates above; pending desktop decisions do not block the Pi candidate.

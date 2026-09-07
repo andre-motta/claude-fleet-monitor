@@ -8,8 +8,9 @@ Use [docs/SDLC.md](docs/SDLC.md) for substantial initiatives and explicit workfl
 requests. Astra leads architecture/orchestration; Sol at high handles senior
 work and independent review; Luna at xhigh handles bounded work under Sol review.
 Use actual runtime models, isolated worktrees and autonomous signed-off local
-commits within approved scope. Get CTO approval for design and upstream
-publication. The profile records the adoption authorization, workflow baseline,
+commits within approved scope. Follow the CTO-approved issue-level feature-branch
+PR gates in the profile; Astra owns child merges, and final main merge remains
+the CTO gate. The profile records the adoption authorization, workflow baseline,
 checks and instruction reconciliation. Preserve unrelated rules below.
 
 ## Before You Start
