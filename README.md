@@ -243,9 +243,8 @@ claude-fleet uninstall --agent pi   # removes only Fleet's owned Pi extension
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR process.
 Agent-led initiatives follow [the SDLC profile](docs/SDLC.md).
-Planned work is recorded in [harnesses and desktop](docs/work/harnesses-desktop.md),
-including Pi integration, an optional desktop UI and ChatGPT focus feasibility.
-These are planned features, not current support.
+Future desktop UI and ChatGPT focus work is tracked in
+[harnesses and desktop](docs/work/harnesses-desktop.md).
 
 ## License
 
