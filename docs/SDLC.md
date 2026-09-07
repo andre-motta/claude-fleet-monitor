@@ -12,7 +12,7 @@ An updated skill does not change an active initiative's pinned workflow.
 | --- | --- |
 | Repository and tracker | Public `andre-motta/claude-fleet-monitor` on GitHub; use Issues and PRs, reuse existing scope, native sub-issue/blocking links when available, readable dependencies otherwise |
 | Default and integration target | `main`; Astra tests a combined candidate before local promotion |
-| Worktrees | One isolated worktree and `codex/<initiative>/<item>` branch per assignment; current planning worktree uses the temporary `fleet-monitor-worktrees/sdlc-planning` directory; record actual paths in local handoffs |
+| Worktrees | One isolated worktree and `codex/<initiative>/<item>` branch per assignment; use a writable worktree directory outside the primary checkout; record actual paths in local handoffs |
 | Runtime | Python >=3.10; CI tests 3.10, 3.12, 3.13 on Ubuntu |
 | Setup | `python3 -m venv .venv`, then `.venv/bin/python -m pip install -e ".[dev]"`; Windows uses `.venv/Scripts/python.exe` |
 | Focused checks | Relevant pytest modules and `git diff --check` |

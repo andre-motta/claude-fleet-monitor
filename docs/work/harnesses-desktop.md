@@ -225,9 +225,12 @@ must be settled before dependent work is marked ready.
 
 ## Evidence, review and local state
 
-- Clean original `main` and `origin/main` at the repository baseline above.
+- Original `main` was clean at the repository baseline; `origin/main` remains
+  there. Astra fast-forwarded local `main` to reviewed adoption commit
+  `f5f17e9e38abab45fedf94cd47f5e61ea9af181c` with normal `git merge --ff-only`.
 - Isolated branch `codex/harness-desktop/planning`; documentation-only adoption
-  and feature records. Original checkout is preserved.
+  and feature records. Local promotion updated only the reviewed documentation;
+  no unrelated checkout changes were present.
 - Linux Python 3.14.7 in an isolated temporary virtual environment; editable
   installation of existing `.[dev]` succeeded after network permission.
 - Baseline `python -m pytest -q`: **86 passed, 4 skipped** (optional Tongs absent).
@@ -239,10 +242,24 @@ must be settled before dependent work is marked ready.
 - No Pi or desktop implementation, installs into user harness settings, live
   focus actions or Tongs modifications performed. No upstream mutations.
 - Observed host capacity for this planning session: four agents including Astra.
-- Adoption documentation checks and independent review: pending final candidate.
+- Tested adoption revision: `f5f17e9e38abab45fedf94cd47f5e61ea9af181c`.
+  Final `python -m pytest -q`: 86 passed, 4 optional Tongs skips. All seven changed
+  Markdown files passed relative-link/style checks; committed diff passed
+  `git diff HEAD^ HEAD --check`. Working tree matched the committed candidate.
+- Independent reviewer: `planning_review`, actual `gpt-5.6-sol` at `high`,
+  verdict **APPROVED WITH NOTES** after re-review. Required corrections resolved:
+  existing Ghostty documentation, gated optional JavaScript policy change,
+  adversarial store acceptance, host-dependent desktop packaging, separate
+  post-H3 product priority, CI/publication sequencing and runtime capacity checks.
+  Architecture, security, UX and QE were reviewed proportionally to a docs change.
+- Feasibility investigator: `harness_feasibility`, actual `gpt-5.6-sol` at `high`.
+  Pi evidence is source/local-version inspection, not live integration evidence.
+- This evidence-only follow-up records review and local promotion after the
+  tested adoption revision; it does not change product code or approved scope.
 
 The adoption artifact is independently reviewable despite the pre-existing MCP
 failure. Any feature release must resolve B0 and complete its required evidence;
-no check has been silently waived. Local promotion to occupied main is pending.
+no check has been silently waived. Adoption is locally integrated; the feature
+work graph remains planned, with no feature implementation dependency commits.
 Resume by inspecting branch/worktree/tracker state, then obtain approval of this
 staged design before implementation. Publication remains a separate gate.
