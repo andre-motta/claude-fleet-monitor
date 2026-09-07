@@ -57,9 +57,9 @@ not turn this inventory into live acceptance on every operating system.
 
 | Terminal | Tab Switching | Window Raise | Nested Support |
 |----------|:---:|:---:|:---:|
-| **KDE Konsole** | Yes (qdbus) | Yes (KWin) | -- |
+| **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6) | Best effort (KWin, unverified) | -- |
 | **tmux** | Yes (tmux CLI) | Via parent terminal | Yes |
-| **zellij** | Yes (zellij CLI) | Via parent terminal | Yes |
+| **zellij** | No exact tab selection | Via parent terminal | Yes |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool) | GTK DBus / KWin | -- |
 | **GNOME Terminal** | No | Yes (xdotool) | -- |
 | **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
