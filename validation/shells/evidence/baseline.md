@@ -1,8 +1,8 @@
 # Shell validation evidence
 
-Result: **passed**
+Result: **partial**
 Run type: `live-container-synthetic-emitter`
-Generated: `2026-09-07T13:40:13.126630+00:00`
+Generated: `2026-09-07T13:55:24.072953+00:00`
 
 ## Reproduction metadata
 
@@ -13,15 +13,18 @@ Generated: `2026-09-07T13:40:13.126630+00:00`
 - Image ID: `03bedbc4d684839bbfc65252adffd0e77440ac95a7f7592ba9e49b6358c36ed3`
 - Image digest: `sha256:26d4a3ec515b09b6d0a46711629b4fb67f2e6db979f430407827f21252b4c3d4`
 - Container network: `none`
+- Allow known gaps: `True`
 - Read-only source mount: `/workspace/src:ro`
 - Read-only validation mount: `/validation:ro`
 - Writable path: `/tmp/fleet-work:tmpfs`
+- Installer builder: `claude_fleet_monitor.cli._install_hooks`
+- Installer config written: `False`
 
 ## Shell matrix
 
 | Shell | Binary mode | Alias | Version | Available | Version source |
 | --- | --- | --- | --- | --- | --- |
-| Bash | `['bash'] -c` | POSIX command mode | `GNU bash, version 5.2.15(1)-release (x86_64-pc-linux-gnu)` | `True` | version command |
+| Bash | `['bash'] -c` | ordinary command mode | `GNU bash, version 5.2.15(1)-release (x86_64-pc-linux-gnu)` | `True` | version command |
 | Dash | `['dash'] -c` | POSIX command mode | `0.5.12-2` | `True` | dpkg-query package metadata |
 | Zsh | `['zsh'] -c` | command mode | `zsh 5.9 (x86_64-debian-linux-gnu)` | `True` | version command |
 | Fish | `['fish'] -c` | command mode | `fish, version 3.6.0` | `True` | version command |
@@ -58,23 +61,27 @@ Generated: `2026-09-07T13:40:13.126630+00:00`
 
 ## Executable path probe
 
-9/9 probes observed the expected unquoted path failure and a passing quoted path. The unquoted form is the current CLI command construction gap for an executable directory containing spaces.
+Manual quoted controls passed for 9/9 shells. Installer-generated commands passed for 0/108. The manual unquoted control is expected to fail for the baseline path with spaces; generated-command failures are acceptance failures unless `--allow-known-gaps` is explicitly supplied.
 
-| Shell | Unquoted return code | Unquoted failed | Quoted passed | Classification |
-| --- | ---: | --- | --- | --- |
-| bash | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| dash | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| zsh | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| fish | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| ksh | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| mksh | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| tcsh | `1` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| busybox-ash | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
-| yash | `127` | `True` | `True` | known-cli-hook-path-quoting-gap |
+| Shell | Manual unquoted return code | Manual quoted | Installer-generated commands | Classification |
+| --- | ---: | --- | ---: | --- |
+| bash | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| dash | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| zsh | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| fish | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| ksh | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| mksh | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| tcsh | `1` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| busybox-ash | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+| yash | `127` | `True` | `0/12` | installer-generated-command-path-quoting-gap |
+
+## Known gaps
+
+- 108 installer-generated commands failed at the baseline revision because the emitted hook path is unquoted. These failures are recorded individually in the JSON evidence.
 
 ## Limitations
 
 - Synthetic stdin payloads do not establish real Claude or Codex process behavior.
 - Container execution cannot validate PID, tty, terminal detection, pane or tab selection, or OS window activation.
 - The installer configuration files are not mounted or modified; the temporary Python entry point exercises the hook argument contract.
-- The unquoted executable path probe records the current CLI hook path quoting gap as a known failure.
+- The unquoted executable path control records the current CLI hook path quoting gap; installer-generated command results are reported separately and are required to pass for a clean result.

@@ -5,7 +5,7 @@ shell variants in an isolated rootless Podman container:
 
 | Shell | Invocation | Alias or mode recorded |
 | --- | --- | --- |
-| Bash | `bash -c` | POSIX command mode |
+| Bash | `bash -c` | ordinary command mode |
 | Dash | `dash -c` | POSIX command mode |
 | Zsh | `zsh -c` | command mode |
 | Fish | `fish -c` | command mode |
@@ -27,9 +27,18 @@ Run the matrix from the repository root:
 ```text
 python3 validation/shells/run.py \
   --image localhost/fleet-shell-validation:20260907 \
+  --allow-known-gaps \
+  --source-commit 229a9d3c2d935f3fcfeb08a747c7235569180706 \
   --output validation/shells/evidence/baseline.json \
   --markdown validation/shells/evidence/baseline.md
 ```
+
+`--allow-known-gaps` is required when capturing a historical baseline whose
+installer-generated commands are known to fail. The baseline exits zero with
+result `partial` and records every failed generated command. Omit this option
+for candidate validation. A generated command failure then produces result
+`failed` and a nonzero exit status, even if the synthetic lifecycle cases
+pass.
 
 The runner mounts only `src/` and `validation/shells/` read-only. The
 container root is read-only, networking is disabled, and the hook store,
@@ -46,11 +55,13 @@ spaces, Unicode and an apostrophe. Shell version output, image identity,
 source commit and source tree hash are recorded in the evidence files.
 
 The executable path probe creates a temporary Python `claude-fleet-hook`
-entry point in a directory containing spaces. It records both the configured
-unquoted command form and a correctly quoted form. The unquoted form is an
-expected baseline failure because the current CLI command builder does not
-quote a hook path. This remains a reported compatibility gap even when all
-shell lifecycle cases pass.
+entry point in a directory containing spaces. It creates fresh in-memory
+Claude and Codex hook configurations through
+`claude_fleet_monitor.cli._install_hooks`, extracts the emitted command for
+each tested event, and executes that exact command under every shell. It also
+records a manual unquoted control and a correctly quoted control. On the
+baseline revision, the generated commands fail because the CLI command builder
+does not quote a hook path. Generated failures are never marked as passed.
 
 This is synthetic emitter evidence. It does not validate a real Claude or
 Codex process, PID or tty discovery, terminal detection, pane or tab selection,

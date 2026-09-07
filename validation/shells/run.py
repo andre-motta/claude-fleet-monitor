@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 from pathlib import Path
 import shlex
@@ -11,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
+from types import ModuleType
 import uuid
 
 
@@ -27,7 +29,7 @@ SHELLS = (
         "label": "Bash",
         "argv": ["bash"],
         "mode": "-c",
-        "alias": "POSIX command mode",
+        "alias": "ordinary command mode",
         "version": ["bash", "--version"],
     },
     {
@@ -147,10 +149,20 @@ def _tree_hash(root: Path) -> str:
 def _git_metadata(source_dir: Path) -> dict[str, object]:
     repo_dir = source_dir.parent if source_dir.name == "src" else source_dir
     commit = "unknown"
+    repository_head = "unknown"
     dirty = None
     try:
-        commit_result = subprocess.run(
+        head_result = subprocess.run(
             ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        if head_result.returncode == 0:
+            repository_head = head_result.stdout.strip()
+        commit_result = subprocess.run(
+            ["git", "-C", str(repo_dir), "log", "-1", "--format=%H", "--", "src"],
             capture_output=True,
             text=True,
             check=False,
@@ -171,12 +183,13 @@ def _git_metadata(source_dir: Path) -> dict[str, object]:
     return {
         "mount": "src",
         "commit": commit,
+        "repository_head": repository_head,
         "tree_sha256": _tree_hash(source_dir),
         "dirty": dirty,
     }
 
 
-def _inspect_image(podman: str, image: str) -> dict[str, str]:
+def _inspect_image(podman: str, image: str) -> dict[str, object]:
     try:
         result = subprocess.run(
             [podman, "image", "inspect", image, "--format", "{{.Id}}\\t{{.Digest}}"],
@@ -186,12 +199,27 @@ def _inspect_image(podman: str, image: str) -> dict[str, str]:
             timeout=30,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return {"reference": image, "id": "unknown", "digest": "unknown"}
+        return {
+            "reference": image,
+            "id": "unknown",
+            "digest": "unknown",
+            "identity_valid": False,
+            "inspect_returncode": None,
+        }
     fields = result.stdout.strip().split("\t", 1)
+    image_id = fields[0] if fields and fields[0] else "unknown"
+    digest = fields[1] if len(fields) > 1 and fields[1] else "unknown"
     return {
         "reference": image,
-        "id": fields[0] if fields and fields[0] else "unknown",
-        "digest": fields[1] if len(fields) > 1 and fields[1] else "unknown",
+        "id": image_id,
+        "digest": digest,
+        "identity_valid": (
+            result.returncode == 0
+            and image_id != "unknown"
+            and digest != "unknown"
+            and digest.startswith("sha256:")
+        ),
+        "inspect_returncode": result.returncode,
     }
 
 
@@ -482,11 +510,85 @@ def _write_wrapper(path: Path) -> None:
     path.chmod(0o755)
 
 
-def _path_probe(
+def _installer_commands(hook_cmd: Path) -> dict[str, dict[str, str]]:
+    package = ModuleType("claude_fleet_monitor")
+    package.__path__ = [str(SOURCE_MOUNT / "claude_fleet_monitor")]
+    sys.modules["claude_fleet_monitor"] = package
+    cli = importlib.import_module("claude_fleet_monitor.cli")
+    commands: dict[str, dict[str, str]] = {}
+    for agent, events in (
+        ("claude", cli.CLAUDE_HOOK_EVENTS),
+        ("codex", cli.CODEX_HOOK_EVENTS),
+    ):
+        config: dict[str, object] = {}
+        cli._install_hooks(config, events, str(hook_cmd), agent)
+        agent_commands: dict[str, str] = {}
+        for hook_event, event in events:
+            if event not in EVENTS:
+                continue
+            candidates = []
+            for group in config.get("hooks", {}).get(hook_event, []):
+                for hook in group.get("hooks", []):
+                    command = hook.get("command")
+                    if isinstance(command, str) and "claude-fleet-hook" in command:
+                        candidates.append(command)
+            if len(candidates) != 1:
+                raise RuntimeError(
+                    f"expected one generated command for {agent}/{event}, "
+                    f"found {len(candidates)}"
+                )
+            agent_commands[event] = candidates[0]
+        commands[agent] = agent_commands
+    return commands
+
+
+def _generated_command_probe(
     spec: dict[str, object],
-    wrapper: Path,
+    agent: str,
+    event: str,
+    command: str,
     env: dict[str, str],
     token: str,
+) -> dict[str, object]:
+    session_id = f"generated-{token}-{spec['id']}-{agent}-{event}"
+    payload = _expected_payload(event, session_id, agent)
+    process = _run_shell(spec, command, payload, env, FIXTURE_CWD)
+    records = _matching_records(FLEET_DIR, session_id)
+    process_ok = process["returncode"] == 0
+    if process_ok:
+        record_ok, mismatches, record = _check_record(
+            event, payload, agent, records
+        )
+    else:
+        record_ok = False
+        mismatches = ["generated command exited nonzero"]
+        record = records[0] if records else None
+    probe: dict[str, object] = {
+        "shell": spec["id"],
+        "agent": agent,
+        "event": event,
+        "session_id": session_id,
+        "command": command,
+        "invocation": _shell_command(spec, command),
+        "returncode": process["returncode"],
+        "matched_records": len(records),
+        "passed": process_ok and record_ok,
+        "known_gap": process["returncode"] not in (0, None),
+        "observed": _record_view(record),
+    }
+    if process["stderr"]:
+        probe["stderr"] = process["stderr"]
+    if mismatches:
+        probe["mismatches"] = mismatches
+    return probe
+
+
+def _path_probe(
+    spec: dict[str, object],
+    env: dict[str, str],
+    token: str,
+    installer_commands: dict[str, dict[str, str]] | None,
+    installer_error: str | None,
 ) -> dict[str, object]:
     spaced_wrapper = WORK_DIR / "hook bin" / "claude-fleet-hook"
     spaced_wrapper.parent.mkdir(parents=True, exist_ok=True)
@@ -528,14 +630,42 @@ def _path_probe(
         quoted_records[0] if quoted_records else None,
     )
     unquoted_failed = unquoted["returncode"] not in (0, None)
+    generated_commands: list[dict[str, object]] = []
+    if installer_error:
+        generated_commands.append(
+            {
+                "agent": "all",
+                "event": "all",
+                "command": "",
+                "passed": False,
+                "known_gap": False,
+                "error": installer_error,
+            }
+        )
+    else:
+        for agent in ("claude", "codex"):
+            for event in EVENTS:
+                command = installer_commands[agent][event]
+                generated_commands.append(
+                    _generated_command_probe(
+                        spec, agent, event, command, env, token
+                    )
+                )
+    generated_passed = bool(generated_commands) and all(
+        probe["passed"] for probe in generated_commands
+    )
     probe = {
         "shell": spec["id"],
-        "configured_command_form": "<path with spaces> session-start --agent claude",
+        "installer_builder": "claude_fleet_monitor.cli._install_hooks",
+        "installer_config_written": False,
+        "configured_command_form": "<path with spaces> session-start --agent <agent>",
         "unquoted": {
             "returncode": unquoted["returncode"],
             "observed_failure": unquoted_failed,
             "stderr": unquoted["stderr"],
-            "expected": "failure with current unquoted CLI command construction",
+            "passed": False,
+            "expected_failure": True,
+            "classification": "manual-unquoted-control",
         },
         "quoted": {
             "returncode": quoted["returncode"],
@@ -543,8 +673,14 @@ def _path_probe(
             "passed": quoted_ok,
             "observed": _record_view(quoted_record),
         },
-        "passed": unquoted_failed and quoted_ok,
-        "classification": "known-cli-hook-path-quoting-gap",
+        "generated_commands": generated_commands,
+        "generated_commands_passed": generated_passed,
+        "passed": quoted_ok and generated_passed,
+        "classification": (
+            "installer-generated-command-path-quoting-gap"
+            if not generated_passed
+            else "installer-generated-command-passed"
+        ),
     }
     if quoted_mismatches:
         probe["quoted"]["mismatches"] = quoted_mismatches
@@ -569,6 +705,15 @@ def _run_inside(args: argparse.Namespace) -> int:
     wrapper = WORK_DIR / "hook-bin" / "claude-fleet-hook"
     wrapper.parent.mkdir(parents=True, exist_ok=True)
     _write_wrapper(wrapper)
+    spaced_wrapper = WORK_DIR / "hook bin" / "claude-fleet-hook"
+    spaced_wrapper.parent.mkdir(parents=True, exist_ok=True)
+    _write_wrapper(spaced_wrapper)
+    installer_error = None
+    try:
+        installer_commands = _installer_commands(spaced_wrapper)
+    except Exception as error:
+        installer_commands = None
+        installer_error = f"{type(error).__name__}: {error}"
 
     shell_records = []
     lifecycle_cases = []
@@ -581,7 +726,15 @@ def _run_inside(args: argparse.Namespace) -> int:
                 lifecycle_cases.append(
                     _lifecycle_case(spec, agent, wrapper, env, token)
                 )
-            path_probes.append(_path_probe(spec, wrapper, env, token))
+            path_probes.append(
+                _path_probe(
+                    spec,
+                    env,
+                    token,
+                    installer_commands,
+                    installer_error,
+                )
+            )
 
     lifecycle_failures = [
         case for case in lifecycle_cases if not case["passed"]
@@ -590,7 +743,26 @@ def _run_inside(args: argparse.Namespace) -> int:
     missing_shells = [
         shell["id"] for shell in shell_records if not shell["available"]
     ]
-    hard_failures = [
+    generated_commands = [
+        command
+        for probe in path_probes
+        for command in probe["generated_commands"]
+    ]
+    generated_failures = [
+        command for command in generated_commands if not command["passed"]
+    ]
+    generated_known_gaps = [
+        command for command in generated_failures if command.get("known_gap")
+    ]
+    generated_unexpected_failures = [
+        command
+        for command in generated_failures
+        if not command.get("known_gap")
+    ]
+    quoted_control_failures = [
+        probe for probe in path_probes if not probe["quoted"]["passed"]
+    ]
+    structural_failures = [
         *(["source mount hash mismatch"] if not source_matches else []),
         *[f"missing shell: {shell}" for shell in missing_shells],
         *[
@@ -598,11 +770,24 @@ def _run_inside(args: argparse.Namespace) -> int:
             for case in lifecycle_failures
         ],
         *[
-            f"path probe failure: {probe['shell']}"
-            for probe in path_failures
+            f"quoted control failure: {probe['shell']}"
+            for probe in quoted_control_failures
+        ],
+        *[
+            f"generated command failure: {command['agent']}/{command['event']}"
+            for command in generated_unexpected_failures
         ],
     ]
-    result = "passed" if not hard_failures else "failed"
+    if structural_failures:
+        result = "failed"
+    elif generated_known_gaps:
+        result = "partial" if args.allow_known_gaps else "failed"
+    else:
+        result = "passed"
+    known_gaps = [
+        f"installer generated command failed: {command['agent']}/{command['event']}"
+        for command in generated_known_gaps
+    ]
     evidence = {
         "schema_version": 1,
         "result": result,
@@ -610,10 +795,16 @@ def _run_inside(args: argparse.Namespace) -> int:
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "source": {
             "mount": "src",
-            "commit": args.source_commit,
+            "commit": args.source_commit or "unknown",
             "tree_sha256": args.source_tree_sha256,
             "container_tree_sha256": source_hash,
             "mount_hash_matches": source_matches,
+        },
+        "installer_builder": {
+            "function": "claude_fleet_monitor.cli._install_hooks",
+            "config_written": False,
+            "command_path": str(spaced_wrapper),
+            "error": installer_error,
         },
         "container": {
             "image_reference": args.image,
@@ -624,6 +815,7 @@ def _run_inside(args: argparse.Namespace) -> int:
             "writable_mount": "/tmp/fleet-work:tmpfs",
             "agent_settings_mounted": False,
             "host_environment_inherited": False,
+            "allow_known_gaps": args.allow_known_gaps,
         },
         "fixture": {
             "cwd": str(FIXTURE_CWD),
@@ -642,17 +834,29 @@ def _run_inside(args: argparse.Namespace) -> int:
             "lifecycle_cases_passed": len(lifecycle_cases) - len(lifecycle_failures),
             "path_probes": len(path_probes),
             "path_probes_passed": len(path_probes) - len(path_failures),
-            "hard_failures": hard_failures,
+            "quoted_controls_passed": len(path_probes) - len(quoted_control_failures),
+            "generated_commands": len(generated_commands),
+            "generated_commands_passed": len(generated_commands) - len(generated_failures),
+            "generated_commands_failed": len(generated_failures),
+            "known_gaps": known_gaps,
+            "hard_failures": [
+                *structural_failures,
+                *(
+                    known_gaps
+                    if not args.allow_known_gaps
+                    else []
+                ),
+            ],
         },
         "limitations": [
             "Synthetic stdin payloads do not establish real Claude or Codex process behavior.",
             "Container execution cannot validate PID, tty, terminal detection, pane or tab selection, or OS window activation.",
             "The installer configuration files are not mounted or modified; the temporary Python entry point exercises the hook argument contract.",
-            "The unquoted executable path probe records the current CLI hook path quoting gap as a known failure.",
+            "The unquoted executable path control records the current CLI hook path quoting gap; installer-generated command results are reported separately and are required to pass for a clean result.",
         ],
     }
     print(MARKER + json.dumps(evidence, ensure_ascii=False, separators=(",", ":")))
-    return 0 if result == "passed" else 1
+    return 0 if result in ("passed", "partial") else 1
 
 
 def _markdown(evidence: dict[str, object]) -> str:
@@ -665,9 +869,21 @@ def _markdown(evidence: dict[str, object]) -> str:
         "lifecycle_cases_passed",
         sum(1 for case in lifecycle_cases if case.get("passed")),
     )
-    path_passed = summary.get(
-        "path_probes_passed",
-        sum(1 for probe in path_probes if probe.get("passed")),
+    quoted_passed = summary.get(
+        "quoted_controls_passed",
+        sum(1 for probe in path_probes if probe.get("quoted", {}).get("passed")),
+    )
+    generated_count = summary.get(
+        "generated_commands",
+        sum(len(probe.get("generated_commands", [])) for probe in path_probes),
+    )
+    generated_passed = summary.get(
+        "generated_commands_passed",
+        sum(
+            command.get("passed", False)
+            for probe in path_probes
+            for command in probe.get("generated_commands", [])
+        ),
     )
     lines = [
         "# Shell validation evidence",
@@ -685,9 +901,12 @@ def _markdown(evidence: dict[str, object]) -> str:
         f"- Image ID: `{container.get('image_id', 'unknown')}`",
         f"- Image digest: `{container.get('image_digest', 'unknown')}`",
         f"- Container network: `{container.get('network', 'unknown')}`",
+        f"- Allow known gaps: `{container.get('allow_known_gaps', 'unknown')}`",
         f"- Read-only source mount: `{container.get('source_mount', 'unknown')}`",
         f"- Read-only validation mount: `{container.get('validation_mount', 'unknown')}`",
         f"- Writable path: `{container.get('writable_mount', 'unknown')}`",
+        f"- Installer builder: `{evidence.get('installer_builder', {}).get('function', 'unknown')}`",
+        f"- Installer config written: `{evidence.get('installer_builder', {}).get('config_written', 'unknown')}`",
         "",
         "## Shell matrix",
         "",
@@ -719,17 +938,31 @@ def _markdown(evidence: dict[str, object]) -> str:
             "",
             "## Executable path probe",
             "",
-            f"{path_passed}/{summary.get('path_probes', len(path_probes))} probes observed the expected unquoted path failure and a passing quoted path. The unquoted form is the current CLI command construction gap for an executable directory containing spaces.",
+            f"Manual quoted controls passed for {quoted_passed}/{summary.get('path_probes', len(path_probes))} shells. Installer-generated commands passed for {generated_passed}/{generated_count}. The manual unquoted control is expected to fail for the baseline path with spaces; generated-command failures are acceptance failures unless `--allow-known-gaps` is explicitly supplied.",
             "",
-            "| Shell | Unquoted return code | Unquoted failed | Quoted passed | Classification |",
-            "| --- | ---: | --- | --- | --- |",
+            "| Shell | Manual unquoted return code | Manual quoted | Installer-generated commands | Classification |",
+            "| --- | ---: | --- | ---: | --- |",
         ]
     )
     for probe in path_probes:
+        generated = probe.get("generated_commands", [])
+        generated_shell_passed = sum(
+            command.get("passed", False) for command in generated
+        )
         lines.append(
             f"| {probe['shell']} | `{probe['unquoted']['returncode']}` | "
-            f"`{probe['unquoted']['observed_failure']}` | `{probe['quoted']['passed']}` | "
+            f"`{probe['quoted']['passed']}` | `{generated_shell_passed}/{len(generated)}` | "
             f"{probe['classification']} |"
+        )
+    known_gaps = summary.get("known_gaps", [])
+    if known_gaps:
+        lines.extend(
+            [
+                "",
+                "## Known gaps",
+                "",
+                f"- {len(known_gaps)} installer-generated commands failed at the baseline revision because the emitted hook path is unquoted. These failures are recorded individually in the JSON evidence.",
+            ]
         )
     lines.extend(["", "## Limitations", ""])
     lines.extend(f"- {limitation}" for limitation in evidence.get("limitations", []))
@@ -746,7 +979,44 @@ def _run_host(args: argparse.Namespace) -> int:
     if not source_dir.is_dir():
         raise SystemExit(f"source directory does not exist: {source_dir}")
     source = _git_metadata(source_dir)
+    if args.source_commit:
+        source["commit"] = args.source_commit
     image = _inspect_image(args.podman, args.image)
+    if not image["identity_valid"]:
+        evidence = {
+            "schema_version": 1,
+            "result": "failed",
+            "run_type": "image-identity-failure",
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "source": source,
+            "container": {
+                "image_reference": image["reference"],
+                "image_id": image["id"],
+                "image_digest": image["digest"],
+                "identity_valid": False,
+                "allow_known_gaps": args.allow_known_gaps,
+            },
+            "summary": {
+                "hard_failures": ["Podman image identity unavailable"],
+            },
+            "limitations": [
+                "The matrix was not run because image inspection did not return a verified ID and digest."
+            ],
+        }
+        output = Path(args.output)
+        markdown = Path(args.markdown) if args.markdown else output.with_suffix(".md")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        markdown.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(evidence, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        markdown.write_text(_markdown(evidence), encoding="utf-8")
+        print(
+            f"failed: image identity unavailable for {image['reference']} "
+            f"({output})"
+        )
+        return 1
     command = [
         args.podman,
         "run",
@@ -795,6 +1065,8 @@ def _run_host(args: argparse.Namespace) -> int:
         "--source-tree-sha256",
         str(source["tree_sha256"]),
     ]
+    if args.allow_known_gaps:
+        command.append("--allow-known-gaps")
     try:
         process = subprocess.run(
             command,
@@ -843,8 +1115,10 @@ def _run_host(args: argparse.Namespace) -> int:
             }
         evidence["container"]["image_id"] = image["id"]
         evidence["container"]["image_digest"] = image["digest"]
+        evidence["container"]["identity_valid"] = image["identity_valid"]
         evidence["container"]["runner_returncode"] = process.returncode
         evidence["source"]["dirty"] = source["dirty"]
+        evidence["source"]["repository_head"] = source["repository_head"]
     output = Path(args.output)
     markdown = Path(args.markdown) if args.markdown else output.with_suffix(".md")
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -856,7 +1130,13 @@ def _run_host(args: argparse.Namespace) -> int:
         f"source {evidence.get('source', {}).get('commit', 'unknown')}; "
         f"image {image['id']} {image['digest']}"
     )
-    return 0 if evidence["result"] == "passed" else 1
+    return 0 if (
+        evidence["result"] == "passed"
+        or (
+            evidence["result"] == "partial"
+            and evidence.get("container", {}).get("allow_known_gaps") is True
+        )
+    ) else 1
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -873,8 +1153,17 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--markdown", default="")
     parser.add_argument("--timeout", type=int, default=600)
+    parser.add_argument(
+        "--allow-known-gaps",
+        action="store_true",
+        help="record expected baseline gaps and exit zero with a partial result",
+    )
     parser.add_argument("--inside", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--source-commit", default="unknown", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--source-commit",
+        default="",
+        help="override the source revision label recorded in evidence",
+    )
     parser.add_argument("--source-tree-sha256", default="", help=argparse.SUPPRESS)
     return parser
 
