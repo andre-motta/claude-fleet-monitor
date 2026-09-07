@@ -18,7 +18,7 @@ Andre's subsequent instructions for this initiative.
 | Setup | `python3 -m venv .venv`, then `.venv/bin/python -m pip install -e ".[dev]"`; Windows uses `.venv/Scripts/python.exe` |
 | Focused checks | Relevant pytest modules, applicable functional checks and `git diff --check` |
 | Integrated checks | Full pytest and available local Python matrix; `.[dev,tongs]` when changing Tongs integration; actual affected CLI/MCP/harness journeys |
-| Hosted gates | Python matrix on PRs into `main` and `feat/**`, plus pushes to `main` and the feature integration branch; strict Podman shell job is added with its validated implementation |
+| Hosted gates | Python matrix and strict Podman shell validation on PRs into `main` and `feat/**`, plus pushes to `main` and the feature integration branch |
 | Documentation checks | Relative links, command accuracy, policy consistency and `git diff --check` |
 | Platforms | Preserve Linux/macOS/Windows behavior using platform mocks; require live evidence for newly claimed terminal or desktop capabilities |
 | Commit rules | Imperative title under 50 characters, blank line, one-line why body, issue reference and trailers; `git commit -s`; actual Codex model co-author without context-size annotation |

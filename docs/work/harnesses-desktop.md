@@ -344,3 +344,26 @@ strict Podman job arrives with the shell validation item after the foundation
 passes it. Standard public-repository GitHub runners are the intended execution
 environment; no paid larger runner is required by the current design. Live
 desktop checks remain separate from hosted headless tests.
+
+## Verified feature integration checkpoint
+
+The earlier assignment and candidate paragraphs are historical. Current evidence
+is recorded in [validation progress](validation-progress.md). G0 #34, B0 #24,
+H1 #25 and the S1 #31 inventory/strict nine-shell gate have each passed independent
+Sol high review and their required local/hosted checks, then merged as separate
+child PRs #35 through #38. C1 #28's bounded investigation followed in PR #39.
+The verified feature merge at this checkpoint is
+`d72de3bbf142a371ee35ccb38b32ec977eb5e2e6`. Issues remain open for main delivery.
+
+H2 #26 is assigned to Sol high on `feat/pi-lifecycle`, starting from verified H1
+merge `2b8134854f012eb729fcf4eae1d4898082578e5a`. Its actual Pi, packaging and
+terminal acceptance remains required. H3 follows verified H2 integration.
+The C1 #28 investigation is independently reviewed and feature-integrated;
+its live exact-conversation matrix and concrete C2 mechanism remain unmet.
+
+Andre authorized cross-repository desktop issue dependencies. Tongs #17 natively
+blocks Fleet #30 and records the production plugin host prerequisites. Tongs has
+selected Electron and narrowed its initial target to Fedora 44 KDE x86_64;
+Fleet follows that host contract and does not add a standalone desktop shell.
+The updated [desktop record](desktop.md) retains these external implementation
+and acceptance gates. Pi proceeds independently.
