@@ -14,9 +14,11 @@ from textual.binding import Binding
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from claude_fleet_monitor.discovery import read_sessions
+from claude_fleet_monitor.focus import focus_notification, focus_session
 from claude_fleet_monitor.models import (
     SORT_KEYS,
     FleetSession,
+    FocusResult,
     format_age,
     parse_session,
     sort_sessions,
@@ -160,8 +162,8 @@ class FleetMonitorApp(App):
             if self.notify_level == "waiting":
                 should_notify = s.status.value == "waiting"
 
-            if should_notify and s.session_id not in self._notified:
-                self._notified.add(s.session_id)
+            if should_notify and s.identity not in self._notified:
+                self._notified.add(s.identity)
                 subprocess.Popen(
                     [
                         "notify-send",
@@ -176,15 +178,15 @@ class FleetMonitorApp(App):
                 if s.status.value == "waiting":
                     sys.stdout.write("\a")
                     sys.stdout.flush()
-            elif not should_notify and s.session_id in self._notified:
-                self._notified.discard(s.session_id)
+            elif not should_notify and s.identity in self._notified:
+                self._notified.discard(s.identity)
 
     def _get_selected_session(self) -> FleetSession | None:
         table = self.query_one("#session-table", SessionTable)
         sid = table.get_selected_session_id()
         if not sid:
             return None
-        return next((s for s in self._all_sessions if s.session_id == sid), None)
+        return next((s for s in self._all_sessions if s.identity == sid), None)
 
     # -- Actions --
 
@@ -270,10 +272,9 @@ class FleetMonitorApp(App):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         sid = str(event.row_key.value)
-        session = next((s for s in self._all_sessions if s.session_id == sid), None)
+        session = next((s for s in self._all_sessions if s.identity == sid), None)
         if session:
             self._do_focus(session)
-            self.notify(f"Focused: {session.repo}", timeout=2)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         panel = self.query_one("#detail-panel", DetailPanel)
@@ -283,19 +284,22 @@ class FleetMonitorApp(App):
             panel.set_session(None)
             return
         sid = str(event.row_key.value)
-        session = next((s for s in self._all_sessions if s.session_id == sid), None)
+        session = next((s for s in self._all_sessions if s.identity == sid), None)
         panel.set_session(session)
 
     def _do_focus(self, session: FleetSession) -> None:
-        from claude_fleet_monitor.focus import focus
-
         def _run():
             try:
-                focus(session.session_id)
-            except Exception:
-                pass
+                result = focus_session(session.identity)
+            except Exception as error:
+                result = FocusResult(state="failed", reason=str(error))
+            self.call_from_thread(self._notify_focus_result, session.repo, result)
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _notify_focus_result(self, repo, result) -> None:
+        message, severity = focus_notification(result, repo)
+        self.notify(message, severity=severity, timeout=3)
 
     def action_toggle_search(self) -> None:
         search_input = self.query_one("#search-input", Input)

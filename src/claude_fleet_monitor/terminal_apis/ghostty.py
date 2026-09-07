@@ -74,6 +74,10 @@ def _find_ancestor_child(pid: int, ghostty_pid: int) -> int | None:
 
 class GhosttyAPI(TerminalAPI):
     name = "ghostty"
+    activation_before_selection = True
+
+    def prepare_selection_after_activation(self) -> None:
+        time.sleep(0.15)
 
     @staticmethod
     def detect() -> bool:
@@ -89,15 +93,15 @@ class GhosttyAPI(TerminalAPI):
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
         ghostty_pid = _find_ghostty_pid()
         if not ghostty_pid:
-            return str(pid)
+            return None
 
         children = _get_ghostty_children(ghostty_pid)
         if not children:
-            return str(pid)
+            return None
 
         ancestor = _find_ancestor_child(pid, ghostty_pid)
         if not ancestor or ancestor not in children:
-            return str(pid)
+            return None
 
         tab_index = children.index(ancestor) + 1
         return f"{pid}:{tab_index}"
@@ -117,15 +121,6 @@ class GhosttyAPI(TerminalAPI):
         if self._try_xdotool_goto_tab(tab_num):
             return True
         return False
-
-    def focus(self, pid: int, terminal_env: dict) -> bool:
-        tab_id = self.find_tab(pid, terminal_env)
-        if not tab_id:
-            return False
-        self.raise_window(tab_id, terminal_env)
-        time.sleep(0.15)
-        self.switch_tab(tab_id, terminal_env)
-        return True
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
         if sys.platform == "linux" and self._try_kwin_raise():
@@ -192,7 +187,7 @@ for (var i = 0; i < windows.length; i++) {
                          "org.kde.kwin.Script.run"],
                         capture_output=True, timeout=5
                     )
-                    return True
+                    return False
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 pass
             finally:
@@ -208,11 +203,11 @@ for (var i = 0; i < windows.length; i++) {
             )
             wid = result.stdout.strip().split("\n")[0] if result.stdout.strip() else ""
             if wid:
-                subprocess.run(
+                activated = subprocess.run(
                     ["xdotool", "windowactivate", wid],
                     capture_output=True, timeout=5
                 )
-                return True
+                return activated.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass
         return False

@@ -77,12 +77,12 @@ class KonsoleAPI(TerminalAPI):
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         svc, win_id, sess_id = tab_id.split("|")
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["qdbus", svc, f"/Windows/{win_id}",
                  "org.kde.konsole.Window.setCurrentSession", sess_id],
                 capture_output=True, timeout=2
             )
-            return True
+            return result.returncode == 0
         except subprocess.TimeoutExpired:
             return False
 
@@ -130,7 +130,7 @@ for (var i = 0; i < windows.length; i++) {{
                          "org.kde.kwin.Script.run"],
                         capture_output=True, timeout=5
                     )
-                    return True
+                    return False
             finally:
                 os.unlink(f.name)
         return False

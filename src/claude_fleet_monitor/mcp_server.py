@@ -4,7 +4,7 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 
-from claude_fleet_monitor.discovery import read_sessions, FLEET_DIR
+from claude_fleet_monitor.discovery import cleanup_ended_sessions, read_sessions
 
 mcp = FastMCP("claude-fleet")
 
@@ -36,11 +36,33 @@ def fleet_status() -> str:
 
 @mcp.tool()
 def fleet_session(session_id: str) -> str:
-    """Get detailed status for a specific session by ID (full or prefix match)."""
+    """Get a session by canonical or native ID (full or prefix match)."""
     sessions = read_sessions()
-    matches = [s for s in sessions if s.get("session_id", "").startswith(session_id)]
+    exact = [
+        session for session in sessions
+        if session_id in {
+            session.get("canonical_id", ""), session.get("session_id", "")
+        }
+    ]
+    matches = exact or [
+        session for session in sessions
+        if session.get("canonical_id", "").startswith(session_id)
+        or session.get("session_id", "").startswith(session_id)
+    ]
     if not matches:
         return json.dumps({"error": f"No session matching '{session_id}'"})
+    if len(matches) > 1:
+        return json.dumps({
+            "error": f"Multiple sessions match '{session_id}'",
+            "matches": [
+                {
+                    "canonical_id": session.get("canonical_id", ""),
+                    "harness_id": session.get("harness_id", ""),
+                    "session_id": session.get("session_id", ""),
+                }
+                for session in matches
+            ],
+        }, indent=2)
     return json.dumps(matches[0], indent=2)
 
 
@@ -88,21 +110,7 @@ def fleet_focus(query: str) -> str:
 @mcp.tool()
 def fleet_cleanup() -> str:
     """Remove status files for ended sessions older than 5 minutes."""
-    import time
-
-    if not FLEET_DIR.exists():
-        return json.dumps({"removed": 0})
-    now = int(time.time())
-    removed = 0
-    for f in FLEET_DIR.glob("*.json"):
-        try:
-            data = json.loads(f.read_text())
-            if data.get("status") == "ended" and (now - data.get("ts", now)) > 300:
-                f.unlink()
-                removed += 1
-        except (json.JSONDecodeError, OSError):
-            continue
-    return json.dumps({"removed": removed})
+    return json.dumps({"removed": cleanup_ended_sessions()})
 
 
 def main():

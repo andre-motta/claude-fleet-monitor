@@ -19,7 +19,7 @@ def main():
         env = dict(os.environ, FLEET_DIR=directory, PYTHONPATH=str(args.source.resolve()), PYTHONUNBUFFERED='1')
         fixture = {
             'session_id': 'validation-session', 'agent': 'claude',
-            'repo': 'validation-fixture', 'cwd': directory, 'pid': str(os.getpid()),
+            'repo': 'validation-fixture', 'cwd': directory, 'pid': '',
             'status': 'waiting', 'ts': int(time.time()),
         }
         (Path(directory) / 'fixture.json').write_text(json.dumps(fixture))

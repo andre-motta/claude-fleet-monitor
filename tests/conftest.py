@@ -8,11 +8,7 @@ def fleet_dir(tmp_path, monkeypatch):
     d.mkdir()
     monkeypatch.setenv("FLEET_DIR", str(d))
     import claude_fleet_monitor.discovery as discovery
-    import claude_fleet_monitor.hook as hook
-    import claude_fleet_monitor.focus as focus_mod
     monkeypatch.setattr(discovery, "FLEET_DIR", d)
-    monkeypatch.setattr(hook, "FLEET_DIR", d)
-    monkeypatch.setattr(focus_mod, "FLEET_DIR", d)
     return d
 
 

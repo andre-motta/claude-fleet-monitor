@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -36,6 +37,12 @@ CODEX_HOOK_EVENTS = [
 ]
 
 
+def _command_string(arguments):
+    if os.name == "nt":
+        return subprocess.list2cmdline(arguments)
+    return shlex.join(arguments)
+
+
 def load_json(path):
     if path.exists():
         return json.loads(path.read_text())
@@ -64,7 +71,7 @@ def _install_hooks(config, events, hook_cmd, agent):
         hook_group = {
             "hooks": [{
                 "type": "command",
-                "command": f"{hook_cmd} {arg} --agent {agent}",
+                "command": _command_string([hook_cmd, arg, "--agent", agent]),
                 "timeout": timeout,
             }]
         }
