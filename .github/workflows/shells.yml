@@ -23,7 +23,6 @@ jobs:
     timeout-minutes: 15
     env:
       SHELL_VALIDATION_IMAGE: localhost/fleet-shell-validation:${{ github.sha }}
-      SHELL_VALIDATION_EVIDENCE: ${{ runner.temp }}/shell-validation
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,14 +31,15 @@ jobs:
       - name: Record source metadata
         run: |
           set -euo pipefail
-          mkdir -p "$SHELL_VALIDATION_EVIDENCE"
+          evidence_dir="$RUNNER_TEMP/shell-validation"
+          mkdir -p "$evidence_dir"
           source_commit="$(git rev-parse HEAD)"
           source_tree_sha256="$(python3 -c 'from pathlib import Path; import sys; sys.path.insert(0, "validation/shells"); import run; print(run._tree_hash(Path("src")))')"
           {
             printf 'checkout_commit=%s\n' "$source_commit"
             printf 'source_tree_sha256=%s\n' "$source_tree_sha256"
             printf 'image_reference=%s\n' "$SHELL_VALIDATION_IMAGE"
-          } > "$SHELL_VALIDATION_EVIDENCE/metadata.txt"
+          } > "$evidence_dir/metadata.txt"
 
       - name: Build validation image
         run: podman build --file validation/shells/Containerfile --tag "$SHELL_VALIDATION_IMAGE" .
@@ -50,14 +50,15 @@ jobs:
       - name: Run strict shell validation
         run: |
           set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/shell-validation"
           source_commit="$(git rev-parse HEAD)"
-          source_tree_sha256="$(awk -F= '$1 == "source_tree_sha256" { print $2 }' "$SHELL_VALIDATION_EVIDENCE/metadata.txt")"
+          source_tree_sha256="$(awk -F= '$1 == "source_tree_sha256" { print $2 }' "$evidence_dir/metadata.txt")"
           python3 validation/shells/run.py \
             --image "$SHELL_VALIDATION_IMAGE" \
             --source-dir "$GITHUB_WORKSPACE/src" \
             --source-commit "$source_commit" \
-            --output "$SHELL_VALIDATION_EVIDENCE/evidence.json" \
-            --markdown "$SHELL_VALIDATION_EVIDENCE/evidence.md"
+            --output "$evidence_dir/evidence.json" \
+            --markdown "$evidence_dir/evidence.md"
           test "$source_tree_sha256" = "$(python3 -c 'from pathlib import Path; import sys; sys.path.insert(0, "validation/shells"); import run; print(run._tree_hash(Path("src")))')"
 
       - name: Upload shell validation evidence
