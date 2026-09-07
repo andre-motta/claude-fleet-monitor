@@ -40,6 +40,26 @@ for candidate validation. A generated command failure then produces result
 `failed` and a nonzero exit status, even if the synthetic lifecycle cases
 pass.
 
+## Hosted CI gate
+
+`.github/workflows/shells.yml` runs the strict candidate validation on pull
+requests targeting `main` or `feat/**`, and on pushes to `main` or
+`feat/harnesses-desktop`. It uses the standard `ubuntu-24.04` runner, builds
+the existing `Containerfile` image with rootless Podman, and runs the checked
+out `src/` tree without `--allow-known-gaps`. The job has read-only GitHub
+contents permission, cancels superseded runs, and fails on an image build or
+inspection failure, a missing image, or any validator failure.
+
+Each run covers nine real shells, 18 lifecycle cases, nine manual quoted-path
+controls and 108 installer-generated command checks. The uploaded seven-day
+artifact contains the exact checked-out commit, source tree SHA-256, image
+reference, image ID and image digest together with JSON and Markdown evidence.
+The runner uses only Python's standard library and the mounted source tree, so
+the job does not install project dependencies or depend on a generated package
+version file.
+The recorded evidence remains synthetic emitter evidence and does not prove
+real agent processes, terminal focus or GUI behavior.
+
 The runner mounts only `src/` and `validation/shells/` read-only. The
 container root is read-only, networking is disabled, and the hook store,
 temporary cwd, home and generated Python entry point live in an ephemeral
