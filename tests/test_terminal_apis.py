@@ -88,9 +88,42 @@ def test_detect_gnome(monkeypatch):
     monkeypatch.delenv("ITERM_SESSION_ID", raising=False)
     monkeypatch.delenv("TERM_PROGRAM", raising=False)
     monkeypatch.setenv("VTE_VERSION", "7200")
+    monkeypatch.setenv("GNOME_TERMINAL_SERVICE", ":1.2")
     from claude_fleet_monitor.terminal_apis import detect_terminal
     t = detect_terminal()
     assert t.name == "gnome"
+
+
+def test_vte_alone_does_not_claim_gnome_terminal(monkeypatch):
+    for var in (
+        "TMUX", "ZELLIJ", "KONSOLE_VERSION", "ITERM_SESSION_ID",
+        "TERM_PROGRAM", "GNOME_TERMINAL_SERVICE", "WT_SESSION",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("VTE_VERSION", "7200")
+    from claude_fleet_monitor.terminal_apis import detect_terminal
+    assert detect_terminal().name == "generic"
+
+
+def test_failed_xdotool_activation_is_not_success(monkeypatch):
+    from types import SimpleNamespace
+    from claude_fleet_monitor.terminal_apis.gnome import GnomeAPI
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.gnome.subprocess.run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1),
+    )
+    assert not GnomeAPI().raise_window("100", {})
+
+
+def test_ghostty_missing_ancestry_is_not_a_tab(monkeypatch):
+    from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.ghostty._find_ghostty_pid",
+        lambda: None,
+    )
+    result = GhosttyAPI().focus_result(101, {})
+    assert result.state == "failed"
+    assert not result.target_found
 
 
 def test_detect_windows_terminal(monkeypatch):

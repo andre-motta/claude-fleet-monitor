@@ -141,8 +141,8 @@ class FleetScreen(Screen):
             if self.notify_level == "waiting":
                 should_notify = s.status.value == "waiting"
 
-            if should_notify and s.session_id not in self._notified:
-                self._notified.add(s.session_id)
+            if should_notify and s.identity not in self._notified:
+                self._notified.add(s.identity)
                 subprocess.Popen(
                     [
                         "notify-send",
@@ -157,15 +157,15 @@ class FleetScreen(Screen):
                 if s.status.value == "waiting":
                     sys.stdout.write("\a")
                     sys.stdout.flush()
-            elif not should_notify and s.session_id in self._notified:
-                self._notified.discard(s.session_id)
+            elif not should_notify and s.identity in self._notified:
+                self._notified.discard(s.identity)
 
     def _get_selected_session(self) -> FleetSession | None:
         table = self.query_one("#fleet-table", SessionTable)
         sid = table.get_selected_session_id()
         if not sid:
             return None
-        return next((s for s in self._all_sessions if s.session_id == sid), None)
+        return next((s for s in self._all_sessions if s.identity == sid), None)
 
     # -- Actions --
 
@@ -254,7 +254,7 @@ class FleetScreen(Screen):
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         sid = str(event.row_key.value)
-        session = next((s for s in self._all_sessions if s.session_id == sid), None)
+        session = next((s for s in self._all_sessions if s.identity == sid), None)
         if session:
             self._do_focus(session)
             self.notify(f"Focused: {session.repo}", timeout=2)
@@ -267,7 +267,7 @@ class FleetScreen(Screen):
             panel.set_session(None)
             return
         sid = str(event.row_key.value)
-        session = next((s for s in self._all_sessions if s.session_id == sid), None)
+        session = next((s for s in self._all_sessions if s.identity == sid), None)
         panel.set_session(session)
 
     def _do_focus(self, session: FleetSession) -> None:
@@ -275,7 +275,7 @@ class FleetScreen(Screen):
 
         def _run():
             try:
-                focus(session.session_id)
+                focus(session.identity)
             except Exception:
                 pass
 

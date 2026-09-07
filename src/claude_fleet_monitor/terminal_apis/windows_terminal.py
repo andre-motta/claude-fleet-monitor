@@ -7,6 +7,7 @@ from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
 class WindowsTerminalAPI(TerminalAPI):
     name = "windows_terminal"
+    selection_supported = False
 
     @staticmethod
     def detect() -> bool:
@@ -17,7 +18,7 @@ class WindowsTerminalAPI(TerminalAPI):
         return {"WT_SESSION": os.environ.get("WT_SESSION", "")}
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
-        return str(pid)
+        return None
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         return False

@@ -4,7 +4,7 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 
-from claude_fleet_monitor.discovery import read_sessions, FLEET_DIR
+from claude_fleet_monitor.discovery import cleanup_ended_sessions, read_sessions
 
 mcp = FastMCP("claude-fleet")
 
@@ -88,21 +88,7 @@ def fleet_focus(query: str) -> str:
 @mcp.tool()
 def fleet_cleanup() -> str:
     """Remove status files for ended sessions older than 5 minutes."""
-    import time
-
-    if not FLEET_DIR.exists():
-        return json.dumps({"removed": 0})
-    now = int(time.time())
-    removed = 0
-    for f in FLEET_DIR.glob("*.json"):
-        try:
-            data = json.loads(f.read_text())
-            if data.get("status") == "ended" and (now - data.get("ts", now)) > 300:
-                f.unlink()
-                removed += 1
-        except (json.JSONDecodeError, OSError):
-            continue
-    return json.dumps({"removed": removed})
+    return json.dumps({"removed": cleanup_ended_sessions()})
 
 
 def main():

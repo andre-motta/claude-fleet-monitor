@@ -1,129 +1,115 @@
-"""Cross-platform window focus for Claude Fleet Monitor."""
+"""Cross-platform focus service for Fleet sessions."""
 
-import json
-import os
-import subprocess
 import sys
-from pathlib import Path
 
-from claude_fleet_monitor.terminal_apis import get_terminal_api
+from claude_fleet_monitor.discovery import read_session_records, resolve_session_process
+from claude_fleet_monitor.models import FocusResult
+from claude_fleet_monitor.terminal_apis import find_terminal_api
 
-FLEET_DIR = Path(os.environ.get("FLEET_DIR", Path.home() / ".claude" / "fleet"))
+
+def _public_record(record):
+    return {
+        key: value for key, value in record.items()
+        if not key.startswith("_")
+    }
+
+
+def _matching_sessions(query):
+    records = read_session_records()
+    fields = ("canonical_id", "session_id", "repo", "pid")
+    exact = [
+        record for record in records
+        if any(query == str(record.get(field, "")) for field in fields)
+    ]
+    matches = exact or [
+        record for record in records
+        if any(query in str(record.get(field, "")) for field in fields)
+    ]
+    hook_matches = [record for record in matches if not record.get("_process")]
+    return hook_matches if hook_matches else matches
 
 
 def find_session(query):
-    if not FLEET_DIR.exists():
-        return None
-
-    hook_matches = []
-    proc_matches = []
-
-    for f in FLEET_DIR.glob("*.json"):
-        try:
-            data = json.loads(f.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-        sid = data.get("session_id", "")
-        repo = data.get("repo", "")
-        if query in sid or query in repo:
-            if f.name.startswith("proc-"):
-                proc_matches.append(data)
-            else:
-                hook_matches.append(data)
-
-    matches = hook_matches if hook_matches else proc_matches
-
+    matches = _matching_sessions(query)
     if not matches:
         print(f"No session matching '{query}'", file=sys.stderr)
         return None
     if len(matches) == 1:
-        return matches[0]
-
+        return _public_record(matches[0])
     print(f"Multiple sessions match '{query}':", file=sys.stderr)
-    for m in matches:
-        print(f"  {m.get('repo', '?')} ({m['session_id']})", file=sys.stderr)
+    for match in matches:
+        harness = match.get("harness_id", match.get("agent", "claude"))
+        print(
+            f"  {harness}: {match.get('repo', '?')} ({match['session_id']})",
+            file=sys.stderr,
+        )
     return None
 
 
 def get_pid(session):
-    sid = session.get("session_id", "")
-    stored_pid = session.get("pid", "")
+    process = resolve_session_process(session)
+    return process.pid if process else None
 
-    if sid.startswith("proc-"):
-        return int(sid[5:])
 
-    if stored_pid:
-        try:
-            pid = int(stored_pid)
-            os.kill(pid, 0)
-            return pid
-        except (ValueError, OSError):
-            pass
-
-    cwd = session.get("cwd", "")
-    if not cwd:
-        return None
-
-    try:
-        result = subprocess.run(
-            ["pgrep", "-x", "claude"], capture_output=True, text=True
+def focus_session(query) -> FocusResult:
+    matches = _matching_sessions(query)
+    if not matches:
+        return FocusResult(state="not-found", reason=f"no session matching '{query}'")
+    if len(matches) > 1:
+        return FocusResult(
+            state="ambiguous",
+            reason=f"multiple sessions match '{query}'",
         )
-        for pid_str in result.stdout.strip().split("\n"):
-            if not pid_str:
-                continue
-            pid = int(pid_str)
-            try:
-                pcwd = os.readlink(f"/proc/{pid}/cwd")
-                cmdline = Path(f"/proc/{pid}/cmdline").read_text().replace("\0", " ")
-            except OSError:
-                continue
-            if any(s in cmdline for s in ("daemon", "bg-pty", "bg-spare")):
-                continue
-            if pcwd == cwd:
-                return pid
-    except FileNotFoundError:
-        pass
+    session = _public_record(matches[0])
+    process = resolve_session_process(session)
+    if process is None:
+        return FocusResult(
+            state="unavailable",
+            reason="stored process identity is unavailable or stale",
+        )
 
-    return None
+    target = session.get("focus_target", {})
+    if not isinstance(target, dict):
+        target = {}
+    target_kind = target.get("kind")
+    terminal_type = target.get("terminal", session.get("terminal", ""))
+    terminal_env = target.get("terminal_env", session.get("terminal_env", {}))
+    if target_kind == "desktop":
+        return FocusResult(
+            state="unavailable",
+            reason="desktop focus target has no configured backend",
+            pid=process.pid,
+        )
+    if target_kind == "unavailable":
+        return FocusResult(
+            state="unavailable",
+            reason="session focus target is unavailable",
+            pid=process.pid,
+        )
+    if not terminal_type:
+        return FocusResult(
+            state="unavailable",
+            reason="session has no captured terminal metadata",
+            pid=process.pid,
+        )
+    api = find_terminal_api(terminal_type)
+    if api is None:
+        return FocusResult(
+            state="unavailable",
+            reason=f"captured terminal backend '{terminal_type}' is unavailable",
+            backend=terminal_type,
+            pid=process.pid,
+        )
+    return api.focus_result(process.pid, terminal_env)
 
 
 def focus(query):
-    session = find_session(query)
-    if not session:
-        return False
-
-    pid = get_pid(session)
-    repo = session.get("repo", "?")
-
-    if not pid:
-        print(f"Session '{repo}' has no PID", file=sys.stderr)
-        return False
-
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        print(f"PID {pid} is no longer running", file=sys.stderr)
-        return False
-
-    terminal_type = session.get("terminal", "")
-    terminal_env = session.get("terminal_env", {})
-
-    if terminal_type:
-        api = get_terminal_api(terminal_type)
-        if api.focus(pid, terminal_env):
-            print(f"Focused {repo} via {api.name} (PID {pid})")
-            return True
-
-    from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
-    from claude_fleet_monitor.terminal_apis.konsole import KonsoleAPI
-    from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
-    for cls in (KonsoleAPI, TmuxAPI, GhosttyAPI):
-        api = cls()
-        if api.focus(pid, {}):
-            print(f"Focused {repo} via {api.name} (PID {pid})")
-            return True
-
-    print(f"Could not find terminal window for PID {pid} ({repo})", file=sys.stderr)
+    result = focus_session(query)
+    if result.successful:
+        label = "Focused" if result.complete else "Partially focused"
+        print(f"{label} session via {result.backend} (PID {result.pid})")
+        return True
+    print(result.reason, file=sys.stderr)
     return False
 
 

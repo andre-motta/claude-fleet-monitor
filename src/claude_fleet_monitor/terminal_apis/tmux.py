@@ -122,15 +122,15 @@ class TmuxAPI(TerminalAPI):
             cmd.extend(["-S", socket])
 
         try:
-            subprocess.run(
+            selected_window = subprocess.run(
                 cmd + ["select-window", "-t", session_window],
                 capture_output=True, timeout=5
             )
-            subprocess.run(
+            selected_pane = subprocess.run(
                 cmd + ["select-pane", "-t", tab_id],
                 capture_output=True, timeout=5
             )
-            return True
+            return selected_window.returncode == 0 and selected_pane.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
@@ -144,7 +144,7 @@ class TmuxAPI(TerminalAPI):
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            return True
+            return False
 
         for line in result.stdout.strip().split("\n"):
             if not line:
@@ -159,8 +159,7 @@ class TmuxAPI(TerminalAPI):
                 parent_tab = parent_api.find_tab(client_pid, {})
                 if parent_tab:
                     parent_api.switch_tab(parent_tab, {})
-                    parent_api.raise_window(parent_tab, {})
-                    return True
+                    return parent_api.raise_window(parent_tab, {})
 
         from claude_fleet_monitor.terminal_apis.generic import GenericAPI
         return GenericAPI().raise_window(tab_id, {})

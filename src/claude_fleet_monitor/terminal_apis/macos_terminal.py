@@ -28,18 +28,19 @@ tell application "Terminal"
             if tty of t contains "{tab_id}" then
                 set selected tab of w to t
                 set index of w to 1
-                return
+                return "focused"
             end if
         end repeat
     end repeat
 end tell
+return "not-found"
 '''
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True, timeout=5
             )
-            return True
+            return result.returncode == 0 and result.stdout.strip() == "focused"
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
@@ -50,10 +51,10 @@ tell application "Terminal"
 end tell
 '''
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True, timeout=5
             )
-            return True
+            return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False

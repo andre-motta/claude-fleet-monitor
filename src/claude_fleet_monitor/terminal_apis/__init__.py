@@ -37,7 +37,11 @@ def capture_terminal_info() -> dict:
 
 
 def get_terminal_api(terminal_type: str) -> TerminalAPI:
+    return find_terminal_api(terminal_type) or GenericAPI()
+
+
+def find_terminal_api(terminal_type: str) -> TerminalAPI | None:
     for cls in TERMINALS:
         if cls.name == terminal_type:
             return cls()
-    return GenericAPI()
+    return None

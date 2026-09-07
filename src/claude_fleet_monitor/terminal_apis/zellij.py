@@ -21,20 +21,18 @@ class ZellijAPI(TerminalAPI):
         }
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
-        # Zellij doesn't expose per-pane PID mapping via CLI.
-        # Best effort: return PID as identifier.
-        return str(pid)
+        return None
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         session = terminal_env.get("ZELLIJ_SESSION_NAME", "")
         if not session:
             return False
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["zellij", "--session", session, "action", "focus-tab"],
                 capture_output=True, timeout=5
             )
-            return True
+            return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 

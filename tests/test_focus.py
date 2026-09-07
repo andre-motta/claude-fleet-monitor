@@ -44,13 +44,29 @@ def test_find_session_multiple_returns_none(fleet_dir):
 
 
 def test_get_pid_from_proc_session(fleet_dir):
+    from claude_fleet_monitor.discovery import ProcessInfo
+    import claude_fleet_monitor.focus as focus_module
     from claude_fleet_monitor.focus import get_pid
-    session = {"session_id": "proc-12345", "cwd": "/tmp/myrepo"}
-    assert get_pid(session) == 12345
+    process = ProcessInfo(
+        12345, 1, "claude", "claude", ("claude",), "/tmp/myrepo", "1"
+    )
+    original = focus_module.resolve_session_process
+    focus_module.resolve_session_process = lambda value: process
+    session = {"session_id": "proc-12345", "pid": "12345", "cwd": "/tmp/myrepo"}
+    try:
+        assert get_pid(session) == 12345
+    finally:
+        focus_module.resolve_session_process = original
 
 
 def test_get_pid_from_stored_pid(fleet_dir, monkeypatch):
-    monkeypatch.setattr("os.kill", lambda pid, sig: None)
+    from claude_fleet_monitor.discovery import ProcessInfo
+    monkeypatch.setattr(
+        "claude_fleet_monitor.focus.resolve_session_process",
+        lambda value: ProcessInfo(
+            os.getpid(), 1, "claude", "claude", ("claude",), value["cwd"], "1"
+        ),
+    )
     from claude_fleet_monitor.focus import get_pid
     session = {"session_id": "abc-123", "pid": str(os.getpid()), "cwd": "/tmp/myrepo"}
     result = get_pid(session)
@@ -58,10 +74,9 @@ def test_get_pid_from_stored_pid(fleet_dir, monkeypatch):
 
 
 def test_get_pid_dead_stored_pid(fleet_dir, monkeypatch):
-    def fake_kill(pid, sig):
-        raise OSError("no such process")
-    monkeypatch.setattr("os.kill", fake_kill)
-    monkeypatch.setattr("subprocess.run", lambda *a, **kw: type("R", (), {"stdout": "", "returncode": 1})())
+    monkeypatch.setattr(
+        "claude_fleet_monitor.focus.resolve_session_process", lambda value: None
+    )
     from claude_fleet_monitor.focus import get_pid
     session = {"session_id": "abc-123", "pid": "999999", "cwd": "/tmp/myrepo"}
     result = get_pid(session)

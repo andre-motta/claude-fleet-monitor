@@ -8,10 +8,14 @@ from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
 class GnomeAPI(TerminalAPI):
     name = "gnome"
+    selection_supported = False
 
     @staticmethod
     def detect() -> bool:
-        return bool(os.environ.get("VTE_VERSION") or os.environ.get("GNOME_TERMINAL_SERVICE"))
+        return bool(
+            os.environ.get("GNOME_TERMINAL_SERVICE")
+            or os.environ.get("TERM_PROGRAM") == "gnome-terminal"
+        )
 
     @staticmethod
     def capture_env() -> dict:
@@ -54,10 +58,10 @@ class GnomeAPI(TerminalAPI):
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["xdotool", "windowactivate", tab_id],
                 capture_output=True, timeout=5
             )
-            return True
+            return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False

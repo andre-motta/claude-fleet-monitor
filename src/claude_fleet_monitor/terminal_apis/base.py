@@ -2,9 +2,13 @@
 
 from abc import ABC, abstractmethod
 
+from claude_fleet_monitor.models import FocusOperation, FocusResult
+
 
 class TerminalAPI(ABC):
     name: str = "unknown"
+    selection_supported: bool = True
+    activation_supported: bool = True
 
     @staticmethod
     @abstractmethod
@@ -29,10 +33,55 @@ class TerminalAPI(ABC):
         """Bring the window containing the tab to front."""
 
     def focus(self, pid: int, terminal_env: dict) -> bool:
-        """Find, switch, and raise."""
+        """Preserve the legacy true-on-any-success focus contract."""
+        return bool(self.focus_result(pid, terminal_env))
+
+    def focus_result(self, pid: int, terminal_env: dict) -> FocusResult:
+        """Find a target and report selection and activation independently."""
         tab_id = self.find_tab(pid, terminal_env)
         if not tab_id:
-            return False
-        self.switch_tab(tab_id, terminal_env)
-        self.raise_window(tab_id, terminal_env)
-        return True
+            return FocusResult(
+                state="failed",
+                reason="terminal target was not found",
+                backend=self.name,
+                pid=pid,
+            )
+        if not self.selection_supported:
+            selection = FocusOperation.unavailable(
+                "backend does not support exact tab or pane selection"
+            )
+        else:
+            try:
+                selected = self.switch_tab(tab_id, terminal_env)
+            except Exception as error:
+                selection = FocusOperation(True, False, str(error))
+            else:
+                selection = FocusOperation(True, bool(selected), "tab or pane selection")
+        if not self.activation_supported:
+            activation = FocusOperation.unavailable(
+                "backend does not support window activation"
+            )
+        else:
+            try:
+                activated = self.raise_window(tab_id, terminal_env)
+            except Exception as error:
+                activation = FocusOperation(True, False, str(error))
+            else:
+                activation = FocusOperation(True, bool(activated), "window activation")
+        successful = selection.succeeded or activation.succeeded
+        complete = selection.succeeded and activation.succeeded
+        return FocusResult(
+            state="complete" if complete else "partial" if successful else "failed",
+            reason=(
+                "target selected and window activated"
+                if complete
+                else "only some terminal focus operations succeeded"
+                if successful
+                else "terminal focus operations failed"
+            ),
+            backend=self.name,
+            pid=pid,
+            target_found=True,
+            selection=selection,
+            activation=activation,
+        )
