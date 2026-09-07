@@ -68,3 +68,29 @@ helper/evidence, with no mandatory findings. Sol independently passed all 10
 focused tests and all 203 tests. Hosted PR gates remain required before final
 main acceptance. The live result covers tab selection only; window activation
 remains unverified.
+## Approved tmux follow-up
+
+Andre approved the next bounded slice under #32: stable tmux target IDs and
+correct client routing. Base: `00cf29b2ce90327ed76f4c0758e7363440b00b48`.
+The source baseline passes 203 tests. An initial run accidentally imported the
+older installed v0.7 package; rerunning with the checkout source path passed.
+
+Sol high authors the backend and focused regressions in `feat/tmux-routing`.
+Astra owns separate live validation, documentation and integration. Another Sol
+high reviews the actual combined candidate. Signed-off local commits are
+permitted; the user's existing direct-main-PR instruction applies. Main merge
+and releases remain Andre's gate.
+
+Use stable session/window/pane IDs and the captured socket. Select and verify
+the exact target after renaming or index changes. Resolve process ancestry
+through shared discovery. Parent activation considers only clients attached to
+the target session and requires successful parent tab selection where supported.
+Detached, ambiguous, stale, missing-tool and failed-command cases fail safely;
+never fall back to activating an arbitrary window. Existing structured focus
+results remain unchanged.
+
+Validation covers focused regressions plus a real isolated tmux server with
+synthetic processes and clients, independent selection readback and cleanup.
+Any instrumented parent routing is labeled separately from real GUI activation,
+which this slice does not claim. Existing Python/TUI, shell and Pi gates remain
+required. Tongs and other terminal adapters are outside this assignment.

@@ -65,6 +65,9 @@ jobs:
       - name: Install project with dev dependencies
         run: python -m pip install -e ".[dev]"
 
+      - name: Validate tmux identity and client routing
+        run: python validation/tmux.py > "$RUNNER_TEMP/pi-validation/tmux-routing.json"
+
       - name: Install pinned Pi CLI
         run: |
           set -euo pipefail

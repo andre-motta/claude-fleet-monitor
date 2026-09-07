@@ -78,3 +78,24 @@ checkout. Ordinary headless CI does not run this GUI check. It does not exercise
 KWin activation, nested multiplexers, or real harness lifecycle events. Its
 Linux process-lifetime checks and native result do not establish other platform
 support. User settings and existing terminal sessions are not test targets.
+
+## Stable tmux selection and client routing on Linux
+
+```console
+python validation/tmux.py
+```
+
+This headless check creates an isolated tmux server with a socket containing a
+comma, synthetic Python pane processes, and two real PTY clients attached to
+different sessions. It verifies stable targets after a session rename and window
+renumbering, linked-window session identity, independent active-pane readback,
+detached-session selection, stale-target rejection and cleanup of all fixture
+clients and pane children. The unrelated client's session and selected pane
+must remain unchanged.
+
+Parent terminal detection and calls are instrumented to observe which real
+tmux client is routed and whether failed parent-tab selection stops activation.
+This proves routing against real tmux state, not GUI window activation or live
+harness behavior. No desktop server is required. The existing Pi validation
+job runs this check before the real Pi lifecycle test and uploads its JSON
+alongside the other validation evidence.
