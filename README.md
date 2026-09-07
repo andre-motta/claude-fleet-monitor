@@ -13,7 +13,7 @@ Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 - **tongs Plugin** -- embeds as a screen in [tongs](https://github.com/andre-motta/tongs) via the TongsPlugin ABC
 - **Process Discovery** -- finds running Claude Code and Codex sessions cross-platform even before hooks fire
 - **MCP Server** -- Claude Code and Codex sessions can query fleet status programmatically
-- **Terminal Focus** -- switch to a session's tab and raise the window, across 8 supported terminals
+- **Terminal Focus** -- switch to a session's tab and raise the window, across supported terminal backends
 - **Desktop Notifications** -- `notify-send` alerts when a session has been idle for over 2 minutes
 - **Hooks Integration** -- Claude Code and Codex hooks emit real-time status (running, idle, waiting, error) per session
 - **Per-Session Terminal Detection** -- each session captures its terminal type at hook time, not at focus time
@@ -25,6 +25,7 @@ Fleet monitoring for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 | **KDE Konsole** | Yes (qdbus) | Yes (KWin) | -- |
 | **tmux** | Yes (tmux CLI) | Via parent terminal | Yes |
 | **zellij** | Yes (zellij CLI) | Via parent terminal | Yes |
+| **Ghostty (Linux)** | Best effort (ydotool/xdotool) | GTK DBus / KWin | -- |
 | **GNOME Terminal** | No | Yes (xdotool) | -- |
 | **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
 | **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- |
@@ -187,6 +188,7 @@ src/claude_fleet_monitor/
         konsole.py        # KDE Konsole
         tmux.py           # tmux
         zellij.py         # zellij
+        ghostty.py        # Ghostty (Linux GTK DBus)
         gnome.py          # GNOME Terminal
         iterm2.py         # iTerm2
         macos_terminal.py # macOS Terminal.app
@@ -218,6 +220,10 @@ claude-fleet uninstall --keep-data  # keeps ~/.claude/fleet/
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR process.
+Agent-led initiatives follow [the SDLC profile](docs/SDLC.md).
+Planned work is recorded in [harnesses and desktop](docs/work/harnesses-desktop.md),
+including Pi integration, an optional desktop UI and ChatGPT focus feasibility.
+These are planned features, not current support.
 
 ## License
 

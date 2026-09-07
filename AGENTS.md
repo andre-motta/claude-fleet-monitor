@@ -2,6 +2,17 @@
 
 Guidelines for AI agents (Claude Code, Copilot, etc.) contributing to this repository.
 
+## Agent SDLC
+
+Use [docs/SDLC.md](docs/SDLC.md) for substantial initiatives and explicit workflow
+requests. Astra leads architecture/orchestration; Sol at high handles senior
+work and independent review; Luna at xhigh handles bounded work under Sol review.
+Use actual runtime models, isolated worktrees and autonomous signed-off local
+commits within approved scope. Follow the CTO-approved issue-level feature-branch
+PR gates in the profile; Astra owns child merges, and final main merge remains
+the CTO gate. The profile records the adoption authorization, workflow baseline,
+checks and instruction reconciliation. Preserve unrelated rules below.
+
 ## Before You Start
 
 1. Read `CLAUDE.md` for architecture and design decisions.
@@ -12,7 +23,7 @@ Guidelines for AI agents (Claude Code, Copilot, etc.) contributing to this repos
 
 - Write tests for new functionality. Tests live in `tests/` and use pytest with `tmp_path` fixtures.
 - Keep changes cross-platform. Never assume Linux (`/proc`, `pgrep`). Use `sys.platform` checks and the abstractions in `discovery.py`.
-- All process/filesystem interaction goes through `discovery.py`. Don't duplicate platform-specific logic in other modules.
+- Shared process discovery and session filesystem access go through `discovery.py`. The hook owns fleet event writes, CLI install/uninstall owns harness configuration, and terminal APIs own terminal integration. Do not duplicate platform-specific discovery logic in consumers.
 - The hook (`hook.py`) must stay fast. No heavy imports at module level, no network calls.
 
 ### Terminal APIs
@@ -25,7 +36,7 @@ Guidelines for AI agents (Claude Code, Copilot, etc.) contributing to this repos
 
 ## Code Conventions
 
-- Pure Python. No shell subprocess calls for things Python can do natively (JSON parsing, file I/O, string manipulation).
+- The core is pure Python. The approved Pi adapter may include a small optional, dependency-free JavaScript extension; keep its code and assets isolated from core startup. No shell subprocess calls for things Python can do natively (JSON parsing, file I/O, string manipulation).
 - `subprocess` is acceptable only for platform integration (qdbus, xdotool, osascript, pgrep, lsof, tmux, zellij).
 - Module-level imports. Function-level imports only to avoid circular deps or for optional deps (`pywinctl`).
 - No comments unless the "why" would surprise a reader.
