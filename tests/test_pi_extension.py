@@ -51,7 +51,7 @@ def run_bridge(
         "fleetMonitor({ on: (name, handler) => handlers.set(name, handler) });\n"
         "let nativeId = 'native-old';\n"
         "const ctx = { cwd: process.cwd(), sessionManager: { getSessionId: () => nativeId } };\n"
-        "const fire = (name, event = {}) => handlers.get(name)({ type: name, ...event }, ctx);\n"
+        "const fire = (name, event = {}) => handlers.get(name)?.({ type: name, ...event }, ctx);\n"
         + script
     )
     environment = os.environ.copy()
@@ -326,8 +326,8 @@ def test_bridge_rejects_oversized_config_without_blocking_pi(tmp_path):
         "const handlers = new Map();\n"
         "fleetMonitor({ on: (name, handler) => handlers.set(name, handler) });\n"
         "const ctx = { cwd: process.cwd(), sessionManager: { getSessionId: () => 'native' } };\n"
-        "handlers.get('session_start')({ type: 'session_start', reason: 'startup' }, ctx);\n"
-        "await handlers.get('session_shutdown')({ type: 'session_shutdown', reason: 'quit' }, ctx);\n"
+        "handlers.get('session_start')?.({ type: 'session_start', reason: 'startup' }, ctx);\n"
+        "await handlers.get('session_shutdown')?.({ type: 'session_shutdown', reason: 'quit' }, ctx);\n"
         "console.log(JSON.stringify({ survived: true }));\n"
     )
     result = subprocess.run(
@@ -340,3 +340,92 @@ def test_bridge_rejects_oversized_config_without_blocking_pi(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout) == {"survived": True}
+
+
+@pytest.mark.parametrize("current_first", [False, True])
+def test_only_current_extension_copy_registers_during_migration(
+    tmp_path, current_first
+):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    old = tmp_path / "old"
+    current = tmp_path / "current"
+    for package in (old, current):
+        extensions = package / "extensions"
+        extensions.mkdir(parents=True)
+        shutil.copy2(extension_path(), extensions / "fleet-monitor.js")
+        (package / "package.json").write_text('{"type":"module"}')
+    events = tmp_path / "events.jsonl"
+    hook = tmp_path / "hook"
+    hook.write_text(
+        "#!/usr/bin/env python3\n"
+        "import os, sys\n"
+        "with open(os.environ['FLEET_TEST_EVENTS'], 'a') as stream:\n"
+        "    stream.write(sys.stdin.read() + '\\n')\n"
+    )
+    hook.chmod(hook.stat().st_mode | stat.S_IXUSR)
+    (config_dir / "claude-fleet-monitor.json").write_text(json.dumps({
+        "schema_version": 1,
+        "owner": "claude-fleet-monitor",
+        "hook_path": str(hook),
+        "extension_path": str(current),
+        "managed_paths": [str(current), str(old)],
+    }))
+    ordered = [current, old] if current_first else [old, current]
+    runner = tmp_path / "runner.mjs"
+    runner.write_text(
+        "\n".join(
+            f"import extension{index} from "
+            f"{json.dumps((package / 'extensions' / 'fleet-monitor.js').as_uri())};"
+            for index, package in enumerate(ordered)
+        )
+        + """
+const handlers = new Map();
+const pi = { on: (name, handler) => {
+  const values = handlers.get(name) ?? [];
+  values.push(handler);
+  handlers.set(name, values);
+} };
+extension0(pi);
+extension1(pi);
+const ctx = {
+  cwd: process.cwd(),
+  sessionManager: { getSessionId: () => 'native-session' },
+};
+const fire = (name, event = {}) => Promise.all(
+  (handlers.get(name) ?? []).map((handler) => handler({ type: name, ...event }, ctx)),
+);
+await fire('session_start', { reason: 'startup' });
+await fire('before_agent_start', { prompt: 'private' });
+await fire('tool_execution_start', { toolName: 'Read', args: { private: true } });
+await fire('agent_end', { messages: [{ role: 'assistant', stopReason: 'stop' }] });
+await fire('agent_settled');
+await fire('session_shutdown', { reason: 'quit' });
+console.log(JSON.stringify(Object.fromEntries(
+  [...handlers].map(([name, values]) => [name, values.length]),
+)));
+"""
+    )
+    result = subprocess.run(
+        [NODE, str(runner)],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "PI_CODING_AGENT_DIR": str(config_dir),
+            "FLEET_TEST_EVENTS": str(events),
+        },
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert set(json.loads(result.stdout).values()) == {1}
+    records = [json.loads(line) for line in events.read_text().splitlines()]
+    assert [record["event_id"] for record in records] == [
+        "pi.session-start",
+        "pi.before-agent-start",
+        "pi.tool-execution-start",
+        "pi.agent-settled",
+        "pi.session-shutdown",
+    ]
+    assert [record["sequence"] for record in records] == [1, 2, 3, 4, 5]

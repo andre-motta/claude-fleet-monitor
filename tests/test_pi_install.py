@@ -134,6 +134,17 @@ def test_failed_upgrade_removal_is_retained_for_retry(tmp_path, monkeypatch):
     config = json.loads(config_path.read_text())
     assert config["managed_paths"] == [str(extension), str(old)]
 
+    calls = []
+    monkeypatch.setattr(
+        pi_install,
+        "_run_pi_package",
+        lambda command, operation, path: calls.append((operation, path)) or completed(),
+    )
+    assert pi_install.install_pi("/path/pi", str(hook))
+    assert calls == [("install", extension), ("remove", old)]
+    config = json.loads(config_path.read_text())
+    assert config["managed_paths"] == [str(extension)]
+
 
 def test_failed_install_restores_previous_config(tmp_path, monkeypatch):
     from claude_fleet_monitor import pi_install

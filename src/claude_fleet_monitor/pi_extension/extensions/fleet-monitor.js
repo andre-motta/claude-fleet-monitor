@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { closeSync, fstatSync, lstatSync, openSync, readSync } from "node:fs";
+import {
+  closeSync, fstatSync, lstatSync, openSync, readSync, realpathSync,
+} from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const RUNTIME_KEY = Symbol.for("claude-fleet-monitor.pi.runtime.v1");
 const CONFIG_OWNER = "claude-fleet-monitor";
@@ -10,6 +13,9 @@ const CONFIG_NAME = "claude-fleet-monitor.json";
 const MAX_QUEUE = 128;
 const SEND_TIMEOUT_MS = 1500;
 const MAX_CONFIG_BYTES = 16 * 1024;
+const CURRENT_EXTENSION_PATH = realpathSync(
+  dirname(dirname(fileURLToPath(import.meta.url))),
+);
 
 function createRuntime() {
   return {
@@ -60,6 +66,7 @@ function loadConfig() {
       || config.managed_paths.length > 64
       || config.managed_paths.some((value) => !validAbsolutePath(value))
       || !config.managed_paths.includes(config.extension_path)
+      || realpathSync(config.extension_path) !== CURRENT_EXTENSION_PATH
     ) {
       return null;
     }
@@ -238,6 +245,7 @@ function outcomeFromMessages(messages) {
 }
 
 export default function fleetMonitor(pi) {
+  if (!config) return;
   pi.on("session_start", (event, ctx) => {
     const id = sessionId(ctx);
     if (!id) return;
