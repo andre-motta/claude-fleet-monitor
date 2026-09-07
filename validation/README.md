@@ -20,3 +20,17 @@ the temporary directory and is not printed.
 On the 2026-09-07 validation host, sandboxed AnyIO stdio reads stalled. The same
 check passed in the normal host environment, with no external network requests.
 A sandbox timeout is not a pass and must be reported separately.
+
+## GitHub Actions workflow lint
+
+The `workflow-lint` job in `.github/workflows/test.yml` downloads the pinned
+official actionlint 1.7.12 Linux release, verifies its SHA-256 before
+extraction, and checks every `.github/workflows/*.yml` file. It disables the
+optional shellcheck and pyflakes integrations so the gate has no project
+dependency beyond the standard Ubuntu runner tools.
+
+To reproduce locally with a downloaded actionlint binary:
+
+```console
+actionlint -no-color -shellcheck= -pyflakes= .github/workflows/*.yml
+```
