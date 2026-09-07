@@ -131,11 +131,13 @@ is only receipt order. A producer with parallel callbacks must serialize its
 own delivery or supply an ordering that survives retries, session switching
 and process reload.
 
-If process ancestry cannot be resolved, Fleet stores an explicit unresolved
-record with the `unresolved` instance marker and unavailable focus. A later
-identified event is written before the placeholder is removed. An adapter must
-not invent a PID, merge different harnesses that share a native ID, or revive
-an unresolved placeholder after a successful identity migration.
+If process ancestry cannot be resolved, Fleet can establish an explicit
+unresolved native record with the `unresolved` instance marker and unavailable
+focus only for `session-start` or `prompt-submit`. A native tool, permission,
+stop or end event without an existing record is ignored. A later identified
+event is written before the placeholder is removed. An adapter must not invent
+a PID, merge different harnesses that share a native ID, or revive an
+unresolved placeholder after a successful identity migration.
 
 ## Storage, privacy and fail-open behavior
 
