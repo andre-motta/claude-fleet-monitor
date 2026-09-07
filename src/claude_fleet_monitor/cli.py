@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from claude_fleet_monitor.pi_install import install_pi, uninstall_pi
+
 
 CLAUDE_DIR = Path.home() / ".claude"
 CODEX_DIR = Path.home() / ".codex"
@@ -153,87 +155,114 @@ def _uninstall_codex_mcp(codex_cmd):
 
 
 def cmd_install(args):
-    FLEET_DIR.mkdir(parents=True, exist_ok=True)
-
+    agent = getattr(args, "agent", None)
+    selected = {"claude", "codex"} if agent is None else {agent}
+    if "all" in selected:
+        selected = {"claude", "codex", "pi"}
     hook_cmd = shutil.which("claude-fleet-hook") or "claude-fleet-hook"
     python_path = sys.executable
 
-    settings = load_settings()
+    if "claude" in selected or "codex" in selected:
+        FLEET_DIR.mkdir(parents=True, exist_ok=True)
+    if "claude" in selected:
+        settings = load_settings()
+        _install_hooks(settings, CLAUDE_HOOK_EVENTS, hook_cmd, "claude")
+        settings.setdefault("mcpServers", {})["fleet"] = {
+            "command": python_path,
+            "args": ["-m", "claude_fleet_monitor.mcp_server"],
+            "env": {},
+        }
+        save_settings(settings)
+        print(f"  Updated {SETTINGS_FILE}")
+    if "codex" in selected:
+        codex_hooks = load_json(CODEX_HOOKS_FILE)
+        _install_hooks(codex_hooks, CODEX_HOOK_EVENTS, hook_cmd, "codex")
+        save_json(CODEX_HOOKS_FILE, codex_hooks)
+        print(f"  Updated {CODEX_HOOKS_FILE}")
 
-    _install_hooks(settings, CLAUDE_HOOK_EVENTS, hook_cmd, "claude")
-
-    if "mcpServers" not in settings:
-        settings["mcpServers"] = {}
-
-    settings["mcpServers"]["fleet"] = {
-        "command": python_path,
-        "args": ["-m", "claude_fleet_monitor.mcp_server"],
-        "env": {},
-    }
-
-    save_settings(settings)
-    print(f"  Updated {SETTINGS_FILE}")
-
-    codex_hooks = load_json(CODEX_HOOKS_FILE)
-    _install_hooks(codex_hooks, CODEX_HOOK_EVENTS, hook_cmd, "codex")
-    save_json(CODEX_HOOKS_FILE, codex_hooks)
-    print(f"  Updated {CODEX_HOOKS_FILE}")
-
-    codex_cmd = shutil.which("codex")
-    if codex_cmd:
-        _install_codex_mcp(codex_cmd)
-    else:
-        print("  Codex CLI not found; skipped Codex MCP registration")
+        codex_cmd = shutil.which("codex")
+        if codex_cmd:
+            _install_codex_mcp(codex_cmd)
+        else:
+            print("  Codex CLI not found; skipped Codex MCP registration")
+    if "pi" in selected:
+        pi_cmd = shutil.which("pi")
+        if pi_cmd is None or not Path(hook_cmd).is_absolute():
+            print("  Pi and claude-fleet-hook must be installed before enabling Pi")
+            raise SystemExit(1)
+        if not install_pi(pi_cmd, hook_cmd):
+            raise SystemExit(1)
 
     print()
-    print("Claude Fleet Monitor installed for Claude Code and Codex!")
+    if agent is None:
+        print("Claude Fleet Monitor installed for Claude Code and Codex!")
+    else:
+        names = ", ".join(name.title() for name in sorted(selected))
+        print(f"Claude Fleet Monitor installed for {names}!")
     print()
     print("Usage:")
     print("  claude-fleet monitor          # TUI dashboard")
     print("  claude-fleet focus <repo>     # Focus terminal tab")
-    print("  (MCP tools available in Claude Code and Codex sessions)")
+    if "claude" in selected or "codex" in selected:
+        print("  (MCP tools available in Claude Code and Codex sessions)")
     print()
-    print("Restart agent sessions to activate hooks. In Codex, review them with /hooks.")
+    if agent is None:
+        print("Restart agent sessions to activate hooks. In Codex, review them with /hooks.")
+    else:
+        print("Restart selected agent sessions to activate monitoring.")
+        if "codex" in selected:
+            print("In Codex, review installed hooks with /hooks.")
 
 
 def cmd_uninstall(args):
+    agent = getattr(args, "agent", None)
+    selected = {"claude", "codex"} if agent is None else {agent}
+    if "all" in selected:
+        selected = {"claude", "codex", "pi"}
     # Clean up legacy bash scripts and MCP dir from older versions
-    bin_dir = CLAUDE_DIR / "bin"
-    mcp_dir = CLAUDE_DIR / "fleet-mcp"
-    for name in ("fleet-hook.sh", "fleet-monitor.sh", "fleet-focus.sh"):
-        f = bin_dir / name
-        if f.exists():
-            f.unlink()
-            print(f"  Removed legacy {f}")
-    if mcp_dir.exists():
-        shutil.rmtree(mcp_dir)
-        print(f"  Removed legacy {mcp_dir}")
+    if "claude" in selected:
+        bin_dir = CLAUDE_DIR / "bin"
+        mcp_dir = CLAUDE_DIR / "fleet-mcp"
+        for name in ("fleet-hook.sh", "fleet-monitor.sh", "fleet-focus.sh"):
+            f = bin_dir / name
+            if f.exists():
+                f.unlink()
+                print(f"  Removed legacy {f}")
+        if mcp_dir.exists():
+            shutil.rmtree(mcp_dir)
+            print(f"  Removed legacy {mcp_dir}")
+        settings = load_settings()
+        _remove_hooks(settings, CLAUDE_HOOK_EVENTS)
+        if "mcpServers" in settings and "fleet" in settings["mcpServers"]:
+            del settings["mcpServers"]["fleet"]
+        save_settings(settings)
+        print(f"  Updated {SETTINGS_FILE}")
+    if "codex" in selected:
+        codex_hooks = load_json(CODEX_HOOKS_FILE)
+        _remove_hooks(codex_hooks, CODEX_HOOK_EVENTS)
+        save_json(CODEX_HOOKS_FILE, codex_hooks)
+        print(f"  Updated {CODEX_HOOKS_FILE}")
+        codex_cmd = shutil.which("codex")
+        if codex_cmd:
+            _uninstall_codex_mcp(codex_cmd)
+    if "pi" in selected:
+        pi_cmd = shutil.which("pi")
+        if not uninstall_pi(pi_cmd):
+            raise SystemExit(1)
 
-    settings = load_settings()
-
-    _remove_hooks(settings, CLAUDE_HOOK_EVENTS)
-
-    if "mcpServers" in settings and "fleet" in settings["mcpServers"]:
-        del settings["mcpServers"]["fleet"]
-
-    save_settings(settings)
-    print(f"  Updated {SETTINGS_FILE}")
-
-    codex_hooks = load_json(CODEX_HOOKS_FILE)
-    _remove_hooks(codex_hooks, CODEX_HOOK_EVENTS)
-    save_json(CODEX_HOOKS_FILE, codex_hooks)
-    print(f"  Updated {CODEX_HOOKS_FILE}")
-
-    codex_cmd = shutil.which("codex")
-    if codex_cmd:
-        _uninstall_codex_mcp(codex_cmd)
-
-    if not args.keep_data and FLEET_DIR.exists():
+    if selected == {"claude", "codex", "pi"} and not args.keep_data and FLEET_DIR.exists():
+        shutil.rmtree(FLEET_DIR)
+        print(f"  Removed {FLEET_DIR}")
+    elif agent is None and not args.keep_data and FLEET_DIR.exists():
         shutil.rmtree(FLEET_DIR)
         print(f"  Removed {FLEET_DIR}")
 
     print()
-    print("Claude Fleet Monitor uninstalled from Claude Code and Codex.")
+    if agent is None:
+        print("Claude Fleet Monitor uninstalled from Claude Code and Codex.")
+    else:
+        names = ", ".join(name.title() for name in sorted(selected))
+        print(f"Claude Fleet Monitor uninstalled from {names}.")
 
 
 def cmd_monitor(args):
@@ -279,10 +308,18 @@ def main():
     )
     sub = parser.add_subparsers(dest="command")
 
-    sub.add_parser("install", help="Install hooks, scripts, and MCP server")
+    p_install = sub.add_parser("install", help="Install agent monitoring")
+    p_install.add_argument(
+        "--agent", choices=["claude", "codex", "pi", "all"],
+        help="Install one agent integration; default: Claude Code and Codex",
+    )
 
-    p_uninstall = sub.add_parser("uninstall", help="Remove all fleet monitor components")
+    p_uninstall = sub.add_parser("uninstall", help="Remove agent monitoring")
     p_uninstall.add_argument("--keep-data", action="store_true", help="Keep fleet status data")
+    p_uninstall.add_argument(
+        "--agent", choices=["claude", "codex", "pi", "all"],
+        help="Remove one agent integration; default: Claude Code and Codex",
+    )
 
     p_monitor = sub.add_parser("monitor", help="Launch TUI dashboard")
     p_monitor.add_argument("--refresh", type=int, default=2, help="Refresh interval in seconds")
