@@ -66,7 +66,15 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Validate tmux identity and client routing
-        run: python validation/tmux.py > "$RUNNER_TEMP/pi-validation/tmux-routing.json"
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/pi-validation"
+          status=0
+          python validation/tmux.py \
+            > "$evidence_dir/tmux-routing.json" \
+            2> "$evidence_dir/tmux-routing.stderr" || status=$?
+          printf '%s\n' "$status" > "$evidence_dir/tmux-routing-exit-code.txt"
+          test "$status" -eq 0
 
       - name: Install pinned Pi CLI
         run: |

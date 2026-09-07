@@ -15,11 +15,55 @@ from unittest.mock import patch
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
 
 
-def alive(pid):
+def process_identity(pid):
     try:
-        return Path(f"/proc/{pid}/stat").read_text().rsplit(") ", 1)[1][0] != "Z"
-    except FileNotFoundError:
-        return False
+        fields = Path(f"/proc/{pid}/stat").read_text().rsplit(") ", 1)[1].split()
+        return None if fields[0] == "Z" else fields[19]
+    except (OSError, IndexError):
+        return None
+
+
+def cleanup(run, identities, clients):
+    try:
+        run("kill-server", check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    def remaining():
+        return [pid for pid, birth in identities.items()
+                if birth is not None and process_identity(pid) == birth]
+
+    try:
+        for action in (signal.SIGTERM, signal.SIGKILL):
+            for pid in remaining():
+                try:
+                    os.kill(pid, action)
+                except OSError:
+                    pass
+            deadline = time.monotonic() + 3
+            while remaining() and time.monotonic() < deadline:
+                time.sleep(0.05)
+    finally:
+        unreaped = []
+        for client_pid, descriptor in clients:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+            deadline = time.monotonic() + 3
+            while True:
+                try:
+                    reaped, _ = os.waitpid(client_pid, os.WNOHANG)
+                except ChildProcessError:
+                    break
+                if reaped:
+                    break
+                if time.monotonic() >= deadline:
+                    unreaped.append(client_pid)
+                    break
+                time.sleep(0.05)
+        if unreaped or remaining():
+            raise RuntimeError("Owned tmux fixture processes survived cleanup")
 
 
 def validate():
@@ -27,6 +71,7 @@ def validate():
         raise RuntimeError("This check requires Linux and tmux")
     clients = []
     pane_pids = []
+    identities = {}
     with tempfile.TemporaryDirectory(prefix="fleet-tmux-validation-") as temporary:
         socket = str(Path(temporary) / "socket,with-comma")
         command = ["tmux", "-S", socket, "-f", "/dev/null"]
@@ -49,6 +94,10 @@ def validate():
             )
             session, window, identity, pid = output.split()
             pane_pids.append(int(pid))
+            identities[int(pid)] = process_identity(int(pid))
+            server_pid = int(run("display-message", "-p", "#{pid}"))
+            identities.setdefault(server_pid, process_identity(server_pid))
+            assert identities[int(pid)] is not None and identities[server_pid] is not None
             return session, window, identity, int(pid)
 
         def attach(session):
@@ -56,9 +105,11 @@ def validate():
             if pid == 0:
                 os.execvpe("tmux", [*command, "attach-session", "-t", session], environment)
             clients.append((pid, descriptor))
+            identities[pid] = process_identity(pid)
+            assert identities[pid] is not None
             deadline = time.monotonic() + 5
             while str(pid) not in run("list-clients", "-F", "#{client_pid}").splitlines():
-                if not alive(pid) or time.monotonic() > deadline:
+                if process_identity(pid) != identities[pid] or time.monotonic() > deadline:
                     raise RuntimeError("Synthetic tmux client did not attach")
                 time.sleep(0.05)
             return pid
@@ -154,22 +205,7 @@ def validate():
                 "gui_activation": "not exercised or claimed",
             }
         finally:
-            run("kill-server", check=False)
-            for client_pid, descriptor in clients:
-                os.close(descriptor)
-                deadline = time.monotonic() + 3
-                while alive(client_pid) and time.monotonic() < deadline:
-                    time.sleep(0.05)
-                if alive(client_pid):
-                    os.kill(client_pid, signal.SIGKILL)
-                os.waitpid(client_pid, 0)
-            deadline = time.monotonic() + 3
-            while any(alive(value) for value in pane_pids) and time.monotonic() < deadline:
-                time.sleep(0.05)
-            assert not any(alive(value) for value in pane_pids), "Synthetic pane children survived cleanup"
-            assert not Path(socket).exists() or subprocess.run(
-                [*command, "list-sessions"], capture_output=True, timeout=5,
-            ).returncode != 0
+            cleanup(run, identities, clients)
         evidence["cleanup"] = {"clients_exited": len(clients), "pane_children_exited": len(pane_pids)}
     print(json.dumps(evidence, indent=2))
 
