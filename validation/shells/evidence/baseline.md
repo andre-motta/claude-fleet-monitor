@@ -2,7 +2,7 @@
 
 Result: **partial**
 Run type: `live-container-synthetic-emitter`
-Generated: `2026-09-07T13:55:24.072953+00:00`
+Generated: `2026-09-07T14:16:05.155331+00:00`
 
 ## Reproduction metadata
 
@@ -61,7 +61,7 @@ Generated: `2026-09-07T13:55:24.072953+00:00`
 
 ## Executable path probe
 
-Manual quoted controls passed for 9/9 shells. Installer-generated commands passed for 0/108. The manual unquoted control is expected to fail for the baseline path with spaces; generated-command failures are acceptance failures unless `--allow-known-gaps` is explicitly supplied.
+Manual quoted controls passed for 9/9 shells. Installer-generated commands passed for 0/108. Generated commands reuse one session ID per shell and agent and run in event order. The manual unquoted control is expected to fail for the baseline path with spaces; generated-command failures are acceptance failures unless `--allow-known-gaps` is explicitly supplied.
 
 | Shell | Manual unquoted return code | Manual quoted | Installer-generated commands | Classification |
 | --- | ---: | --- | ---: | --- |

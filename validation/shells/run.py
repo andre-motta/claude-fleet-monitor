@@ -549,8 +549,10 @@ def _generated_command_probe(
     command: str,
     env: dict[str, str],
     token: str,
+    previous_event: str | None,
+    previous_passed: bool,
 ) -> dict[str, object]:
-    session_id = f"generated-{token}-{spec['id']}-{agent}-{event}"
+    session_id = f"generated-{token}-{spec['id']}-{agent}"
     payload = _expected_payload(event, session_id, agent)
     process = _run_shell(spec, command, payload, env, FIXTURE_CWD)
     records = _matching_records(FLEET_DIR, session_id)
@@ -563,16 +565,23 @@ def _generated_command_probe(
         record_ok = False
         mismatches = ["generated command exited nonzero"]
         record = records[0] if records else None
+    sequence_ok = previous_passed
+    if not sequence_ok:
+        mismatches.append(
+            f"preceding generated event did not pass: {previous_event}"
+        )
     probe: dict[str, object] = {
         "shell": spec["id"],
         "agent": agent,
         "event": event,
+        "previous_event": previous_event,
+        "previous_passed": previous_passed,
         "session_id": session_id,
         "command": command,
         "invocation": _shell_command(spec, command),
         "returncode": process["returncode"],
         "matched_records": len(records),
-        "passed": process_ok and record_ok,
+        "passed": process_ok and record_ok and sequence_ok,
         "known_gap": process["returncode"] not in (0, None),
         "observed": _record_view(record),
     }
@@ -644,13 +653,23 @@ def _path_probe(
         )
     else:
         for agent in ("claude", "codex"):
+            previous_event = None
+            previous_passed = True
             for event in EVENTS:
                 command = installer_commands[agent][event]
-                generated_commands.append(
-                    _generated_command_probe(
-                        spec, agent, event, command, env, token
-                    )
+                generated_probe = _generated_command_probe(
+                    spec,
+                    agent,
+                    event,
+                    command,
+                    env,
+                    token,
+                    previous_event,
+                    previous_passed,
                 )
+                generated_commands.append(generated_probe)
+                previous_event = event
+                previous_passed = generated_probe["passed"]
     generated_passed = bool(generated_commands) and all(
         probe["passed"] for probe in generated_commands
     )
@@ -658,6 +677,7 @@ def _path_probe(
         "shell": spec["id"],
         "installer_builder": "claude_fleet_monitor.cli._install_hooks",
         "installer_config_written": False,
+        "generated_session_scope": "one stable session_id per shell and agent, events ordered",
         "configured_command_form": "<path with spaces> session-start --agent <agent>",
         "unquoted": {
             "returncode": unquoted["returncode"],
@@ -938,7 +958,7 @@ def _markdown(evidence: dict[str, object]) -> str:
             "",
             "## Executable path probe",
             "",
-            f"Manual quoted controls passed for {quoted_passed}/{summary.get('path_probes', len(path_probes))} shells. Installer-generated commands passed for {generated_passed}/{generated_count}. The manual unquoted control is expected to fail for the baseline path with spaces; generated-command failures are acceptance failures unless `--allow-known-gaps` is explicitly supplied.",
+            f"Manual quoted controls passed for {quoted_passed}/{summary.get('path_probes', len(path_probes))} shells. Installer-generated commands passed for {generated_passed}/{generated_count}. Generated commands reuse one session ID per shell and agent and run in event order. The manual unquoted control is expected to fail for the baseline path with spaces; generated-command failures are acceptance failures unless `--allow-known-gaps` is explicitly supplied.",
             "",
             "| Shell | Manual unquoted return code | Manual quoted | Installer-generated commands | Classification |",
             "| --- | ---: | --- | ---: | --- |",

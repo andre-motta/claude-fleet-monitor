@@ -2,7 +2,7 @@
   "schema_version": 1,
   "result": "partial",
   "run_type": "live-container-synthetic-emitter",
-  "generated_at_utc": "2026-09-07T13:55:24.072953+00:00",
+  "generated_at_utc": "2026-09-07T14:16:05.155331+00:00",
   "source": {
     "mount": "src",
     "commit": "229a9d3c2d935f3fcfeb08a747c7235569180706",
@@ -10,7 +10,7 @@
     "container_tree_sha256": "ad91326b827cea9bceede2ba66d5cb3119137b47d50faf3514553bbec16be278",
     "mount_hash_matches": true,
     "dirty": false,
-    "repository_head": "5cb7d22ef5600101dcda3e0cadbe64b34b4d9acb"
+    "repository_head": "62d6b1a4b56651dad7ae5515a06338df27c33347"
   },
   "installer_builder": {
     "function": "claude_fleet_monitor.cli._install_hooks",
@@ -187,7 +187,7 @@
     {
       "shell": "bash",
       "agent": "claude",
-      "session_id": "shell-98345253c6-bash-claude",
+      "session_id": "shell-d3c3b58f1d-bash-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -202,7 +202,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-claude",
+            "session_id": "shell-d3c3b58f1d-bash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -225,7 +225,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-claude",
+            "session_id": "shell-d3c3b58f1d-bash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -248,7 +248,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-claude",
+            "session_id": "shell-d3c3b58f1d-bash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -271,7 +271,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-claude",
+            "session_id": "shell-d3c3b58f1d-bash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -294,12 +294,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-claude",
+            "session_id": "shell-d3c3b58f1d-bash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-bash-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-bash-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -317,7 +317,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-claude",
+            "session_id": "shell-d3c3b58f1d-bash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -335,7 +335,7 @@
     {
       "shell": "bash",
       "agent": "codex",
-      "session_id": "shell-98345253c6-bash-codex",
+      "session_id": "shell-d3c3b58f1d-bash-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -350,7 +350,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-codex",
+            "session_id": "shell-d3c3b58f1d-bash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -373,7 +373,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-codex",
+            "session_id": "shell-d3c3b58f1d-bash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -396,7 +396,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-codex",
+            "session_id": "shell-d3c3b58f1d-bash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -419,7 +419,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-codex",
+            "session_id": "shell-d3c3b58f1d-bash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -442,12 +442,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-codex",
+            "session_id": "shell-d3c3b58f1d-bash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-bash-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-bash-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -465,7 +465,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-bash-codex",
+            "session_id": "shell-d3c3b58f1d-bash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -483,7 +483,7 @@
     {
       "shell": "dash",
       "agent": "claude",
-      "session_id": "shell-98345253c6-dash-claude",
+      "session_id": "shell-d3c3b58f1d-dash-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -498,7 +498,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-claude",
+            "session_id": "shell-d3c3b58f1d-dash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -521,7 +521,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-claude",
+            "session_id": "shell-d3c3b58f1d-dash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -544,7 +544,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-claude",
+            "session_id": "shell-d3c3b58f1d-dash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -567,7 +567,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-claude",
+            "session_id": "shell-d3c3b58f1d-dash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -590,12 +590,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-claude",
+            "session_id": "shell-d3c3b58f1d-dash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-dash-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-dash-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -613,7 +613,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-claude",
+            "session_id": "shell-d3c3b58f1d-dash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -631,7 +631,7 @@
     {
       "shell": "dash",
       "agent": "codex",
-      "session_id": "shell-98345253c6-dash-codex",
+      "session_id": "shell-d3c3b58f1d-dash-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -646,7 +646,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-codex",
+            "session_id": "shell-d3c3b58f1d-dash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -669,7 +669,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-codex",
+            "session_id": "shell-d3c3b58f1d-dash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -692,7 +692,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-codex",
+            "session_id": "shell-d3c3b58f1d-dash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -715,7 +715,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-codex",
+            "session_id": "shell-d3c3b58f1d-dash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -738,12 +738,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-codex",
+            "session_id": "shell-d3c3b58f1d-dash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-dash-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-dash-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -761,7 +761,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-dash-codex",
+            "session_id": "shell-d3c3b58f1d-dash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -779,7 +779,7 @@
     {
       "shell": "zsh",
       "agent": "claude",
-      "session_id": "shell-98345253c6-zsh-claude",
+      "session_id": "shell-d3c3b58f1d-zsh-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -794,7 +794,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-claude",
+            "session_id": "shell-d3c3b58f1d-zsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -817,7 +817,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-claude",
+            "session_id": "shell-d3c3b58f1d-zsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -840,7 +840,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-claude",
+            "session_id": "shell-d3c3b58f1d-zsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -863,7 +863,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-claude",
+            "session_id": "shell-d3c3b58f1d-zsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -886,12 +886,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-claude",
+            "session_id": "shell-d3c3b58f1d-zsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-zsh-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-zsh-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -909,7 +909,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-claude",
+            "session_id": "shell-d3c3b58f1d-zsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -927,7 +927,7 @@
     {
       "shell": "zsh",
       "agent": "codex",
-      "session_id": "shell-98345253c6-zsh-codex",
+      "session_id": "shell-d3c3b58f1d-zsh-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -942,7 +942,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-codex",
+            "session_id": "shell-d3c3b58f1d-zsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -965,7 +965,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-codex",
+            "session_id": "shell-d3c3b58f1d-zsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -988,7 +988,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-codex",
+            "session_id": "shell-d3c3b58f1d-zsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1011,7 +1011,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-codex",
+            "session_id": "shell-d3c3b58f1d-zsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1034,12 +1034,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-codex",
+            "session_id": "shell-d3c3b58f1d-zsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-zsh-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-zsh-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1057,7 +1057,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-zsh-codex",
+            "session_id": "shell-d3c3b58f1d-zsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1075,7 +1075,7 @@
     {
       "shell": "fish",
       "agent": "claude",
-      "session_id": "shell-98345253c6-fish-claude",
+      "session_id": "shell-d3c3b58f1d-fish-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1090,7 +1090,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-claude",
+            "session_id": "shell-d3c3b58f1d-fish-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1113,7 +1113,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-claude",
+            "session_id": "shell-d3c3b58f1d-fish-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1136,7 +1136,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-claude",
+            "session_id": "shell-d3c3b58f1d-fish-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1159,7 +1159,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-claude",
+            "session_id": "shell-d3c3b58f1d-fish-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1182,12 +1182,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-claude",
+            "session_id": "shell-d3c3b58f1d-fish-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-fish-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-fish-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1205,7 +1205,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-claude",
+            "session_id": "shell-d3c3b58f1d-fish-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1223,7 +1223,7 @@
     {
       "shell": "fish",
       "agent": "codex",
-      "session_id": "shell-98345253c6-fish-codex",
+      "session_id": "shell-d3c3b58f1d-fish-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1238,7 +1238,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-codex",
+            "session_id": "shell-d3c3b58f1d-fish-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1261,7 +1261,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-codex",
+            "session_id": "shell-d3c3b58f1d-fish-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1284,7 +1284,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-codex",
+            "session_id": "shell-d3c3b58f1d-fish-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1307,7 +1307,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-codex",
+            "session_id": "shell-d3c3b58f1d-fish-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1330,12 +1330,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-codex",
+            "session_id": "shell-d3c3b58f1d-fish-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-fish-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-fish-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1353,7 +1353,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-fish-codex",
+            "session_id": "shell-d3c3b58f1d-fish-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1371,7 +1371,7 @@
     {
       "shell": "ksh",
       "agent": "claude",
-      "session_id": "shell-98345253c6-ksh-claude",
+      "session_id": "shell-d3c3b58f1d-ksh-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1386,7 +1386,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-claude",
+            "session_id": "shell-d3c3b58f1d-ksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1409,7 +1409,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-claude",
+            "session_id": "shell-d3c3b58f1d-ksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1432,7 +1432,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-claude",
+            "session_id": "shell-d3c3b58f1d-ksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1455,7 +1455,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-claude",
+            "session_id": "shell-d3c3b58f1d-ksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1478,12 +1478,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-claude",
+            "session_id": "shell-d3c3b58f1d-ksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-ksh-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-ksh-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1501,7 +1501,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-claude",
+            "session_id": "shell-d3c3b58f1d-ksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1519,7 +1519,7 @@
     {
       "shell": "ksh",
       "agent": "codex",
-      "session_id": "shell-98345253c6-ksh-codex",
+      "session_id": "shell-d3c3b58f1d-ksh-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1534,7 +1534,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-codex",
+            "session_id": "shell-d3c3b58f1d-ksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1557,7 +1557,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-codex",
+            "session_id": "shell-d3c3b58f1d-ksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1580,7 +1580,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-codex",
+            "session_id": "shell-d3c3b58f1d-ksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1603,7 +1603,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-codex",
+            "session_id": "shell-d3c3b58f1d-ksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1626,12 +1626,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-codex",
+            "session_id": "shell-d3c3b58f1d-ksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-ksh-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-ksh-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1649,7 +1649,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-ksh-codex",
+            "session_id": "shell-d3c3b58f1d-ksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1667,7 +1667,7 @@
     {
       "shell": "mksh",
       "agent": "claude",
-      "session_id": "shell-98345253c6-mksh-claude",
+      "session_id": "shell-d3c3b58f1d-mksh-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1682,7 +1682,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-claude",
+            "session_id": "shell-d3c3b58f1d-mksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1705,7 +1705,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-claude",
+            "session_id": "shell-d3c3b58f1d-mksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1728,7 +1728,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-claude",
+            "session_id": "shell-d3c3b58f1d-mksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1751,7 +1751,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-claude",
+            "session_id": "shell-d3c3b58f1d-mksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1774,12 +1774,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-claude",
+            "session_id": "shell-d3c3b58f1d-mksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-mksh-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-mksh-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1797,7 +1797,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-claude",
+            "session_id": "shell-d3c3b58f1d-mksh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1815,7 +1815,7 @@
     {
       "shell": "mksh",
       "agent": "codex",
-      "session_id": "shell-98345253c6-mksh-codex",
+      "session_id": "shell-d3c3b58f1d-mksh-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1830,7 +1830,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-codex",
+            "session_id": "shell-d3c3b58f1d-mksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1853,7 +1853,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-codex",
+            "session_id": "shell-d3c3b58f1d-mksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1876,7 +1876,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-codex",
+            "session_id": "shell-d3c3b58f1d-mksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1899,7 +1899,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-codex",
+            "session_id": "shell-d3c3b58f1d-mksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1922,12 +1922,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-codex",
+            "session_id": "shell-d3c3b58f1d-mksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-mksh-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-mksh-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -1945,7 +1945,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-mksh-codex",
+            "session_id": "shell-d3c3b58f1d-mksh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -1963,7 +1963,7 @@
     {
       "shell": "tcsh",
       "agent": "claude",
-      "session_id": "shell-98345253c6-tcsh-claude",
+      "session_id": "shell-d3c3b58f1d-tcsh-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -1978,7 +1978,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-claude",
+            "session_id": "shell-d3c3b58f1d-tcsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2001,7 +2001,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-claude",
+            "session_id": "shell-d3c3b58f1d-tcsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2024,7 +2024,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-claude",
+            "session_id": "shell-d3c3b58f1d-tcsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2047,7 +2047,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-claude",
+            "session_id": "shell-d3c3b58f1d-tcsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2070,12 +2070,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-claude",
+            "session_id": "shell-d3c3b58f1d-tcsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-tcsh-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-tcsh-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -2093,7 +2093,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-claude",
+            "session_id": "shell-d3c3b58f1d-tcsh-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2111,7 +2111,7 @@
     {
       "shell": "tcsh",
       "agent": "codex",
-      "session_id": "shell-98345253c6-tcsh-codex",
+      "session_id": "shell-d3c3b58f1d-tcsh-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -2126,7 +2126,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-codex",
+            "session_id": "shell-d3c3b58f1d-tcsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2149,7 +2149,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-codex",
+            "session_id": "shell-d3c3b58f1d-tcsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2172,7 +2172,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-codex",
+            "session_id": "shell-d3c3b58f1d-tcsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2195,7 +2195,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-codex",
+            "session_id": "shell-d3c3b58f1d-tcsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2218,12 +2218,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-codex",
+            "session_id": "shell-d3c3b58f1d-tcsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-tcsh-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-tcsh-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -2241,7 +2241,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-tcsh-codex",
+            "session_id": "shell-d3c3b58f1d-tcsh-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2259,7 +2259,7 @@
     {
       "shell": "busybox-ash",
       "agent": "claude",
-      "session_id": "shell-98345253c6-busybox-ash-claude",
+      "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -2275,7 +2275,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-claude",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2299,7 +2299,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-claude",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2323,7 +2323,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-claude",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2347,7 +2347,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-claude",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2371,12 +2371,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-claude",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-busybox-ash-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-busybox-ash-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -2395,7 +2395,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-claude",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2413,7 +2413,7 @@
     {
       "shell": "busybox-ash",
       "agent": "codex",
-      "session_id": "shell-98345253c6-busybox-ash-codex",
+      "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -2429,7 +2429,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-codex",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2453,7 +2453,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-codex",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2477,7 +2477,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-codex",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2501,7 +2501,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-codex",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2525,12 +2525,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-codex",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-busybox-ash-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-busybox-ash-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -2549,7 +2549,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-busybox-ash-codex",
+            "session_id": "shell-d3c3b58f1d-busybox-ash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2567,7 +2567,7 @@
     {
       "shell": "yash",
       "agent": "claude",
-      "session_id": "shell-98345253c6-yash-claude",
+      "session_id": "shell-d3c3b58f1d-yash-claude",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -2582,7 +2582,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-claude",
+            "session_id": "shell-d3c3b58f1d-yash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2605,7 +2605,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-claude",
+            "session_id": "shell-d3c3b58f1d-yash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2628,7 +2628,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-claude",
+            "session_id": "shell-d3c3b58f1d-yash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2651,7 +2651,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-claude",
+            "session_id": "shell-d3c3b58f1d-yash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2674,12 +2674,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-claude",
+            "session_id": "shell-d3c3b58f1d-yash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-yash-claude with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-yash-claude with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -2697,7 +2697,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-claude",
+            "session_id": "shell-d3c3b58f1d-yash-claude",
             "agent": "claude",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2715,7 +2715,7 @@
     {
       "shell": "yash",
       "agent": "codex",
-      "session_id": "shell-98345253c6-yash-codex",
+      "session_id": "shell-d3c3b58f1d-yash-codex",
       "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
       "command_prefix": "/tmp/fleet-work/hook-bin/claude-fleet-hook",
       "steps": [
@@ -2730,7 +2730,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-codex",
+            "session_id": "shell-d3c3b58f1d-yash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2753,7 +2753,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-codex",
+            "session_id": "shell-d3c3b58f1d-yash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2776,7 +2776,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-codex",
+            "session_id": "shell-d3c3b58f1d-yash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2799,7 +2799,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-codex",
+            "session_id": "shell-d3c3b58f1d-yash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2822,12 +2822,12 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-codex",
+            "session_id": "shell-d3c3b58f1d-yash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
             "status": "idle",
-            "detail": "stop ✓ shell-98345253c6-yash-codex with a second line",
+            "detail": "stop ✓ shell-d3c3b58f1d-yash-codex with a second line",
             "tool": "",
             "terminal": "generic",
             "terminal_env": {},
@@ -2845,7 +2845,7 @@
           "matched_records": 1,
           "passed": true,
           "observed": {
-            "session_id": "shell-98345253c6-yash-codex",
+            "session_id": "shell-d3c3b58f1d-yash-codex",
             "agent": "codex",
             "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
             "repo": "Δ repo's fixture",
@@ -2866,6 +2866,7 @@
       "shell": "bash",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -2880,7 +2881,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-bash",
+          "session_id": "path-quoted-d3c3b58f1d-bash",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -2897,7 +2898,9 @@
           "shell": "bash",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-bash-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-bash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "bash",
@@ -2918,7 +2921,9 @@
           "shell": "bash",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-bash-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "bash",
@@ -2932,14 +2937,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "bash",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-bash-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "bash",
@@ -2953,14 +2961,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "bash",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-bash-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "bash",
@@ -2974,14 +2985,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "bash",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-bash-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "bash",
@@ -2995,14 +3009,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "bash",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-bash-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "bash",
@@ -3016,14 +3033,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "bash",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-bash-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-bash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "bash",
@@ -3044,7 +3064,9 @@
           "shell": "bash",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-bash-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "bash",
@@ -3058,14 +3080,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "bash",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-bash-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "bash",
@@ -3079,14 +3104,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "bash",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-bash-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "bash",
@@ -3100,14 +3128,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "bash",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-bash-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "bash",
@@ -3121,14 +3152,17 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "bash",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-bash-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-bash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "bash",
@@ -3142,7 +3176,8 @@
           "observed": {},
           "stderr": "bash: line 1: /tmp/fleet-work/hook: No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -3154,6 +3189,7 @@
       "shell": "dash",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -3168,7 +3204,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-dash",
+          "session_id": "path-quoted-d3c3b58f1d-dash",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -3185,7 +3221,9 @@
           "shell": "dash",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-dash-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-dash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "dash",
@@ -3206,7 +3244,9 @@
           "shell": "dash",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-dash-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "dash",
@@ -3220,14 +3260,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "dash",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-dash-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "dash",
@@ -3241,14 +3284,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "dash",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-dash-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "dash",
@@ -3262,14 +3308,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "dash",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-dash-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "dash",
@@ -3283,14 +3332,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "dash",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-dash-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "dash",
@@ -3304,14 +3356,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "dash",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-dash-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-dash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "dash",
@@ -3332,7 +3387,9 @@
           "shell": "dash",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-dash-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "dash",
@@ -3346,14 +3403,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "dash",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-dash-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "dash",
@@ -3367,14 +3427,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "dash",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-dash-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "dash",
@@ -3388,14 +3451,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "dash",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-dash-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "dash",
@@ -3409,14 +3475,17 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "dash",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-dash-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-dash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "dash",
@@ -3430,7 +3499,8 @@
           "observed": {},
           "stderr": "dash: 1: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -3442,6 +3512,7 @@
       "shell": "zsh",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -3456,7 +3527,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-zsh",
+          "session_id": "path-quoted-d3c3b58f1d-zsh",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -3473,7 +3544,9 @@
           "shell": "zsh",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-zsh-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-zsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "zsh",
@@ -3494,7 +3567,9 @@
           "shell": "zsh",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-zsh-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "zsh",
@@ -3508,14 +3583,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "zsh",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-zsh-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "zsh",
@@ -3529,14 +3607,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "zsh",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-zsh-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "zsh",
@@ -3550,14 +3631,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "zsh",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-zsh-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "zsh",
@@ -3571,14 +3655,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "zsh",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-zsh-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "zsh",
@@ -3592,14 +3679,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "zsh",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-zsh-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-zsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "zsh",
@@ -3620,7 +3710,9 @@
           "shell": "zsh",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-zsh-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "zsh",
@@ -3634,14 +3726,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "zsh",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-zsh-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "zsh",
@@ -3655,14 +3750,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "zsh",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-zsh-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "zsh",
@@ -3676,14 +3774,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "zsh",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-zsh-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "zsh",
@@ -3697,14 +3798,17 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "zsh",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-zsh-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-zsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "zsh",
@@ -3718,7 +3822,8 @@
           "observed": {},
           "stderr": "zsh:1: no such file or directory: /tmp/fleet-work/hook",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -3730,6 +3835,7 @@
       "shell": "fish",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -3744,7 +3850,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-fish",
+          "session_id": "path-quoted-d3c3b58f1d-fish",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -3761,7 +3867,9 @@
           "shell": "fish",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-fish-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-fish-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "fish",
@@ -3782,7 +3890,9 @@
           "shell": "fish",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-fish-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "fish",
@@ -3796,14 +3906,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "fish",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-fish-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "fish",
@@ -3817,14 +3930,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "fish",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-fish-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "fish",
@@ -3838,14 +3954,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "fish",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-fish-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "fish",
@@ -3859,14 +3978,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "fish",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-fish-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "fish",
@@ -3880,14 +4002,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "fish",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-fish-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-fish-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "fish",
@@ -3908,7 +4033,9 @@
           "shell": "fish",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-fish-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "fish",
@@ -3922,14 +4049,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "fish",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-fish-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "fish",
@@ -3943,14 +4073,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "fish",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-fish-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "fish",
@@ -3964,14 +4097,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "fish",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-fish-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "fish",
@@ -3985,14 +4121,17 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "fish",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-fish-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-fish-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "fish",
@@ -4006,7 +4145,8 @@
           "observed": {},
           "stderr": "fish: Unknown command: /tmp/fleet-work/hook\nfish: \n/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex\n^~~~~~~~~~~~~~~~~~~^",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -4018,6 +4158,7 @@
       "shell": "ksh",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -4032,7 +4173,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-ksh",
+          "session_id": "path-quoted-d3c3b58f1d-ksh",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -4049,7 +4190,9 @@
           "shell": "ksh",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-ksh-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-ksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "ksh",
@@ -4070,7 +4213,9 @@
           "shell": "ksh",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-ksh-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "ksh",
@@ -4084,14 +4229,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "ksh",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-ksh-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "ksh",
@@ -4105,14 +4253,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "ksh",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-ksh-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "ksh",
@@ -4126,14 +4277,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "ksh",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-ksh-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "ksh",
@@ -4147,14 +4301,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "ksh",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-ksh-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "ksh",
@@ -4168,14 +4325,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "ksh",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-ksh-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-ksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "ksh",
@@ -4196,7 +4356,9 @@
           "shell": "ksh",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-ksh-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "ksh",
@@ -4210,14 +4372,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "ksh",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-ksh-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "ksh",
@@ -4231,14 +4396,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "ksh",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-ksh-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "ksh",
@@ -4252,14 +4420,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "ksh",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-ksh-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "ksh",
@@ -4273,14 +4444,17 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "ksh",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-ksh-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-ksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "ksh",
@@ -4294,7 +4468,8 @@
           "observed": {},
           "stderr": "ksh: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -4306,6 +4481,7 @@
       "shell": "mksh",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -4320,7 +4496,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-mksh",
+          "session_id": "path-quoted-d3c3b58f1d-mksh",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -4337,7 +4513,9 @@
           "shell": "mksh",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-mksh-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-mksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "mksh",
@@ -4358,7 +4536,9 @@
           "shell": "mksh",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-mksh-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "mksh",
@@ -4372,14 +4552,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "mksh",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-mksh-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "mksh",
@@ -4393,14 +4576,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "mksh",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-mksh-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "mksh",
@@ -4414,14 +4600,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "mksh",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-mksh-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "mksh",
@@ -4435,14 +4624,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "mksh",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-mksh-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "mksh",
@@ -4456,14 +4648,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "mksh",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-mksh-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-mksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "mksh",
@@ -4484,7 +4679,9 @@
           "shell": "mksh",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-mksh-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "mksh",
@@ -4498,14 +4695,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "mksh",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-mksh-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "mksh",
@@ -4519,14 +4719,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "mksh",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-mksh-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "mksh",
@@ -4540,14 +4743,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "mksh",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-mksh-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "mksh",
@@ -4561,14 +4767,17 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "mksh",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-mksh-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-mksh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "mksh",
@@ -4582,7 +4791,8 @@
           "observed": {},
           "stderr": "E: mksh: /tmp/fleet-work/hook: inaccessible or not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -4594,6 +4804,7 @@
       "shell": "tcsh",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 1,
@@ -4608,7 +4819,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-tcsh",
+          "session_id": "path-quoted-d3c3b58f1d-tcsh",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -4625,7 +4836,9 @@
           "shell": "tcsh",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-tcsh-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-tcsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "tcsh",
@@ -4646,7 +4859,9 @@
           "shell": "tcsh",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-tcsh-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "tcsh",
@@ -4660,14 +4875,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-tcsh-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "tcsh",
@@ -4681,14 +4899,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-tcsh-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "tcsh",
@@ -4702,14 +4923,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-tcsh-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "tcsh",
@@ -4723,14 +4947,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-tcsh-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "tcsh",
@@ -4744,14 +4971,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-tcsh-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-tcsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "tcsh",
@@ -4772,7 +5002,9 @@
           "shell": "tcsh",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-tcsh-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "tcsh",
@@ -4786,14 +5018,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-tcsh-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "tcsh",
@@ -4807,14 +5042,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-tcsh-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "tcsh",
@@ -4828,14 +5066,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-tcsh-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "tcsh",
@@ -4849,14 +5090,17 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "tcsh",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-tcsh-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-tcsh-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "tcsh",
@@ -4870,7 +5114,8 @@
           "observed": {},
           "stderr": "/tmp/fleet-work/hook: Command not found.",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -4882,6 +5127,7 @@
       "shell": "busybox-ash",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -4896,7 +5142,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-busybox-ash",
+          "session_id": "path-quoted-d3c3b58f1d-busybox-ash",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -4913,7 +5159,9 @@
           "shell": "busybox-ash",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-busybox-ash-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "busybox",
@@ -4935,7 +5183,9 @@
           "shell": "busybox-ash",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-busybox-ash-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "busybox",
@@ -4950,14 +5200,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-busybox-ash-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "busybox",
@@ -4972,14 +5225,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-busybox-ash-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "busybox",
@@ -4994,14 +5250,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-busybox-ash-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "busybox",
@@ -5016,14 +5275,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-busybox-ash-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "busybox",
@@ -5038,14 +5300,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-busybox-ash-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "busybox",
@@ -5067,7 +5332,9 @@
           "shell": "busybox-ash",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-busybox-ash-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "busybox",
@@ -5082,14 +5349,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-busybox-ash-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "busybox",
@@ -5104,14 +5374,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-busybox-ash-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "busybox",
@@ -5126,14 +5399,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-busybox-ash-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "busybox",
@@ -5148,14 +5424,17 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "busybox-ash",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-busybox-ash-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-busybox-ash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "busybox",
@@ -5170,7 +5449,8 @@
           "observed": {},
           "stderr": "ash: /tmp/fleet-work/hook: not found",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],
@@ -5182,6 +5462,7 @@
       "shell": "yash",
       "installer_builder": "claude_fleet_monitor.cli._install_hooks",
       "installer_config_written": false,
+      "generated_session_scope": "one stable session_id per shell and agent, events ordered",
       "configured_command_form": "<path with spaces> session-start --agent <agent>",
       "unquoted": {
         "returncode": 127,
@@ -5196,7 +5477,7 @@
         "matched_records": 1,
         "passed": true,
         "observed": {
-          "session_id": "path-quoted-98345253c6-yash",
+          "session_id": "path-quoted-d3c3b58f1d-yash",
           "agent": "claude",
           "cwd": "/tmp/fleet-work/cwd with spaces/Δ repo's fixture",
           "repo": "Δ repo's fixture",
@@ -5213,7 +5494,9 @@
           "shell": "yash",
           "agent": "claude",
           "event": "session-start",
-          "session_id": "generated-98345253c6-yash-claude-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-yash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent claude",
           "invocation": [
             "yash",
@@ -5234,7 +5517,9 @@
           "shell": "yash",
           "agent": "claude",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-yash-claude-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent claude",
           "invocation": [
             "yash",
@@ -5248,14 +5533,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "yash",
           "agent": "claude",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-yash-claude-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent claude",
           "invocation": [
             "yash",
@@ -5269,14 +5557,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "yash",
           "agent": "claude",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-yash-claude-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent claude",
           "invocation": [
             "yash",
@@ -5290,14 +5581,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "yash",
           "agent": "claude",
           "event": "stop",
-          "session_id": "generated-98345253c6-yash-claude-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent claude",
           "invocation": [
             "yash",
@@ -5311,14 +5605,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "yash",
           "agent": "claude",
           "event": "session-end",
-          "session_id": "generated-98345253c6-yash-claude-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-claude",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent claude",
           "invocation": [
             "yash",
@@ -5332,14 +5629,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         },
         {
           "shell": "yash",
           "agent": "codex",
           "event": "session-start",
-          "session_id": "generated-98345253c6-yash-codex-session-start",
+          "previous_event": null,
+          "previous_passed": true,
+          "session_id": "generated-d3c3b58f1d-yash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-start --agent codex",
           "invocation": [
             "yash",
@@ -5360,7 +5660,9 @@
           "shell": "yash",
           "agent": "codex",
           "event": "prompt-submit",
-          "session_id": "generated-98345253c6-yash-codex-prompt-submit",
+          "previous_event": "session-start",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook prompt-submit --agent codex",
           "invocation": [
             "yash",
@@ -5374,14 +5676,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: session-start"
           ]
         },
         {
           "shell": "yash",
           "agent": "codex",
           "event": "tool-use",
-          "session_id": "generated-98345253c6-yash-codex-tool-use",
+          "previous_event": "prompt-submit",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook tool-use --agent codex",
           "invocation": [
             "yash",
@@ -5395,14 +5700,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: prompt-submit"
           ]
         },
         {
           "shell": "yash",
           "agent": "codex",
           "event": "permission-request",
-          "session_id": "generated-98345253c6-yash-codex-permission-request",
+          "previous_event": "tool-use",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook permission-request --agent codex",
           "invocation": [
             "yash",
@@ -5416,14 +5724,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: tool-use"
           ]
         },
         {
           "shell": "yash",
           "agent": "codex",
           "event": "stop",
-          "session_id": "generated-98345253c6-yash-codex-stop",
+          "previous_event": "permission-request",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook stop --agent codex",
           "invocation": [
             "yash",
@@ -5437,14 +5748,17 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: permission-request"
           ]
         },
         {
           "shell": "yash",
           "agent": "codex",
           "event": "session-end",
-          "session_id": "generated-98345253c6-yash-codex-session-end",
+          "previous_event": "stop",
+          "previous_passed": false,
+          "session_id": "generated-d3c3b58f1d-yash-codex",
           "command": "/tmp/fleet-work/hook bin/claude-fleet-hook session-end --agent codex",
           "invocation": [
             "yash",
@@ -5458,7 +5772,8 @@
           "observed": {},
           "stderr": "yash: cannot execute command `/tmp/fleet-work/hook': No such file or directory",
           "mismatches": [
-            "generated command exited nonzero"
+            "generated command exited nonzero",
+            "preceding generated event did not pass: stop"
           ]
         }
       ],

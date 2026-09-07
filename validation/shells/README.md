@@ -62,6 +62,8 @@ each tested event, and executes that exact command under every shell. It also
 records a manual unquoted control and a correctly quoted control. On the
 baseline revision, the generated commands fail because the CLI command builder
 does not quote a hook path. Generated failures are never marked as passed.
+Generated events for each shell and agent reuse one session ID and run in
+order, so each status assertion depends on the preceding lifecycle record.
 
 This is synthetic emitter evidence. It does not validate a real Claude or
 Codex process, PID or tty discovery, terminal detection, pane or tab selection,
