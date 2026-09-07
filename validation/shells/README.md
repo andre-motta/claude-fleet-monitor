@@ -22,23 +22,35 @@ it when needed with:
 podman build -f validation/shells/Containerfile -t localhost/fleet-shell-validation:20260907 .
 ```
 
-Run the matrix from the repository root:
+Run strict validation of the current checkout from the repository root:
 
 ```text
 python3 validation/shells/run.py \
   --image localhost/fleet-shell-validation:20260907 \
-  --allow-known-gaps \
-  --source-commit 229a9d3c2d935f3fcfeb08a747c7235569180706 \
-  --output validation/shells/evidence/baseline.json \
-  --markdown validation/shells/evidence/baseline.md
+  --output /tmp/fleet-shell-candidate.json \
+  --markdown /tmp/fleet-shell-candidate.md
 ```
 
-`--allow-known-gaps` is required when capturing a historical baseline whose
-installer-generated commands are known to fail. The baseline exits zero with
-result `partial` and records every failed generated command. Omit this option
-for candidate validation. A generated command failure then produces result
-`failed` and a nonzero exit status, even if the synthetic lifecycle cases
-pass.
+The runner records the actual source checkout revision and tree hash. A generated
+command failure produces result `failed` and a nonzero exit status, even if the
+synthetic lifecycle cases pass.
+
+To reproduce the historical baseline, first create an isolated checkout of its
+actual source. A revision label alone does not change which files are tested:
+
+```text
+git worktree add --detach /tmp/fleet-shell-baseline-229a9d3 229a9d3c2d935f3fcfeb08a747c7235569180706
+python3 validation/shells/run.py \
+  --image localhost/fleet-shell-validation:20260907 \
+  --source-dir /tmp/fleet-shell-baseline-229a9d3/src \
+  --allow-known-gaps \
+  --output /tmp/fleet-shell-baseline.json \
+  --markdown /tmp/fleet-shell-baseline.md
+```
+
+`--allow-known-gaps` is only for a historical baseline whose installer-generated
+commands are known to fail. That run exits zero with result `partial` and records
+every failed generated command. Candidate and hosted gates omit this option.
 
 ## Hosted CI gate
 
@@ -52,11 +64,12 @@ inspection failure, a missing image, or any validator failure.
 
 Each completed validator run covers nine real shells, 18 lifecycle cases, nine
 manual quoted-path controls and 108 installer-generated command checks. The
-seven-day artifact always includes setup metadata with the exact checked-out
+seven-day artifact retains available setup metadata with the exact checked-out
 commit, source tree SHA-256 and image reference. A completed validator run also
 adds JSON and Markdown evidence with the image ID and image digest; a build,
 image inspection or other setup failure skips the validator and leaves the
-available metadata for diagnosis.
+available metadata for diagnosis. A failure before metadata creation can leave no
+artifact; the job still fails.
 The runner uses only Python's standard library and the mounted source tree, so
 the job does not install project dependencies or depend on a generated package
 version file.
