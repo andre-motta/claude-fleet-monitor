@@ -528,6 +528,20 @@ def validate(require_tmux):
             raise RuntimeError("Pi uninstall left its managed package reference")
         if (config / "claude-fleet-monitor.json").exists():
             raise RuntimeError("Pi uninstall left its ownership config")
+        repeated_uninstall = subprocess.run(
+            [
+                sys.executable, "-m", "claude_fleet_monitor.cli", "uninstall",
+                "--agent", "pi", "--keep-data",
+            ],
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=40,
+        )
+        if repeated_uninstall.returncode != 0:
+            raise RuntimeError("repeated Pi uninstall failed")
+        if json.loads((config / "settings.json").read_text()) != uninstalled_settings:
+            raise RuntimeError("repeated Pi uninstall changed Pi settings")
         event_names = [item["last_event"] for item in observer.events]
         required = {
             "pi.session-start", "pi.before-agent-start",
@@ -565,6 +579,7 @@ def validate(require_tmux):
             "tmux_focus": focus_evidence,
             "abrupt_pid_cleanup": True,
             "pi_install_idempotent": True,
+            "pi_uninstall_idempotent": True,
             "pi_uninstall_removed_only_owned_package": True,
             "pi_settings_preserved_unrelated_extension": True,
             "stderr": "".join(pi.errors),
