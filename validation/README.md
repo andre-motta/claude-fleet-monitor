@@ -58,3 +58,23 @@ any timeout as a failure, rather than accepting an incomplete run.
 Each hosted Python matrix job also runs this helper after pytest. A failure or
 timeout fails that job; the context manager's teardown cannot substitute for a
 working quit action, and merely making an empty detail panel visible is rejected.
+
+## Native Konsole tab selection on Linux
+
+```console
+python validation/konsole.py
+```
+
+This optional native check requires an installed Konsole, a working desktop
+session and `qdbus`, `qdbus6` or `qdbus-qt6`. It opens a separate disposable
+Konsole window with temporary configuration and synthetic Python children.
+Two target sessions have the same working directory and duplicate titles;
+both properties are observed before testing. The helper selects each target,
+independently reads the current session through D-Bus, and rejects a stale ID.
+It verifies that all three fixture children exit before reporting success.
+
+Run with the candidate package installed, or set `PYTHONPATH=src` from its
+checkout. Ordinary headless CI does not run this GUI check. It does not exercise
+KWin activation, nested multiplexers, or real harness lifecycle events. Its
+Linux process-lifetime checks and native result do not establish other platform
+support. User settings and existing terminal sessions are not test targets.

@@ -1,0 +1,32 @@
+{
+  "result": "pass",
+  "konsole_version": "260800",
+  "qdbus_command": "qdbus-qt6",
+  "duplicate_titles": true,
+  "same_cwd": true,
+  "tab_selection": [
+    {
+      "session": "1",
+      "observed_current_session": "1"
+    },
+    {
+      "session": "2",
+      "observed_current_session": "2"
+    },
+    {
+      "session": "1",
+      "observed_current_session": "1"
+    }
+  ],
+  "stale_target_rejected": true,
+  "window_activation": "not exercised or claimed",
+  "synthetic_children_exited": 3,
+  "source_commit": "e613d3dbc8835a6929aca230e3ea723215c33e7e",
+  "validation_date": "2026-09-07",
+  "python_version": "3.12.14",
+  "distribution": "Fedora Linux 44 x86_64",
+  "helper_sha256": "505325be83339f85c3d366fa88c3c82cfc640e8a6434b51e8e888f2b6677bb75",
+  "stderr": "",
+  "exit_code": 0,
+  "evidence_kind": "native Konsole with synthetic child processes"
+}
