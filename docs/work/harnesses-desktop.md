@@ -329,11 +329,15 @@ verified feature integration commits; their merge does not itself close an issue
 whose intended delivery target is main. Child merges preserve their issue links.
 
 The local investigation remains ahead of publication: B0 and initial C1/S1
-evidence have reviewed local candidates. H1 candidate `eea9001` is undergoing
-corrections after a concurrent unresolved-session supersession race was found.
-The corrected shell validator has passed strict checks on an H1 draft, but the
-final exact H1 revision still requires approval and combined verification. H2
-is not dispatched. These local observations do not imply feature-branch delivery.
+evidence have reviewed local candidates. B0 publication candidate `55dc2f7`
+passed independent review, a fresh installation with 87 tests passing and four
+optional Tongs skips, and a real MCP subprocess initialization/tool/status check.
+H1 candidate `8183db0` passed independent review after resolving the concurrent
+unresolved-session supersession race: 156 tests and strict Podman validation of
+18 lifecycle cases, nine quoted-path controls and 108 installer-generated commands.
+That shell evidence uses synthetic events and does not establish live GUI focus.
+Final combined verification remains pending. H2 is not dispatched. These local
+observations do not imply feature-branch delivery.
 
 The existing Python matrix will gate the bootstrap and first product PR. The
 strict Podman job arrives with the shell validation item after the foundation
