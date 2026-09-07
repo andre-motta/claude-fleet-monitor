@@ -2,7 +2,7 @@
 
 This record separates accepted feature-branch changes from delivery to main.
 Workflow: Agent SDLC 0.1.0; [profile](../SDLC.md). Shared branch:
-`feat/harnesses-desktop`. The final main PR and acceptance are pending.
+`feat/harnesses-desktop`. Final main merge requires CTO acceptance.
 
 ## Accepted child changes
 
@@ -15,6 +15,7 @@ Workflow: Agent SDLC 0.1.0; [profile](../SDLC.md). Shared branch:
 | [C1 #28](https://github.com/andre-motta/claude-fleet-monitor/issues/28) | [#39](https://github.com/andre-motta/claude-fleet-monitor/pull/39), `d72de3bbf142a371ee35ccb38b32ec977eb5e2e6` | Independent Sol high review of the public-safe investigation; unchanged patch after rebase; hosted Python and strict shell gates passed; live exact-focus matrix remains unmet |
 | [G0 #34](https://github.com/andre-motta/claude-fleet-monitor/issues/34), follow-up | [#40](https://github.com/andre-motta/claude-fleet-monitor/pull/40), `04c6735badaf97f7dcc4806ad394dc3196c0d70b` | Independent Sol high review; actionlint positive and historical negative checks passed; all five named hosted checks passed |
 | [H2 #26](https://github.com/andre-motta/claude-fleet-monitor/issues/26) | [#41](https://github.com/andre-motta/claude-fleet-monitor/pull/41), `aa0c46482163e4f516d462667553919deb989b1f` | Independent Sol high review; 193 combined tests passed with Tongs; real source and installed-wheel Pi evidence, MCP and strict shell checks passed; all six hosted checks passed |
+| [H3 #27](https://github.com/andre-motta/claude-fleet-monitor/issues/27) | [#42](https://github.com/andre-motta/claude-fleet-monitor/pull/42), `cc9eb41020d3a94f3ceafc49760f569675864a37` | Independent Sol high review; source, CLI, primary-reference and relative-link checks passed; all six hosted gates passed |
 
 These issues remain open until the accepted work reaches main. The merged trees
 match the reviewed candidates. No tag, release or deployment is covered by these
@@ -136,6 +137,24 @@ controls omitting either behavior now fail. V1 adds this helper to the existing
 hosted Python jobs and must verify those jobs on its final candidate before main
 acceptance. This is fixture-based headless UI evidence, not real terminal or
 desktop focus evidence.
+
+## Final combined candidate
+
+H3's reviewed head `35f8c0127a2a1edd95b7f98c0884b09603c5eb85` merged through
+PR #42 with an identical tree. Its [Python matrix and workflow lint](https://github.com/andre-motta/claude-fleet-monitor/actions/runs/34146165782),
+[strict shell job](https://github.com/andre-motta/claude-fleet-monitor/actions/runs/34146165793)
+and [Pi job](https://github.com/andre-motta/claude-fleet-monitor/actions/runs/34146165816)
+passed. The guide's four additional harnesses remain unimplemented candidates;
+their prioritization is separate from this accepted documentation scope.
+
+V1 combines all verified prerequisites at `cc9eb41` with this evidence record,
+the approved TUI helper and its Python-matrix step. It changes no product code
+or accepted Pi/shell workflow. Independent review approved the earlier exact
+acceptance checkpoint `6585e64`; the final guide integration and acceptance
+record receive a final review before publication. The issue PR and final main
+PR carry the exact tested head, final independent verdict and hosted results.
+Each must pass all six named jobs, including the added TUI step in all three
+Python jobs. Main merge remains reserved for Andre's acceptance.
 
 ChatGPT's exact conversation-focus mechanism and live two-target matrix remain
 gated. [Tongs #17](https://github.com/andre-motta/tongs/issues/17) natively blocks

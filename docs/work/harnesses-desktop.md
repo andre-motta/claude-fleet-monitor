@@ -382,3 +382,18 @@ H3 #27 is assigned to Luna xhigh on `feat/harness-guide` from that verified merg
 The guide, independent review and final V1 acceptance remain pending. C2 and D1
 retain their documented mechanism and external host gates; main merge remains
 reserved for Andre's acceptance.
+
+## Combined candidate handoff
+
+H3's guide is feature-integrated through [PR #42](https://github.com/andre-motta/claude-fleet-monitor/pull/42)
+at `cc9eb41020d3a94f3ceafc49760f569675864a37`, after independent Sol high review
+and all six hosted gates. The [adapter guide](../harness-adapters.md) describes
+implemented Claude Code, Codex and Pi support and four unimplemented candidates.
+Its separate future-priority decision does not block this release candidate.
+
+V1 combines these verified prerequisites with the reviewed acceptance records
+and a headless TUI step in the existing Python matrix. The exact tested head,
+final independent review and actual hosted results are carried by its issue PR
+and final main PR. The [validation record](validation-progress.md) preserves
+source/wheel boundaries, failures, recovery and the remaining desktop gates.
+Creating the final main PR is authorized; merging it remains Andre's gate.
