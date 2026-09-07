@@ -2,6 +2,16 @@
 
 Guidelines for AI agents (Claude Code, Copilot, etc.) contributing to this repository.
 
+## Agent SDLC
+
+Use [docs/SDLC.md](docs/SDLC.md) for substantial initiatives and explicit workflow
+requests. Astra leads architecture/orchestration; Sol at high handles senior
+work and independent review; Luna at xhigh handles bounded work under Sol review.
+Use actual runtime models, isolated worktrees and autonomous signed-off local
+commits within approved scope. Get CTO approval for design and upstream
+publication. The profile records the adoption authorization, workflow baseline,
+checks and instruction reconciliation. Preserve unrelated rules below.
+
 ## Before You Start
 
 1. Read `CLAUDE.md` for architecture and design decisions.
@@ -12,7 +22,7 @@ Guidelines for AI agents (Claude Code, Copilot, etc.) contributing to this repos
 
 - Write tests for new functionality. Tests live in `tests/` and use pytest with `tmp_path` fixtures.
 - Keep changes cross-platform. Never assume Linux (`/proc`, `pgrep`). Use `sys.platform` checks and the abstractions in `discovery.py`.
-- All process/filesystem interaction goes through `discovery.py`. Don't duplicate platform-specific logic in other modules.
+- Shared process discovery and session filesystem access go through `discovery.py`. The hook owns fleet event writes, CLI install/uninstall owns harness configuration, and terminal APIs own terminal integration. Do not duplicate platform-specific discovery logic in consumers.
 - The hook (`hook.py`) must stay fast. No heavy imports at module level, no network calls.
 
 ### Terminal APIs

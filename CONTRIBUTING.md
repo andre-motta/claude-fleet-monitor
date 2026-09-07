@@ -36,9 +36,16 @@ hooks (hook.py)  -->  ~/.claude/fleet/*.json  <--  discovery.py
 - **hook.py**: Claude Code and Codex hook handler, writes session status JSON on each event.
 - **discovery.py**: Cross-platform process discovery + session reading/dedup/cleanup. Shared by all consumers.
 - **mcp_server.py**: MCP server exposing fleet tools to Claude Code and Codex sessions.
-- **tui.py**: Curses-based interactive dashboard.
+- **tui.py**: Textual-based interactive dashboard.
 - **focus.py**: Cross-platform terminal window/tab focus (KDE/GNOME/macOS/Windows).
 - **cli.py**: Entry point for `claude-fleet` command.
+
+## Agent-led initiatives
+
+For substantial agent-led work, follow [docs/SDLC.md](docs/SDLC.md), including
+isolated worktrees, independent review, signed-off local commits within approved
+scope, and CTO design/publication gates. Ordinary contributors can use the PR
+process below without installing the private orchestration skill.
 
 ## Pull Requests
 

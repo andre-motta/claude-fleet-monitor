@@ -2,6 +2,9 @@
 
 Fleet monitoring for Claude Code and Codex sessions. Pure Python, cross-platform.
 
+See [docs/SDLC.md](docs/SDLC.md) for the adopted agent workflow, approval gates
+and [active planning](docs/work/harnesses-desktop.md).
+
 ## Architecture
 
 ```
