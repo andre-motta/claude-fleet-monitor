@@ -50,10 +50,13 @@ out `src/` tree without `--allow-known-gaps`. The job has read-only GitHub
 contents permission, cancels superseded runs, and fails on an image build or
 inspection failure, a missing image, or any validator failure.
 
-Each run covers nine real shells, 18 lifecycle cases, nine manual quoted-path
-controls and 108 installer-generated command checks. The uploaded seven-day
-artifact contains the exact checked-out commit, source tree SHA-256, image
-reference, image ID and image digest together with JSON and Markdown evidence.
+Each completed validator run covers nine real shells, 18 lifecycle cases, nine
+manual quoted-path controls and 108 installer-generated command checks. The
+seven-day artifact always includes setup metadata with the exact checked-out
+commit, source tree SHA-256 and image reference. A completed validator run also
+adds JSON and Markdown evidence with the image ID and image digest; a build,
+image inspection or other setup failure skips the validator and leaves the
+available metadata for diagnosis.
 The runner uses only Python's standard library and the mounted source tree, so
 the job does not install project dependencies or depend on a generated package
 version file.
