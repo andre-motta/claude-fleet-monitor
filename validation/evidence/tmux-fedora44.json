@@ -1,0 +1,78 @@
+{
+  "result": "pass",
+  "tmux_version": "tmux 3.7c",
+  "stable_target": "$0:@0.%0",
+  "selected_window_and_pane": "@0 %0",
+  "rename_and_renumber": "pass",
+  "linked_window_session_identity": "pass",
+  "pane_index_swap": "pass",
+  "moved_pane_requires_rediscovery": "pass",
+  "socket_path_with_comma": "pass",
+  "stale_target_rejected": true,
+  "detached_selection_without_parent_routing": "pass",
+  "parent_selection_failure_stops_activation": true,
+  "routing_operations": [
+    "find",
+    "select",
+    "raise"
+  ],
+  "unrelated_client_unchanged": true,
+  "provenance": "real tmux server, panes and PTY clients; instrumented parent terminal",
+  "gui_activation": "not exercised or claimed",
+  "cleanup": {
+    "clients_exited": 2,
+    "pane_children_exited": 4
+  },
+  "tested_commit": "ee6ccde1c7a1537bebbf02bb38b3d1f3566cfa7e",
+  "platform": "Fedora 44 Linux",
+  "python_version": "3.12.14",
+  "sha256": {
+    "src/claude_fleet_monitor/terminal_apis/tmux.py": "ae47e67c5cfb4cd2b797f474133968cb1da0e4848b37eb07f6564037cd5ee61c",
+    "validation/tmux.py": "683738a56fe219b82d5aba13407d178776f6edb74cea322c810935b82427fe1e"
+  },
+  "pi_regression": {
+    "result": "pass",
+    "pi_version": "0.85.0",
+    "node_version": "v22.23.1",
+    "python_version": "3.12.14",
+    "provider": "synthetic localhost HTTP fixture",
+    "provider_calls": 3,
+    "abrupt_pid_cleanup": true,
+    "pi_install_idempotent": true,
+    "pi_settings_preserved_unrelated_extension": true,
+    "pi_uninstall_idempotent": true,
+    "pi_uninstall_removed_only_owned_package": true,
+    "focus": {
+      "state": "partial",
+      "active_pane_before": "%1",
+      "active_pane_after": "%0",
+      "selection": {
+        "attempted": true,
+        "detail": "tab or pane selection",
+        "succeeded": true
+      },
+      "activation": {
+        "attempted": true,
+        "detail": "window activation",
+        "succeeded": false
+      }
+    }
+  },
+  "shell_regression": {
+    "result": "passed",
+    "summary": {
+      "shells_expected": 9,
+      "shells_available": 9,
+      "lifecycle_cases": 18,
+      "lifecycle_cases_passed": 18,
+      "path_probes": 9,
+      "path_probes_passed": 9,
+      "quoted_controls_passed": 9,
+      "generated_commands": 108,
+      "generated_commands_passed": 108,
+      "generated_commands_failed": 0,
+      "known_gaps": [],
+      "hard_failures": []
+    }
+  }
+}

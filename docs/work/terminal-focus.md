@@ -68,3 +68,78 @@ helper/evidence, with no mandatory findings. Sol independently passed all 10
 focused tests and all 203 tests. Hosted PR gates remain required before final
 main acceptance. The live result covers tab selection only; window activation
 remains unverified.
+## Approved tmux follow-up
+
+Andre approved the next bounded slice under #32: stable tmux target IDs and
+correct client routing. Base: `00cf29b2ce90327ed76f4c0758e7363440b00b48`.
+The source baseline passes 203 tests. An initial run accidentally imported the
+older installed v0.7 package; rerunning with the checkout source path passed.
+
+Sol high authors the backend and focused regressions in `feat/tmux-routing`.
+Astra owns separate live validation, documentation and integration. Another Sol
+high reviews the actual combined candidate. Signed-off local commits are
+permitted; the user's existing direct-main-PR instruction applies. Main merge
+and releases remain Andre's gate.
+
+Use stable session/window/pane IDs and the captured socket. Select and verify
+the exact target after renaming or index changes. Resolve process ancestry
+through shared discovery. Parent activation considers only clients attached to
+the target session and requires successful parent tab selection where supported.
+Detached, ambiguous, stale, missing-tool and failed-command cases fail safely;
+never fall back to activating an arbitrary window. Existing structured focus
+results remain unchanged.
+
+Validation covers focused regressions plus a real isolated tmux server with
+synthetic processes and clients, independent selection readback and cleanup.
+Any instrumented parent routing is labeled separately from real GUI activation,
+which this slice does not claim. Existing Python/TUI, shell and Pi gates remain
+required. Tongs and other terminal adapters are outside this assignment.
+
+## Tmux acceptance checkpoint
+
+The combined implementation and validation candidate is
+`ee6ccde1c7a1537bebbf02bb38b3d1f3566cfa7e`, based on the Konsole squash merge
+`00cf29b2ce90327ed76f4c0758e7363440b00b48`. Operational tmux calls require
+valid captured socket and session metadata. Session/window/pane IDs replace
+mutable names and indexes, selection requires readback, and only attached
+non-control clients currently viewing the exact target are eligible for parent
+routing. Missing metadata never probes the caller's default server.
+
+Local acceptance passed all 246 tests on Python 3.12.14 with optional Tongs,
+the headless Textual journey, workflow semantic lint and whitespace checks.
+Existing Python 3.10 and 3.13 container environments each passed 229 tests with
+17 optional Node/Tongs-dependent skips. The strict shell gate passed all nine
+shells, 18 synthetic lifecycles, nine quoted-path controls and 108 generated
+installer commands.
+
+The [retained evidence](../../validation/evidence/tmux-fedora44.json) records
+source/helper hashes and actual tmux 3.7c results: renamed sessions, renumbered
+windows, swapped pane indexes, linked-window identity, moved-pane rediscovery,
+stale rejection and two real PTY clients attached to separate sessions. Parent
+terminal calls are instrumented; actual GUI activation is not claimed. All four
+pane children and both clients exited. Real Pi 0.85.0 with Node.js 22.23.1 also
+passed its synthetic-provider lifecycle journey and exact pane selection from
+`%1` to `%0`, with partial focus for the detached session.
+
+Independent review identified two corrected failures: validator cleanup could
+stop after a shutdown-command error, and absent TMUX metadata could consult the
+default server. Cleanup now uses bounded signals restricted to recorded process
+birth identities, with three regression controls. A fifteen-case matrix proves
+invalid captures cannot invoke a subprocess through any operational method.
+
+An initial local container matrix attempt used private SELinux labels on a
+shared read-only worktree and lacked usable VCS build metadata. It failed with
+mount/build errors and the unchanged atomic-reader test on container overlay
+storage. Rerunning unchanged tests in writable temporary copies with shared
+read-only source labeling and explicit build version metadata passed both
+versions. No test was weakened or gate waived.
+
+Independent Sol high review approved the exact candidate with no remaining
+mandatory findings, independently passing 66 focused tests and all 246 tests.
+The reviewer's first native helper attempt failed to start tmux inside the
+sandbox; its normal-host rerun passed. That startup failure is not acceptance.
+The subsequent acceptance commit adds only this record and the evidence JSON;
+product code, tests, validator and workflow behavior remain as reviewed.
+
+This remains a bounded evolution of #32. Publication is a reviewed PR against
+main; all six hosted checks are required and Andre retains the merge gate.
