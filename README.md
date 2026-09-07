@@ -72,6 +72,12 @@ focus command attempts exact pane selection, then attempts parent-terminal
 activation when that integration is available. The structured result reports
 partial or unavailable outcomes separately.
 
+tmux selection uses stable session, window and pane IDs with selection readback.
+Parent-window routing considers only clients attached to the target session;
+detached sessions can still select their pane without activating a GUI window.
+See the [isolated tmux validation](validation/README.md#stable-tmux-selection-and-client-routing-on-linux)
+for the tested routing behavior and its GUI evidence limits.
+
 ## Install
 
 ```bash
