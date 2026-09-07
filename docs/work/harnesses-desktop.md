@@ -367,3 +367,18 @@ selected Electron and narrowed its initial target to Fedora 44 KDE x86_64;
 Fleet follows that host contract and does not add a standalone desktop shell.
 The updated [desktop record](desktop.md) retains these external implementation
 and acceptance gates. Pi proceeds independently.
+
+## Pi feature integration checkpoint
+
+The later accepted feature merge is
+`aa0c46482163e4f516d462667553919deb989b1f` from H2 [PR #41](https://github.com/andre-motta/claude-fleet-monitor/pull/41).
+Its exact candidate passed independent Sol high review, 193 local tests with
+optional Tongs and all six hosted gates, including actual Pi lifecycle and tmux
+pane selection with a synthetic localhost provider. GUI activation remains
+explicitly partial. [Validation progress](validation-progress.md) records exact
+revisions, source/wheel boundaries and resolved review findings.
+
+H3 #27 is assigned to Luna xhigh on `feat/harness-guide` from that verified merge.
+The guide, independent review and final V1 acceptance remain pending. C2 and D1
+retain their documented mechanism and external host gates; main merge remains
+reserved for Andre's acceptance.

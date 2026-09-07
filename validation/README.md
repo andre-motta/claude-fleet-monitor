@@ -54,3 +54,7 @@ ingestion, terminal rendering or live desktop focus evidence. On the validation
 host, the sandboxed asynchronous app stalled and was terminated; the normal host
 run passed. Run outside a sandbox that blocks the asynchronous driver and record
 any timeout as a failure, rather than accepting an incomplete run.
+
+Each hosted Python matrix job also runs this helper after pytest. A failure or
+timeout fails that job; the context manager's teardown cannot substitute for a
+working quit action, and merely making an empty detail panel visible is rejected.

@@ -39,6 +39,9 @@ jobs:
       - name: Run tests
         run: pytest -v
 
+      - name: Validate headless TUI journey
+        run: python validation/tui.py
+
   workflow-lint:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
