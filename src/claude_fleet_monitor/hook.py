@@ -12,6 +12,7 @@ from claude_fleet_monitor.discovery import (
     MAX_ID_LENGTH,
     MAX_PATH_LENGTH,
     MAX_TOOL_LENGTH,
+    delete_session_record,
     read_session_record,
     read_stored_sessions,
     resolve_process_identity,
@@ -21,6 +22,7 @@ from claude_fleet_monitor.harnesses import ProcessIdentity, get_harness
 from claude_fleet_monitor.models import (
     SCHEMA_VERSION,
     SessionStatus,
+    UNRESOLVED_INSTANCE_ID,
     canonical_session_id,
 )
 
@@ -33,13 +35,14 @@ def _find_agent_pid(agent):
 def _read_payload():
     try:
         raw = sys.stdin.read(MAX_EVENT_BYTES + 1)
+        encoded_size = len(raw.encode("utf-8"))
     except (OSError, UnicodeError):
         return None
-    if len(raw.encode("utf-8")) > MAX_EVENT_BYTES:
+    if encoded_size > MAX_EVENT_BYTES:
         return None
     try:
         payload = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeError, RecursionError):
+    except (ValueError, UnicodeError, RecursionError):
         return None
     return payload if isinstance(payload, dict) else None
 
@@ -80,6 +83,10 @@ def _existing_record(harness_id, session_id, instance_id, pid=""):
         if record.get("schema_version", 0) == 0:
             candidates.append(record)
     return max(candidates, key=lambda item: item.get("ts", 0), default=None)
+
+
+def _unresolved_record(harness_id, session_id):
+    return read_session_record(harness_id, session_id, UNRESOLVED_INSTANCE_ID)
 
 
 def _capture_terminal_info():
@@ -143,15 +150,17 @@ def handle(event, agent="claude"):
     try:
         session_id = _text(payload, "session_id", MAX_ID_LENGTH, required=True)
         cwd = _text(payload, "cwd", MAX_PATH_LENGTH, required=True)
-        supplied_pid = _integer(payload, "pid")
-        sequence = _integer(payload, "sequence")
         timestamp = _integer(payload, "ts")
         if event == "fleet-event":
+            supplied_pid = _integer(payload, "pid")
+            sequence = _integer(payload, "sequence")
             status, detail, tool, event_id = _normalized_update(agent, payload)
             supplied_instance = _text(
                 payload, "instance_id", MAX_ID_LENGTH, required=True
             )
         else:
+            supplied_pid = None
+            sequence = None
             status, detail, tool = _event_update(event, payload)
             event_id = f"{agent}.{event}"
             supplied_instance = ""
@@ -162,15 +171,23 @@ def handle(event, agent="claude"):
         return False
     if harness.process_identity is ProcessIdentity.EMITTER and sequence is None:
         return False
-    process = resolve_process_identity(agent, supplied_pid)
-    if process is None:
+    process = resolve_process_identity(
+        agent, supplied_pid if harness.process_identity is ProcessIdentity.EMITTER else None
+    )
+    if harness.process_identity is ProcessIdentity.EMITTER and process is None:
         return False
-    if supplied_instance:
+    if process is None:
+        instance_id = UNRESOLVED_INSTANCE_ID
+        existing = _unresolved_record(agent, session_id)
+        process_identity = "unresolved"
+    elif supplied_instance:
         instance_id = supplied_instance
         existing = _existing_record(agent, session_id, instance_id)
+        process_identity = "identified"
     elif process.start_token:
         instance_id = f"{process.pid}:{process.start_token}"
         existing = _existing_record(agent, session_id, instance_id)
+        process_identity = "identified"
     else:
         existing = _existing_record(agent, session_id, "", str(process.pid))
         instance_id = (
@@ -178,6 +195,9 @@ def handle(event, agent="claude"):
         )
         if not instance_id:
             instance_id = f"{process.pid}:{uuid.uuid4().hex}"
+        process_identity = "identified"
+    if process is not None and existing is None and not supplied_instance:
+        existing = _unresolved_record(agent, session_id)
     if event not in {"session-start", "prompt-submit", "fleet-event"} and existing is None:
         return False
 
@@ -195,6 +215,8 @@ def handle(event, agent="claude"):
     )
     started = now if existing is None or event == "session-start" else existing.get("started", now)
     canonical_id = canonical_session_id(agent, session_id, instance_id)
+    process_pid = str(process.pid) if process is not None else ""
+    process_start = process.start_token if process is not None else ""
     record = {
         "schema_version": SCHEMA_VERSION,
         "record_kind": "session",
@@ -205,8 +227,9 @@ def handle(event, agent="claude"):
         "agent": agent,
         "repo": os.path.basename(os.path.normpath(cwd)),
         "cwd": cwd,
-        "pid": str(process.pid),
-        "process_start": process.start_token,
+        "pid": process_pid,
+        "process_start": process_start,
+        "process_identity": process_identity,
         "status": status,
         "detail": detail,
         "tool": tool,
@@ -217,14 +240,25 @@ def handle(event, agent="claude"):
         "terminal": terminal,
         "terminal_env": terminal_env,
         "focus_target": {
-            "kind": "terminal" if terminal else "unavailable",
+            "kind": (
+                "terminal"
+                if terminal and process is not None
+                else "unavailable"
+            ),
             "terminal": terminal,
             "terminal_env": terminal_env,
         },
     }
     if sequence is not None:
         record["sequence"] = sequence
-    return write_session_record(record)
+    written = write_session_record(record)
+    if (
+        written
+        and process is not None
+        and harness.process_identity is ProcessIdentity.DISCOVERABLE
+    ):
+        delete_session_record(agent, session_id, UNRESOLVED_INSTANCE_ID)
+    return written
 
 
 def main():

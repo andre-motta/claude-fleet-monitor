@@ -36,11 +36,33 @@ def fleet_status() -> str:
 
 @mcp.tool()
 def fleet_session(session_id: str) -> str:
-    """Get detailed status for a specific session by ID (full or prefix match)."""
+    """Get a session by canonical or native ID (full or prefix match)."""
     sessions = read_sessions()
-    matches = [s for s in sessions if s.get("session_id", "").startswith(session_id)]
+    exact = [
+        session for session in sessions
+        if session_id in {
+            session.get("canonical_id", ""), session.get("session_id", "")
+        }
+    ]
+    matches = exact or [
+        session for session in sessions
+        if session.get("canonical_id", "").startswith(session_id)
+        or session.get("session_id", "").startswith(session_id)
+    ]
     if not matches:
         return json.dumps({"error": f"No session matching '{session_id}'"})
+    if len(matches) > 1:
+        return json.dumps({
+            "error": f"Multiple sessions match '{session_id}'",
+            "matches": [
+                {
+                    "canonical_id": session.get("canonical_id", ""),
+                    "harness_id": session.get("harness_id", ""),
+                    "session_id": session.get("session_id", ""),
+                }
+                for session in matches
+            ],
+        }, indent=2)
     return json.dumps(matches[0], indent=2)
 
 

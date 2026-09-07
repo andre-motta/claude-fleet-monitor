@@ -24,6 +24,7 @@ CLI, TUI and MCP output therefore retains it. Schema version 1 adds:
   instance together;
 - `sequence` for producers that provide an explicit monotonic order;
 - `process_start` for PID reuse protection where the platform exposes it;
+- `process_identity`, either `identified` or `unresolved`;
 - `focus_target`, a typed terminal, desktop or unavailable target.
 
 Consumers must use `canonical_id` as an internal row or selection key and show
@@ -34,6 +35,8 @@ Legacy JSON files remain readable. An absent `agent` means Claude for legacy
 records only. Fleet does not rewrite legacy filenames. When a version 1 record
 for the same harness and native session exists, it takes precedence over the
 legacy record. Different harnesses with the same native ID remain distinct.
+Version 1-only identity and focus fields found in a legacy record are ignored,
+so they cannot inject a canonical consumer key.
 
 ## Normalized extension event
 
@@ -88,11 +91,32 @@ bodies, arbitrary commands or transcript content.
 
 Installed Claude and Codex hook aliases continue to accept their native hook
 payloads. Fleet translates each accepted alias to a namespaced `last_event`,
-normalizes status, resolves the exact ancestor process and derives the instance
-from PID plus process start identity. On platforms without a readable process
-start identity, Fleet creates a random per-session instance token and reuses the
-stored token for later events from the same exact PID. Exact focus remains
-unavailable there because PID reuse cannot be excluded.
+normalizes status and uses its own serialized arrival order. Native aliases do
+not trust `pid` or `sequence` fields from their payloads. Fleet resolves process
+metadata through ancestry and derives the instance from PID plus process start
+identity. On platforms without a readable process start identity, Fleet creates
+a random per-session instance token and reuses the stored token for later events
+from the same exact PID. Exact focus remains unavailable there because PID reuse
+cannot be excluded.
+
+When ancestry is unavailable, including on the current lightweight Windows
+resolver, Fleet stores an explicit unresolved record. It uses the stable
+instance ID `unresolved` for that harness and native session, leaves PID and
+process-start token empty, and marks focus unavailable. Session start and prompt
+events can establish this record. Tool, permission, stop and end events without
+an existing record remain intentionally ignored.
+
+If a later event resolves an identified process, Fleet writes the identified
+instance before removing the unresolved placeholder. A failed identified write
+therefore preserves the valid unresolved state. Once superseded, the unresolved
+state cannot reappear when the identified process exits and its record is
+cleaned up. Later native start or prompt activity can establish a fresh
+unresolved record.
+
+Multiple simultaneous native instances with the same harness and conversation
+ID are indistinguishable while all of them lack process evidence. Their events
+share one unresolved record and local arrival sequence. Once identified,
+separate process instances retain separate canonical records.
 
 ## Store and ordering
 
@@ -107,6 +131,8 @@ The filename contains only the schema version and digest. Raw native IDs are
 never interpolated into paths. Records are at most 64 KiB. Fleet rejects a
 configured fleet directory that is itself a symlink, ignores symlink record
 entries and refuses to replace a symlink record or lock entry.
+Version 1 reads verify that `canonical_id` is derived from the record's harness,
+native session and instance, and that its filename matches the canonical digest.
 
 Each canonical record has its own lock file inside the fleet directory. POSIX
 uses `flock`; Windows uses `msvcrt.locking`. Under that lock, Fleet rereads the
@@ -162,11 +188,21 @@ successful window activation. `partial` means at least one reported operation
 succeeded. Failed subprocess exit codes are false. A found PID alone is not a
 focus success.
 
+Target lookup, selection and activation failures are returned in the structured
+result rather than escaping the focus boundary. Selection and activation have
+independent targets. This allows Windows Terminal and Zellij to report a real
+window activation as partial when exact tab or pane selection is unavailable.
+
 The legacy `TerminalAPI.focus()` and top-level `focus()` functions return true
 when at least one operation succeeds, preserving useful window-only behavior.
 CLI exit status uses the same compatibility rule and prints partial focus
 explicitly. Rich consumers should use `FocusResult` and must not relabel partial
 focus as exact.
+
+The TUI and Tongs screen wait for the background focus result before notifying
+the user, and label complete, partial and unsuccessful outcomes separately. The
+MCP session lookup accepts canonical or native ID prefixes and returns an
+explicit ambiguity error instead of selecting the first native-ID match.
 
 The terminal captured by the hook is authoritative. Fleet does not try other
 specific terminal backends after it fails. Missing terminal metadata and unknown
@@ -179,3 +215,5 @@ Current Ghostty child mapping returns no target when ancestry is unavailable,
 Zellij returns no exact pane target, and VTE alone does not identify GNOME
 Terminal. These are truthful limitations, not support regressions. Live terminal
 evidence remains required before promoting any backend capability claim.
+Ghostty activates its mapped window and waits briefly before sending global tab
+keys. Failed activation skips key dispatch.

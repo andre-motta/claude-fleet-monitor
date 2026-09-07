@@ -116,10 +116,34 @@ def test_oversized_and_malformed_records_are_ignored(fleet_dir):
     (fleet_dir / "bad-unicode.json").write_text(
         '{"session_id":"\\ud800","status":"idle","ts":1}'
     )
+    (fleet_dir / "huge-integer.json").write_text(
+        '{"session_id":"probe","ts":' + "9" * 5000 + "}"
+    )
     bad_target = make_record(session="bad-target")
     bad_target["focus_target"]["kind"] = []
     assert not write_session_record(bad_target)
     assert [record["session_id"] for record in read_stored_sessions()] == ["valid"]
+
+
+def test_schema_one_record_requires_derived_id_and_filename(fleet_dir):
+    from claude_fleet_monitor.discovery import read_stored_sessions
+
+    wrong_id = make_record(session="wrong-id")
+    wrong_id["canonical_id"] = canonical_session_id(
+        "claude", "different", wrong_id["instance_id"]
+    )
+    wrong_id_digest = canonical_session_id(
+        "claude", "wrong-id", wrong_id["instance_id"]
+    ).rsplit(":", 1)[-1]
+    (fleet_dir / f"fleet-v1-{wrong_id_digest}.json").write_text(
+        json.dumps(wrong_id)
+    )
+
+    wrong_path = make_record(session="wrong-path")
+    (fleet_dir / f"fleet-v1-{'0' * 64}.json").write_text(
+        json.dumps(wrong_path)
+    )
+    assert read_stored_sessions() == []
 
 
 def test_explicit_sequence_rejects_replay_and_out_of_order(fleet_dir):
@@ -264,6 +288,39 @@ def test_legacy_record_without_agent_defaults_to_claude(fleet_dir):
     assert read_stored_sessions()[0]["harness_id"] == "claude"
 
 
+def test_legacy_records_cannot_inject_canonical_identity(fleet_dir):
+    from claude_fleet_monitor.discovery import read_stored_sessions
+    from claude_fleet_monitor.models import parse_session
+
+    for index, session_id in enumerate(("legacy-a", "legacy-b")):
+        (fleet_dir / f"legacy-{index}.json").write_text(json.dumps({
+            "session_id": session_id,
+            "agent": "codex",
+            "harness_id": "pi",
+            "canonical_id": "fleet:v1:claude:collision",
+            "instance_id": "injected",
+            "cwd": "/tmp/repo",
+            "status": "idle",
+            "ts": 1,
+        }))
+    records = read_stored_sessions()
+    assert {parse_session(record).identity for record in records} == {
+        "legacy-a", "legacy-b"
+    }
+    assert all("canonical_id" not in record for record in records)
+    assert {record["harness_id"] for record in records} == {"codex"}
+
+
+def test_record_lookup_rejects_invalid_identifier_text(fleet_dir):
+    from claude_fleet_monitor.discovery import (
+        delete_session_record,
+        read_session_record,
+    )
+
+    assert read_session_record("claude", "\ud800", "instance") is None
+    assert not delete_session_record("claude", "session", [])
+
+
 def test_terminal_focus_reports_partial_and_boolean_compatibility():
     from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
@@ -282,6 +339,26 @@ def test_terminal_focus_reports_partial_and_boolean_compatibility():
     assert not result.selection.attempted
     assert result.activation.succeeded
     assert WindowOnly().focus(101, {}) is True
+
+
+def test_terminal_target_lookup_exception_is_structured():
+    from claude_fleet_monitor.terminal_apis.base import TerminalAPI
+
+    class BrokenLookup(TerminalAPI):
+        name = "broken"
+        detect = staticmethod(lambda: False)
+        capture_env = staticmethod(dict)
+
+        def find_tab(self, pid, env):
+            raise FileNotFoundError("missing integration command")
+
+        switch_tab = lambda self, target, env: True
+        raise_window = lambda self, target, env: True
+
+    result = BrokenLookup().focus_result(101, {})
+    assert result.state == "failed"
+    assert not result.target_found
+    assert "missing integration command" in result.selection.detail
 
 
 def test_focus_does_not_fallback_from_captured_terminal(monkeypatch):
@@ -316,6 +393,8 @@ def test_ambiguous_native_session_id_reports_ambiguity(monkeypatch):
     result = focus_session("shared")
     assert result.state == "ambiguous"
     assert not result.successful
+    assert claude["canonical_id"] in result.reason
+    assert codex["canonical_id"] in result.reason
 
 
 def test_normalized_emitter_event_requires_sequence_and_namespace(
@@ -342,6 +421,31 @@ def test_normalized_emitter_event_requires_sequence_and_namespace(
     assert handle("fleet-event", "pi")
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
     assert not handle("fleet-event", "pi")
+
+
+def test_emitter_instance_named_unresolved_is_not_deleted(fleet_dir, monkeypatch):
+    from claude_fleet_monitor.discovery import read_session_records
+    from claude_fleet_monitor.hook import handle
+
+    process = ProcessInfo(303, 1, "node", "node", ("node",), "/tmp/repo", "40")
+    monkeypatch.setattr(
+        "claude_fleet_monitor.hook.resolve_process_identity",
+        lambda harness, pid=None: process,
+    )
+    payload = {
+        "schema_version": 1,
+        "event_id": "pi.session-start",
+        "session_id": "pi-native",
+        "instance_id": "unresolved",
+        "sequence": 1,
+        "pid": 303,
+        "cwd": "/tmp/repo",
+        "status": "started",
+    }
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
+    assert handle("fleet-event", "pi")
+    assert read_session_records()[0]["instance_id"] == "unresolved"
+    assert read_session_records()[0]["process_identity"] == "identified"
     payload["event_id"] = "claude.session-start"
     payload["sequence"] = 2
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))

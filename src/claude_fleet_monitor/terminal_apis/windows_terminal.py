@@ -20,6 +20,11 @@ class WindowsTerminalAPI(TerminalAPI):
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
         return None
 
+    def find_activation_target(
+        self, pid: int, terminal_env: dict, tab_id: str | None
+    ) -> str | None:
+        return terminal_env.get("WT_SESSION") or None
+
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         return False
 

@@ -1,4 +1,5 @@
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -124,6 +125,99 @@ def test_ghostty_missing_ancestry_is_not_a_tab(monkeypatch):
     result = GhosttyAPI().focus_result(101, {})
     assert result.state == "failed"
     assert not result.target_found
+
+
+def test_ghostty_activates_before_global_tab_keys(monkeypatch):
+    from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
+
+    calls = []
+    api = GhosttyAPI()
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.ghostty.time.sleep",
+        lambda seconds: calls.append(("delay", seconds)),
+    )
+    monkeypatch.setattr(api, "find_tab", lambda pid, env: "101:2")
+    monkeypatch.setattr(
+        api, "raise_window", lambda target, env: calls.append("activate") or True
+    )
+    monkeypatch.setattr(
+        api, "switch_tab", lambda target, env: calls.append("select") or True
+    )
+    result = api.focus_result(101, {})
+    assert calls == ["activate", ("delay", 0.15), "select"]
+    assert result.complete
+
+
+def test_ghostty_skips_global_keys_when_activation_fails(monkeypatch):
+    from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
+
+    api = GhosttyAPI()
+    monkeypatch.setattr(api, "find_tab", lambda pid, env: "101:2")
+    monkeypatch.setattr(api, "raise_window", lambda target, env: False)
+    monkeypatch.setattr(
+        api,
+        "switch_tab",
+        lambda target, env: pytest.fail("global keys must not be sent"),
+    )
+    result = api.focus_result(101, {})
+    assert result.state == "failed"
+    assert not result.selection.attempted
+
+
+def test_windows_terminal_can_report_activation_only(monkeypatch):
+    from claude_fleet_monitor.terminal_apis.windows_terminal import WindowsTerminalAPI
+
+    api = WindowsTerminalAPI()
+    monkeypatch.setattr(api, "raise_window", lambda target, env: True)
+    result = api.focus_result(101, {"WT_SESSION": "guid"})
+    assert result.state == "partial"
+    assert result.target_found
+    assert not result.selection.attempted
+    assert result.activation.succeeded
+
+
+def test_zellij_parent_activation_is_truthful(monkeypatch):
+    from claude_fleet_monitor.models import FocusOperation, FocusResult
+    from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
+
+    parent = SimpleNamespace(
+        focus_result=lambda pid, env: FocusResult(
+            state="partial",
+            reason="window activated",
+            activation=FocusOperation(True, True, "window activation"),
+        )
+    )
+    monkeypatch.setattr(
+        "claude_fleet_monitor.terminal_apis.tmux._detect_parent_terminal",
+        lambda pid: parent,
+    )
+    result = ZellijAPI().focus_result(
+        101, {"ZELLIJ": "1", "ZELLIJ_SESSION_NAME": "session"}
+    )
+    assert result.state == "partial"
+    assert not result.selection.attempted
+    assert result.activation.succeeded
+
+
+@pytest.mark.parametrize(
+    ("module_name", "class_name"),
+    [
+        ("claude_fleet_monitor.terminal_apis.iterm2", "ITerm2API"),
+        ("claude_fleet_monitor.terminal_apis.macos_terminal", "MacOSTerminalAPI"),
+    ],
+)
+def test_macos_selection_reads_text_output(monkeypatch, module_name, class_name):
+    module = __import__(module_name, fromlist=[class_name])
+    api = getattr(module, class_name)()
+    calls = []
+
+    def run(*args, **kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(returncode=0, stdout="focused\n")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    assert api.switch_tab("target", {})
+    assert calls[0]["text"] is True
 
 
 def test_detect_windows_terminal(monkeypatch):

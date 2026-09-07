@@ -14,9 +14,11 @@ from textual.binding import Binding
 from textual.widgets import DataTable, Footer, Header, Input, Static
 
 from claude_fleet_monitor.discovery import read_sessions
+from claude_fleet_monitor.focus import focus_notification, focus_session
 from claude_fleet_monitor.models import (
     SORT_KEYS,
     FleetSession,
+    FocusResult,
     format_age,
     parse_session,
     sort_sessions,
@@ -273,7 +275,6 @@ class FleetMonitorApp(App):
         session = next((s for s in self._all_sessions if s.identity == sid), None)
         if session:
             self._do_focus(session)
-            self.notify(f"Focused: {session.repo}", timeout=2)
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         panel = self.query_one("#detail-panel", DetailPanel)
@@ -287,15 +288,18 @@ class FleetMonitorApp(App):
         panel.set_session(session)
 
     def _do_focus(self, session: FleetSession) -> None:
-        from claude_fleet_monitor.focus import focus
-
         def _run():
             try:
-                focus(session.identity)
-            except Exception:
-                pass
+                result = focus_session(session.identity)
+            except Exception as error:
+                result = FocusResult(state="failed", reason=str(error))
+            self.call_from_thread(self._notify_focus_result, session.repo, result)
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _notify_focus_result(self, repo, result) -> None:
+        message, severity = focus_notification(result, repo)
+        self.notify(message, severity=severity, timeout=3)
 
     def action_toggle_search(self) -> None:
         search_input = self.query_one("#search-input", Input)

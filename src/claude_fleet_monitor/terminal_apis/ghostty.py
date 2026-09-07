@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+import time
 
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
@@ -73,6 +74,10 @@ def _find_ancestor_child(pid: int, ghostty_pid: int) -> int | None:
 
 class GhosttyAPI(TerminalAPI):
     name = "ghostty"
+    activation_before_selection = True
+
+    def prepare_selection_after_activation(self) -> None:
+        time.sleep(0.15)
 
     @staticmethod
     def detect() -> bool:

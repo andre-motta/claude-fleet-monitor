@@ -39,8 +39,10 @@ def find_session(query):
     print(f"Multiple sessions match '{query}':", file=sys.stderr)
     for match in matches:
         harness = match.get("harness_id", match.get("agent", "claude"))
+        identity = match.get("canonical_id") or match["session_id"]
         print(
-            f"  {harness}: {match.get('repo', '?')} ({match['session_id']})",
+            f"  {harness}: {match.get('repo', '?')} "
+            f"({match['session_id']}) [{identity}]",
             file=sys.stderr,
         )
     return None
@@ -51,14 +53,27 @@ def get_pid(session):
     return process.pid if process else None
 
 
+def focus_notification(result: FocusResult, repo: str) -> tuple[str, str]:
+    if result.complete:
+        return f"Focused: {repo}", "information"
+    if result.successful:
+        return f"Partially focused: {repo}", "warning"
+    label = result.state.replace("-", " ").capitalize()
+    return f"Focus {label}: {repo}: {result.reason}", "error"
+
+
 def focus_session(query) -> FocusResult:
     matches = _matching_sessions(query)
     if not matches:
         return FocusResult(state="not-found", reason=f"no session matching '{query}'")
     if len(matches) > 1:
+        identities = ", ".join(
+            match.get("canonical_id") or match["session_id"]
+            for match in matches
+        )
         return FocusResult(
             state="ambiguous",
-            reason=f"multiple sessions match '{query}'",
+            reason=f"multiple sessions match '{query}': {identities}",
         )
     session = _public_record(matches[0])
     process = resolve_session_process(session)

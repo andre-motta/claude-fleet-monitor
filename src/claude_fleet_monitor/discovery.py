@@ -15,7 +15,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from claude_fleet_monitor.harnesses import ProcessIdentity, get_harness
-from claude_fleet_monitor.models import SCHEMA_VERSION, SessionStatus, canonical_session_id
+from claude_fleet_monitor.models import (
+    SCHEMA_VERSION,
+    SessionStatus,
+    UNRESOLVED_INSTANCE_ID,
+    canonical_session_id,
+)
 
 FLEET_DIR = Path(os.environ.get("FLEET_DIR", Path.home() / ".claude" / "fleet"))
 MAX_EVENT_BYTES = 64 * 1024
@@ -332,9 +337,16 @@ def _read_record(path: Path) -> dict | None:
         return None
     try:
         data = json.loads(raw)
-    except (json.JSONDecodeError, UnicodeError, RecursionError):
+    except (ValueError, UnicodeError, RecursionError):
         return None
-    return _validate_record(data)
+    record = _validate_record(data)
+    if record is None:
+        return None
+    if record.get("schema_version") == SCHEMA_VERSION:
+        expected_path = _record_path(record["canonical_id"])
+        if path.name != expected_path.name:
+            return None
+    return record
 
 
 def _valid_text(value, limit: int, *, allow_empty: bool = True) -> bool:
@@ -355,10 +367,18 @@ def _validate_record(data) -> dict | None:
     if not isinstance(data, dict):
         return None
     schema = data.get("schema_version", 0)
-    if not isinstance(schema, int) or isinstance(schema, bool) or schema not in (0, SCHEMA_VERSION):
+    if (
+        not isinstance(schema, int)
+        or isinstance(schema, bool)
+        or schema not in (0, SCHEMA_VERSION)
+    ):
         return None
     session_id = data.get("session_id", "")
-    harness_id = data.get("harness_id", data.get("agent", "claude"))
+    harness_id = (
+        data.get("agent", "claude")
+        if schema == 0
+        else data.get("harness_id", "")
+    )
     if not _valid_text(session_id, MAX_ID_LENGTH, allow_empty=False):
         return None
     if not _valid_text(harness_id, 64, allow_empty=False):
@@ -372,6 +392,7 @@ def _validate_record(data) -> dict | None:
         (data.get("terminal", ""), 64),
         (data.get("instance_id", ""), MAX_ID_LENGTH),
         (data.get("process_start", ""), 128),
+        (data.get("process_identity", ""), 16),
         (data.get("canonical_id", ""), 128),
         (data.get("last_event", ""), MAX_ID_LENGTH),
         (data.get("status", "discovered"), 32),
@@ -421,13 +442,50 @@ def _validate_record(data) -> dict | None:
         not normalized["pid"].isdigit() or int(normalized["pid"]) <= 0
     ):
         return None
-    if schema == SCHEMA_VERSION:
+    if schema == 0:
+        for key in (
+            "arrival_sequence",
+            "canonical_id",
+            "focus_target",
+            "instance_id",
+            "process_identity",
+            "process_start",
+            "sequence",
+        ):
+            normalized.pop(key, None)
+    else:
         if not normalized.get("instance_id") or not normalized.get("canonical_id"):
             return None
         if get_harness(harness_id) is None:
             return None
+        if data.get("agent") != harness_id:
+            return None
         if normalized.get("status") not in {status.value for status in SessionStatus}:
             return None
+        expected_canonical = canonical_session_id(
+            harness_id, session_id, normalized["instance_id"]
+        )
+        if normalized["canonical_id"] != expected_canonical:
+            return None
+        process_identity = normalized.get("process_identity")
+        if not process_identity:
+            process_identity = (
+                "unresolved"
+                if normalized["instance_id"] == UNRESOLVED_INSTANCE_ID
+                and not normalized["pid"]
+                else "identified"
+            )
+        if process_identity not in {"identified", "unresolved"}:
+            return None
+        if process_identity == "unresolved" and (
+            normalized["instance_id"] != UNRESOLVED_INSTANCE_ID
+            or normalized["pid"]
+            or normalized.get("process_start")
+        ):
+            return None
+        if process_identity == "identified" and not normalized["pid"]:
+            return None
+        normalized["process_identity"] = process_identity
         target = normalized.get("focus_target", {})
         if target and not isinstance(target, dict):
             return None
@@ -439,6 +497,8 @@ def _validate_record(data) -> dict | None:
             if not isinstance(kind, str) or kind not in {
                 "terminal", "desktop", "unavailable"
             }:
+                return None
+            if process_identity == "unresolved" and kind != "unavailable":
                 return None
             if not _valid_text(target_terminal, 64):
                 return None
@@ -568,10 +628,41 @@ def write_session_record(data: dict) -> bool:
 def read_session_record(
     harness_id: str, session_id: str, instance_id: str
 ) -> dict | None:
+    if (
+        not _valid_text(harness_id, 64, allow_empty=False)
+        or not _valid_text(session_id, MAX_ID_LENGTH, allow_empty=False)
+        or not _valid_text(instance_id, MAX_ID_LENGTH, allow_empty=False)
+    ):
+        return None
     canonical_id = canonical_session_id(harness_id, session_id, instance_id)
     if not _store_available():
         return None
     return _read_record(_record_path(canonical_id))
+
+
+def delete_session_record(
+    harness_id: str, session_id: str, instance_id: str
+) -> bool:
+    if (
+        not _valid_text(harness_id, 64, allow_empty=False)
+        or not _valid_text(session_id, MAX_ID_LENGTH, allow_empty=False)
+        or not _valid_text(instance_id, MAX_ID_LENGTH, allow_empty=False)
+    ):
+        return False
+    canonical_id = canonical_session_id(harness_id, session_id, instance_id)
+    if not _store_available():
+        return False
+    path = _record_path(canonical_id)
+    try:
+        with _record_lock(canonical_id):
+            if not path.exists():
+                return True
+            if not _path_is_regular(path):
+                return False
+            path.unlink()
+    except OSError:
+        return False
+    return True
 
 
 def discover_processes():
@@ -605,6 +696,7 @@ def discover_processes():
             "cwd": process.cwd,
             "pid": str(pid),
             "process_start": process.start_token,
+            "process_identity": "identified",
             "status": "discovered",
             "detail": f"PID {pid} {tty}".strip(),
             "ts": now,
@@ -705,6 +797,24 @@ def _deduplicate_records(records: list[dict]) -> list[dict]:
             record["_legacy"]
             and not record["_process"]
             and (record["harness_id"], record["session_id"]) in new_native
+        )
+    ]
+    identified_native = {
+        (record["harness_id"], record["session_id"])
+        for record in filtered
+        if not record["_legacy"]
+        and not record["_process"]
+        and record.get("process_identity") == "identified"
+    }
+    filtered = [
+        record
+        for record in filtered
+        if not (
+            not record["_legacy"]
+            and not record["_process"]
+            and record.get("process_identity") == "unresolved"
+            and (record["harness_id"], record["session_id"])
+            in identified_native
         )
     ]
     hook_processes = {

@@ -38,7 +38,7 @@ return "not-found"
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
-                capture_output=True, timeout=5
+                capture_output=True, text=True, timeout=5
             )
             return result.returncode == 0 and result.stdout.strip() == "focused"
         except (FileNotFoundError, subprocess.TimeoutExpired):

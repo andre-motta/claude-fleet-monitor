@@ -32,6 +32,7 @@ STATUS_PRIORITY = {
 SORT_KEYS = ["attention", "status", "age", "repo"]
 
 SCHEMA_VERSION = 1
+UNRESOLVED_INSTANCE_ID = "unresolved"
 
 
 class FocusTargetKind(Enum):
@@ -144,6 +145,7 @@ class FleetSession:
     schema_version: int = 0
     sequence: int | None = None
     process_start: str = ""
+    process_identity: str = ""
     focus_target: FocusTarget = field(
         default_factory=lambda: FocusTarget(FocusTargetKind.UNAVAILABLE)
     )
@@ -181,6 +183,7 @@ class FleetSession:
             "age_seconds": self.age_seconds,
             "needs_attention": self.needs_attention,
             "process_start": self.process_start,
+            "process_identity": self.process_identity,
             "focus_target": {
                 "kind": self.focus_target.kind.value,
                 "terminal": self.focus_target.terminal,
@@ -243,6 +246,7 @@ def parse_session(data: dict) -> FleetSession:
         schema_version=data.get("schema_version", 0),
         sequence=data.get("sequence"),
         process_start=data.get("process_start", ""),
+        process_identity=data.get("process_identity", ""),
         focus_target=target,
     )
 
