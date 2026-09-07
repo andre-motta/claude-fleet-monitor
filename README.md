@@ -52,6 +52,17 @@ claude-fleet install
 
 The installer updates Claude Code's `~/.claude/settings.json`, writes Codex hooks to `~/.codex/hooks.json`, and registers the fleet MCP server with both agents. Restart your sessions after the first install. Codex requires you to review and trust the installed hooks through `/hooks` before they run.
 
+Pi support is optional and requires Pi 0.84.4 or newer:
+
+```bash
+claude-fleet install --agent pi
+```
+
+This installs the dependency-free Pi lifecycle extension packaged with Fleet.
+It preserves other Pi extensions and does not register an MCP server. See the
+[Pi integration guide](docs/pi.md) for lifecycle, privacy, upgrade and removal
+behavior. `--agent all` installs Claude Code, Codex and Pi together.
+
 ### tongs Integration
 
 To use the fleet monitor as a plugin inside [tongs](https://github.com/andre-motta/tongs):
@@ -68,7 +79,10 @@ Then launch tongs and open the command palette (Ctrl+P) to find "Fleet Monitor".
 pip install --upgrade claude-fleet-monitor
 ```
 
-No need to re-run `claude-fleet install` or restart sessions. Hooks and MCP server point to pip-installed entry points, so upgrades take effect immediately.
+Claude Code and Codex hooks point to pip-installed entry points, so their
+upgrades take effect immediately. If Fleet moves to another virtual environment,
+run `claude-fleet install --agent pi` again to update Pi's exact extension and
+hook paths.
 
 ### Dependencies
 
@@ -80,6 +94,9 @@ Optional (for terminal focus):
 - `xdotool` -- GNOME Terminal / X11 window focus
 - `pywinctl` -- Windows Terminal window focus
 - `notify-send` -- desktop notifications (Linux)
+
+Optional agent integration:
+- Pi >= 0.84.4 and Node.js, installed separately
 
 ## Usage
 
@@ -131,11 +148,13 @@ Claude Code sessions --\                                      <-- TUI monitor
                        |-- write --> ~/.claude/fleet/*.json    <-- CLI status
 Codex sessions --------|                                      <-- focus command
   (hooks per event)     |
+Pi sessions ------------|
+  (optional extension)  |
                        /
   (process discovery) -
 ```
 
-1. **Hooks** fire on Claude Code and Codex events (start, prompt, tool use, stop, permission request, end)
+1. **Hooks** fire on Claude Code and Codex events; the optional Pi extension translates Pi lifecycle events
 2. Each hook captures the session's **terminal type** and **PID**, writes to `~/.claude/fleet/`
 3. **Process discovery** scans for `claude` and `codex` processes cross-platform to find sessions without hooks
 4. **Consumers** (TUI, MCP, tongs plugin, CLI, focus) read the JSON files
@@ -176,6 +195,8 @@ src/claude_fleet_monitor/
     discovery.py        # Process discovery, session file I/O
     tui.py              # Textual standalone app (FleetMonitorApp)
     cli.py              # claude-fleet CLI entry point
+    pi_install.py       # Optional Pi package lifecycle
+    pi_extension/       # Dependency-free packaged Pi bridge
     focus.py            # Session lookup + terminal focus dispatch
     mcp_server.py       # FastMCP server
     tongs_plugin.py     # TongsPlugin ABC implementation
@@ -215,15 +236,15 @@ src/claude_fleet_monitor/
 ```bash
 claude-fleet uninstall              # removes hooks, MCP config, and data
 claude-fleet uninstall --keep-data  # keeps ~/.claude/fleet/
+claude-fleet uninstall --agent pi   # removes only Fleet's owned Pi extension
 ```
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR process.
 Agent-led initiatives follow [the SDLC profile](docs/SDLC.md).
-Planned work is recorded in [harnesses and desktop](docs/work/harnesses-desktop.md),
-including Pi integration, an optional desktop UI and ChatGPT focus feasibility.
-These are planned features, not current support.
+Future desktop UI and ChatGPT focus work is tracked in
+[harnesses and desktop](docs/work/harnesses-desktop.md).
 
 ## License
 
