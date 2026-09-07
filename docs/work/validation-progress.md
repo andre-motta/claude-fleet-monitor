@@ -13,6 +13,7 @@ Workflow: Agent SDLC 0.1.0; [profile](../SDLC.md). Shared branch:
 | [H1 #25](https://github.com/andre-motta/claude-fleet-monitor/issues/25) | [#37](https://github.com/andre-motta/claude-fleet-monitor/pull/37), `2b8134854f012eb729fcf4eae1d4898082578e5a` | Independent Sol high review; combined Python 3.12 with optional Tongs, 157 passed; real MCP stdio and strict nine-shell matrix passed; hosted Python matrix passed |
 | [S1 #31](https://github.com/andre-motta/claude-fleet-monitor/issues/31) | [#38](https://github.com/andre-motta/claude-fleet-monitor/pull/38), `30eba7e129afac33b8c8e83be4da0e733412589e` | Independent Sol high review; strict local matrix passed; actual hosted Python and nine-shell gates passed |
 | [C1 #28](https://github.com/andre-motta/claude-fleet-monitor/issues/28) | [#39](https://github.com/andre-motta/claude-fleet-monitor/pull/39), `d72de3bbf142a371ee35ccb38b32ec977eb5e2e6` | Independent Sol high review of the public-safe investigation; unchanged patch after rebase; hosted Python and strict shell gates passed; live exact-focus matrix remains unmet |
+| [G0 #34](https://github.com/andre-motta/claude-fleet-monitor/issues/34), follow-up | [#40](https://github.com/andre-motta/claude-fleet-monitor/pull/40), `04c6735badaf97f7dcc4806ad394dc3196c0d70b` | Independent Sol high review; actionlint positive and historical negative checks passed; all five named hosted checks passed |
 
 These issues remain open until the accepted work reaches main. The merged trees
 match the reviewed candidates. No tag, release or deployment is covered by these
@@ -71,6 +72,15 @@ The [Python matrix](https://github.com/andre-motta/claude-fleet-monitor/actions/
 also passed. No paid larger runner was required. Candidate acceptance checks
 must verify the expected named jobs; a Python-only green result was insufficient
 while the shell workflow failed to register.
+
+[PR #40](https://github.com/andre-motta/claude-fleet-monitor/pull/40) adds a
+permanent `workflow-lint` gate using actionlint 1.7.12, with the downloaded
+official binary verified against its pinned SHA-256 before execution. It checks
+all workflow YAML files. The [lint and Python run](https://github.com/andre-motta/claude-fleet-monitor/actions/runs/34139686487)
+and [strict shell run](https://github.com/andre-motta/claude-fleet-monitor/actions/runs/34139686451)
+passed on the reviewed candidate. The five current required named checks are
+`workflow-lint`, `test (3.10)`, `test (3.12)`, `test (3.13)` and
+`shell-validation`; the Pi change must add and pass its own real runtime gate.
 
 ChatGPT's exact conversation-focus mechanism and live two-target matrix remain
 gated. [Tongs #17](https://github.com/andre-motta/tongs/issues/17) natively blocks
