@@ -36,12 +36,13 @@ jobs:
           {
             printf 'checkout_commit=%s\n' "$(git rev-parse HEAD)"
             printf 'checkout_tree=%s\n' "$(git rev-parse 'HEAD^{tree}')"
-            printf 'provider=synthetic localhost HTTP fixture\n'
-            printf 'pi_process=real installed Pi CLI process\n'
-            printf 'hook_process=real claude-fleet-hook process\n'
-            printf 'tmux_process_and_pane=real detached tmux server and pane selection\n'
-            printf 'model_calls=none\n'
-            printf 'gui_window_focus=not exercised\n'
+            printf 'intended_provider=synthetic localhost HTTP fixture\n'
+            printf 'intended_pi_process=real installed Pi CLI process\n'
+            printf 'intended_hook_process=real claude-fleet-hook process\n'
+            printf 'intended_tmux_process_and_pane=real detached tmux server and pane selection\n'
+            printf 'intended_model_calls=none\n'
+            printf 'intended_gui_window_focus=not exercised\n'
+            printf 'observed_outcomes=evidence.json, diagnostics.txt and validator-exit-code.txt\n'
           } > "$evidence_dir/metadata.txt"
 
       - uses: actions/setup-python@v5
