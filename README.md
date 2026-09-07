@@ -50,6 +50,11 @@ The evidence behind this table has defined limits:
 
 ## Supported Terminals
 
+The table lists implemented backend capabilities. Runtime availability,
+selected-target proof and window activation vary by environment and are
+reported as structured focus outcomes; the harness evidence limits above do
+not turn this inventory into live acceptance on every operating system.
+
 | Terminal | Tab Switching | Window Raise | Nested Support |
 |----------|:---:|:---:|:---:|
 | **KDE Konsole** | Yes (qdbus) | Yes (KWin) | -- |
@@ -62,7 +67,10 @@ The evidence behind this table has defined limits:
 | **Windows Terminal** | No | Yes (pywinctl) | -- |
 | **Generic fallback** | No | Best effort | -- |
 
-Nested terminals (e.g. tmux inside Konsole) are handled automatically: the focus command switches the tmux pane, then detects the parent terminal via process tree walking and raises that window too.
+Nested terminals (e.g. tmux inside Konsole) are handled automatically: the
+focus command attempts exact pane selection, then attempts parent-terminal
+activation when that integration is available. The structured result reports
+partial or unavailable outcomes separately.
 
 ## Install
 
