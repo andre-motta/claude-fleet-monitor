@@ -16,6 +16,9 @@ The default `claude-fleet install` command continues to configure Claude Code
 and Codex only. Use `--agent all` to configure all three agents, or select one of
 `claude`, `codex` and `pi`.
 
+Restart Pi sessions that were already running when you installed the extension
+so they load the monitoring bridge.
+
 ## Data and privacy
 
 The extension reports lifecycle state through the installed
@@ -81,6 +84,9 @@ owned file to Pi, preserving every unrelated package and extension:
 ```bash
 claude-fleet uninstall --agent pi
 ```
+
+Restart or exit Pi sessions that were already running when you uninstalled the
+extension. A running process keeps its loaded monitoring bridge until then.
 
 Removing only Pi does not delete the shared Fleet status directory. The default
 uninstall remains the Claude Code and Codex uninstall. Use `--agent all` to

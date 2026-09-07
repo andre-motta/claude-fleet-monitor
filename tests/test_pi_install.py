@@ -327,6 +327,22 @@ def test_cli_pi_selection_does_not_touch_other_agents(settings_file, monkeypatch
     assert not cli.CODEX_HOOKS_FILE.exists()
 
 
+def test_cli_pi_uninstall_instructs_running_sessions_to_restart(
+    settings_file, monkeypatch, capsys
+):
+    from claude_fleet_monitor import cli
+
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/pi")
+    monkeypatch.setattr(cli, "uninstall_pi", lambda command: True)
+
+    cli.cmd_uninstall(SimpleNamespace(agent="pi", keep_data=True))
+
+    assert (
+        "Restart running Pi sessions to finish removing monitoring."
+        in capsys.readouterr().out
+    )
+
+
 def test_cli_default_selection_remains_claude_and_codex(settings_file, monkeypatch):
     from claude_fleet_monitor import cli
 

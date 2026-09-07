@@ -263,6 +263,8 @@ def cmd_uninstall(args):
     else:
         names = ", ".join(name.title() for name in sorted(selected))
         print(f"Claude Fleet Monitor uninstalled from {names}.")
+    if "pi" in selected:
+        print("Restart running Pi sessions to finish removing monitoring.")
 
 
 def cmd_monitor(args):
