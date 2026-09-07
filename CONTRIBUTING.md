@@ -18,7 +18,7 @@ Tests use `tmp_path` fixtures and mock the filesystem. No running Claude Code or
 
 ## Code Style
 
-- Pure Python. No bash, jq, or shell dependencies in Python code.
+- Pure Python core. The approved Pi adapter may package an optional dependency-free JavaScript extension. No bash, jq, or shell dependencies in Python code.
 - Cross-platform. Use `sys.platform` checks for OS-specific paths (`/proc` on Linux, `lsof`/`ps` on macOS, `tasklist` on Windows).
 - Module-level imports unless avoiding circular deps.
 - No comments unless the "why" is non-obvious.

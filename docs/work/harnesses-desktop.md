@@ -1,7 +1,8 @@
 # Harness coverage and desktop initiative
 
-Status: **design proposal awaiting CTO approval**. Workflow adoption and planning
-are authorized; feature implementation and upstream publication are not.
+Status: **staged design approved; local engineering in progress**. Andre approved
+the design and requested GitHub issue publication/maintenance on 2026-09-07.
+Code branch/PR publication, merging and releases remain separately gated.
 Baseline: Agent SDLC 0.1.0, source
 `4e851d1b8a903aa8bebceea078860a21152ee8e8`; [project profile](../SDLC.md).
 Repository baseline: `e651c81751c90e5fb6bfb70c8cc0ff17de364953` on `main`.
@@ -28,7 +29,8 @@ that any process with an agent-like name is fully supported.
 Authenticated GitHub discovery returned **0 open issues and 0 open PRs** for
 [the repository](https://github.com/andre-motta/claude-fleet-monitor).
 `main` is the public default branch. No existing open work can be reused at this
-snapshot. Recheck before publication; the draft items below have no issue numbers.
+snapshot. The approved work breakdown is now published below; all issues remain
+open until delivered to the upstream target.
 
 | Finding | Evidence and consequence | Proposed item |
 | --- | --- | --- |
@@ -79,7 +81,7 @@ and ambiguous matches reported rather than guessed. Focus dispatch reads a typed
 target: terminal, desktop conversation, or unavailable. Terminal targets delegate
 to the existing terminal APIs; desktop backends belong in a separate optional
 module, not terminal-specific branches in focus.py. This module boundary is a
-proposed design change requiring approval.
+approved design boundary; its concrete ChatGPT mechanism still requires C1 acceptance.
 
 Return a structured outcome distinguishing exact target focused, window raised,
 unavailable and failed, with a reason. A launched URL or successful process exit
@@ -101,9 +103,8 @@ extension lifecycle to emit normalized events, rather than rely on executable
 name alone. A tiny optional dependency-free JavaScript bridge is the proposed exception to the
 Python-only convention; the core and existing consumers remain Python. Its
 installation, ownership, update and uninstall rules need explicit coverage.
-After design approval, H1 must record the approved optional harness-asset exception
-in AGENTS/CLAUDE/CONTRIBUTING before H2 starts; until then the standing Python
-convention is unchanged.
+The design approval is recorded in AGENTS/CLAUDE/CONTRIBUTING: a small optional
+dependency-free JavaScript bridge is allowed, with the core remaining Python.
 
 Sol's feasibility investigation identified these lifecycle contracts:
 
@@ -137,7 +138,7 @@ MCP registration or introduce an MCP dependency into Pi.
 Acceptance includes start, active work, tools, prompt waits, settled turns,
 failures, new/switch/resume, reload, clean shutdown and abrupt process death.
 Pin the tested Pi version and fixtures before H2 starts; the event contract and
-supported version range remain part of the proposed design gate.
+supported version range are part of the approved baseline.
 
 Primary references verified by Sol on 2026-09-07:
 [project move](https://pi.dev/news/2026/5/7/pi-has-a-new-home),
@@ -195,22 +196,44 @@ and acceptance scope are approved. Other harness work proceeds independently.
 
 ## Draft work graph and issue package
 
-The following titles and scopes form the local, reviewable issue package.
-Create no issues until Andre approves their public publication. Use feature
-parents H (multi-harness support), D (Tongs desktop) and C (ChatGPT Linux focus),
-with B0 as an independent baseline bug; link child dependencies when published.
-All rows remain **planned** until their gates and dependency revisions are met.
+The approved package is published to GitHub. Feature parents are
+[H #20](https://github.com/andre-motta/claude-fleet-monitor/issues/20),
+[D #21](https://github.com/andre-motta/claude-fleet-monitor/issues/21),
+[C #22](https://github.com/andre-motta/claude-fleet-monitor/issues/22) and
+[S #23](https://github.com/andre-motta/claude-fleet-monitor/issues/23).
+B0 is an independent baseline bug. B0, C1 and S1 are assigned; other items remain
+planned until their dependency revisions and specified gates are satisfied.
 
 | Item / draft title | Owner runtime | Dependencies | Owned areas and outcome | Acceptance |
 | --- | --- | --- | --- | --- |
-| B0: Restore fresh-install MCP startup | Luna xhigh, Sol review | Design gate | Dependency compatibility and new MCP startup regression check; bounded preferred solution is constrain to the compatible major, with migration as a separately assessed alternative | Fresh install, import and MCP tool-list/status smoke with synthetic fleet data; existing suite; available local Python versions plus post-publication CI |
-| H1: Define extensible harness and focus contracts | Sol high, separate Sol review | Design gate; B0 integrated before combined acceptance | models, registry, discovery, focus compatibility and core consumer boundaries; migrate Claude/Codex without feature loss | Old/new records, identity collisions, multiple same-cwd sessions, stale PID, unknown agents, ambiguous lookup and platform mocks; regression suite |
-| H2: Add Pi lifecycle integration | Sol high, separate Sol review; Luna fixtures after contract | H1 integrated and verified; Pi payload/lifecycle contract settled | Pi adapter, optional extension assets, CLI install/uninstall and packaging | Synthetic event suite plus live Pi start/turn/tool/error/switch/shutdown, idempotent install and safe uninstall, terminal focus on claimed platforms |
-| H3: Document harness capabilities and adapter guide | Luna xhigh, Sol review | H2 integrated and verified | Adapter guide, capability matrix, corrected support claims and candidate assessment | Guide validated against Claude/Codex/Pi, truthful partial capabilities and tested package commands; deliver candidate matrix |
-| C1: Prove ChatGPT Linux conversation focusing | Sol high, separate Sol review | Approval of bounded investigation | Isolated prototype/evidence only, no production focus changes | Exact conversation vs window-only result, stable target acquisition, Linux environment and app version, supported mechanism or evidence of limitation |
-| C2: Add verified desktop conversation targets | Sol high, separate Sol review | H1 integrated; C1 evidence and mechanism approved | Optional desktop focus backend, configuration and consumer outcome presentation | Live exact-focus evidence for each claimed mode/platform plus unavailable/partial/error regressions; no false success |
-| D1: Add Fleet to Tongs desktop | Sol high, separate Sol review; Luna assets/docs after host contract | H1 integrated and verified; approved and integrated Tongs desktop API/host | Fleet desktop plugin, packaged frontend assets and host tests; no standalone shell | Acceptance in desktop.md, including clean optional install, legacy TUI and actual desktop interaction |
-| V1: Validate combined harness release candidate | Astra integration, Sol independent final review | B0, H1, H2, H3; add C2/D1 only when separately ready | Integrated acceptance package, release claims and exact proposed publication | Available local regression matrix, CLI/MCP/TUI and real harness evidence; no unresolved required findings; explicit CTO branch/PR gate, then required CI before merge |
+| [B0 #24](https://github.com/andre-motta/claude-fleet-monitor/issues/24): Restore fresh-install MCP startup | Luna xhigh, Sol review | Design gate | Dependency compatibility and new MCP startup regression check; bounded preferred solution is constrain to the compatible major, with migration as a separately assessed alternative | Fresh install, import and MCP tool-list/status smoke with synthetic fleet data; existing suite; available local Python versions plus post-publication CI |
+| [H1 #25](https://github.com/andre-motta/claude-fleet-monitor/issues/25): Define extensible harness and focus contracts | Sol high, separate Sol review | Design gate; B0 integrated before combined acceptance | models, registry, discovery, focus compatibility and core consumer boundaries; migrate Claude/Codex without feature loss | Old/new records, identity collisions, multiple same-cwd sessions, stale PID, unknown agents, ambiguous lookup and platform mocks; regression suite |
+| [H2 #26](https://github.com/andre-motta/claude-fleet-monitor/issues/26): Add Pi lifecycle integration | Sol high, separate Sol review; Luna fixtures after contract | H1 integrated and verified; Pi payload/lifecycle contract settled | Pi adapter, optional extension assets, CLI install/uninstall and packaging | Synthetic event suite plus live Pi start/turn/tool/error/switch/shutdown, idempotent install and safe uninstall, terminal focus on claimed platforms |
+| [H3 #27](https://github.com/andre-motta/claude-fleet-monitor/issues/27): Document harness capabilities and adapter guide | Luna xhigh, Sol review | H2 integrated and verified | Adapter guide, capability matrix, corrected support claims and candidate assessment | Guide validated against Claude/Codex/Pi, truthful partial capabilities and tested package commands; deliver candidate matrix |
+| [C1 #28](https://github.com/andre-motta/claude-fleet-monitor/issues/28): Prove ChatGPT Linux conversation focusing | Sol high, separate Sol review | Approval of bounded investigation | Isolated prototype/evidence only, no production focus changes | Exact conversation vs window-only result, stable target acquisition, Linux environment and app version, supported mechanism or evidence of limitation |
+| [C2 #29](https://github.com/andre-motta/claude-fleet-monitor/issues/29): Add verified desktop conversation targets | Sol high, separate Sol review | H1 integrated; C1 evidence and mechanism approved | Optional desktop focus backend, configuration and consumer outcome presentation | Live exact-focus evidence for each claimed mode/platform plus unavailable/partial/error regressions; no false success |
+| [D1 #30](https://github.com/andre-motta/claude-fleet-monitor/issues/30): Add Fleet to Tongs desktop | Sol high, separate Sol review; Luna assets/docs after host contract | H1 integrated and verified; approved and integrated Tongs desktop API/host | Fleet desktop plugin, packaged frontend assets and host tests; no standalone shell | Acceptance in desktop.md, including clean optional install, legacy TUI and actual desktop interaction |
+| [V1 #33](https://github.com/andre-motta/claude-fleet-monitor/issues/33): Validate combined harness release candidate | Astra integration, Sol independent final review | B0, H1, H2, H3; add C2/D1 only when separately ready | Integrated acceptance package, release claims and exact proposed publication | Available local regression matrix, CLI/MCP/TUI and real harness evidence; no unresolved required findings; explicit CTO branch/PR gate, then required CI before merge |
+
+### Expanded shell and terminal validation
+
+Andre requested broad, properly validated shell support with the design approval.
+Treat shells, emulators and multiplexers as separate layers. Inventory sh/bash,
+zsh, fish, dash, ksh, Nushell, PowerShell and cmd; existing emulators plus Kitty,
+WezTerm and other candidates with maintained integration APIs; tmux/zellij/screen;
+and WSL/SSH boundaries. This is a candidate inventory, not an added support claim.
+
+- [S1 #31](https://github.com/andre-motta/claude-fleet-monitor/issues/31): Sol high
+  investigates and validates available real shells with isolated synthetic events,
+  inspects terminal APIs and records versions, observed capabilities and gaps.
+- [S2 #32](https://github.com/andre-motta/claude-fleet-monitor/issues/32): implement
+  bounded extensions after verified H1/S1 contracts, prioritizing reliable APIs.
+  Material new mechanisms return for design acceptance before dependent work.
+- Record emitter execution, environment preservation, PID/cwd/TTY, lifecycle,
+  exact tab/pane selection, window activation and nested combinations separately.
+  Live proof, simulated events, mocked OS tests and untested targets must be
+  distinguishable. Unsupported outcomes and operation failures cannot count as
+  successful focus. Do not edit users' shell startup files merely to run tests.
 
 Dependencies are acyclic. No dependency is integrated for this initiative yet.
 C1 can run alongside H1 after approval. H1 owns shared files until integrated;
@@ -259,7 +282,30 @@ must be settled before dependent work is marked ready.
 
 The adoption artifact is independently reviewable despite the pre-existing MCP
 failure. Any feature release must resolve B0 and complete its required evidence;
-no check has been silently waived. Adoption is locally integrated; the feature
-work graph remains planned, with no feature implementation dependency commits.
-Resume by inspecting branch/worktree/tracker state, then obtain approval of this
-staged design before implementation. Publication remains a separate gate.
+no check has been silently waived. Adoption is locally integrated. At that handoff the feature graph was planned;
+current approved assignments are recorded below.
+Resume by inspecting branch/worktree/tracker state and verified dependency
+commits. Design approval and scoped issue publication are recorded; proceed with
+ready implementation. Code publication remains a separate gate.
+
+## Execution authorization and assignments, 2026-09-07
+
+On 2026-09-07, Andre approved the staged design, authorized GitHub issue
+publication and maintenance, and expanded scope to broad shell compatibility
+inventory and validation. Concrete additional
+terminal implementations follow evidence and the existing architecture. It does
+not grant code publication or waive live-platform acceptance.
+
+| Item | Actual agent/runtime | Branch | Verified assignment base | State |
+| --- | --- | --- | --- | --- |
+| B0 #24 | mcp_repair / gpt-5.6-luna xhigh | codex/harness-desktop/b0 | 229a9d3 | assigned |
+| C1 #28 | chatgpt_focus / gpt-5.6-sol high | codex/harness-desktop/c1 | 229a9d3 | assigned investigation |
+| S1 #31 | shell_compatibility / gpt-5.6-sol high | codex/harness-desktop/compatibility | 229a9d3 | assigned investigation |
+
+The 14 published GitHub issues have native parent/sub-issue and blocking
+relationships plus readable dependency lists; remote links were verified.
+
+Each has an isolated worktree. B0 owns only dependency metadata and new MCP
+regression tests; C1 owns its new evidence/prototype; S1 owns its new compatibility
+evidence. Astra owns this shared record and issue maintenance. Baseline rerun:
+86 passed, 4 optional Tongs skips. No implementation dependency is integrated yet.

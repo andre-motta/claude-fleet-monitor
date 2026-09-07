@@ -21,8 +21,8 @@ An updated skill does not change an active initiative's pinned workflow.
 | Platforms | Preserve existing Linux, macOS, Windows behavior; use mocked OS tests plus live evidence for any newly claimed terminal/desktop capability |
 | Functional evidence | Actual affected CLI/TUI/harness/desktop journeys; record app versions, OS/display server, focus target and observed result; label synthetic fixtures and mocked tests |
 | Commit rules | Imperative title under 50 characters, blank line, one-line body explaining why, then trailers; `git commit -s`; Codex co-author records actual model without context size |
-| Tracker authority | Read-only discovery and local feature drafts currently authorized; creating/updating public issues requires approval of the concrete issue package |
-| Upstream path | CTO-approved review branch push and PR; no approval yet for this initiative; merge, direct push, tags, releases and deployment require their own covered authorization |
+| Tracker authority | The 2026-09-07 follow-up authorizes publication and maintenance of this approved initiative's GitHub issues, dependency links and public-safe progress |
+| Upstream path | CTO-approved review branch push and PR; code publication not yet approved for this initiative; merge, direct push, tags, releases and deployment require their own covered authorization |
 | Publication effects | PRs targeting `main` and pushes to `main` run tests; `v*` tag pushes build and publish to PyPI using the `pypi` environment; no Pages workflow found |
 | Evidence and initiatives | `docs/work/<initiative>.md`; public-safe evidence only, no private conversation content, credentials or personal absolute paths |
 
@@ -54,8 +54,10 @@ If CI requires a published branch/PR, request that scoped publication explicitly
 with the CI check pending; then require passing CI and acceptance before merge.
 Unavailable required checks need explicit scoped CTO waiver before acceptance,
 and a CI failure reopens verification rather than implying approval to merge. Changes to approved scope or material design
-return to the design gate. No implementation is authorized merely by adopting
-this profile. Routine corrections within approved scope proceed autonomously.
+return to the design gate. The CTO approved the staged harness design, MCP repair and ChatGPT Linux
+investigation on 2026-09-07, then authorized GitHub tracking and broader shell/terminal
+validation. Dependent desktop production mechanisms and Tongs host contracts
+retain their specified decision gates. Routine corrections within approved scope proceed autonomously.
 
 Track planned, ready, assigned, review, locally integrated, CTO accepted and
 upstream delivered separately. A local commit or open PR does not close an issue.
@@ -68,8 +70,8 @@ corrections before integration. Recheck combined changes on integration.
 
 - The general per-commit approval rule has an explicit exception for adopted,
   approved Agent SDLC work. This adoption and its local documentation commits
-  are explicitly authorized; subsequent feature implementation needs design
-  approval. DCO and existing message conventions remain mandatory.
+  are explicitly authorized; feature implementation within the subsequently
+  approved baseline also permits autonomous signed-off local commits. DCO and existing message conventions remain mandatory.
 - Ordinary fork/PR guidance in CONTRIBUTING remains available. Assigned agents
   use isolated worktrees and the two CTO gates described here.
 - Existing process/filesystem boundaries still apply: discovery owns shared
@@ -81,11 +83,13 @@ corrections before integration. Recheck combined changes on integration.
 - Hooks remain fast, with no network or heavy imports. Ordinary imports remain
   module-level except circular or optional dependencies. Cross-platform rules,
   no shell scripts, and hook/discovery writes restricted to FLEET_DIR remain.
-- New desktop focus targets and optional Pi extension assets are proposed in
-  the initiative, not adopted architectural exceptions yet.
+- The approved harness baseline permits a small dependency-free optional Pi
+  JavaScript extension packaged with the Python distribution. The core remains
+  Python. Desktop target abstractions are approved; the concrete ChatGPT focus
+  mechanism still requires C1 evidence and acceptance before C2 implementation.
 
 ## Active initiative
 
 See [harnesses and desktop](work/harnesses-desktop.md) and the saved
-[desktop feature](work/desktop.md). Feature design and public issue publication
-remain pending. Tongs is a separate repository with separate authority.
+[desktop feature](work/desktop.md). The staged design and public issue maintenance are approved. Code publication
+remains pending; see the initiative for unresolved dependent decisions. Tongs is a separate repository with separate authority.

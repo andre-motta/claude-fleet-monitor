@@ -35,7 +35,7 @@ checks and instruction reconciliation. Preserve unrelated rules below.
 
 ## Code Conventions
 
-- Pure Python. No shell subprocess calls for things Python can do natively (JSON parsing, file I/O, string manipulation).
+- The core is pure Python. The approved Pi adapter may include a small optional, dependency-free JavaScript extension; keep its code and assets isolated from core startup. No shell subprocess calls for things Python can do natively (JSON parsing, file I/O, string manipulation).
 - `subprocess` is acceptable only for platform integration (qdbus, xdotool, osascript, pgrep, lsof, tmux, zellij).
 - Module-level imports. Function-level imports only to avoid circular deps or for optional deps (`pywinctl`).
 - No comments unless the "why" would surprise a reader.
