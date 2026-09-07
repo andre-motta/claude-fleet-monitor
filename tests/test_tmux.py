@@ -73,15 +73,6 @@ def test_find_tab_prefers_captured_session_for_linked_window(monkeypatch):
     assert TmuxAPI().find_tab(200, {"TMUX": "/tmp/socket,4400,9"}) is None
 
 
-def test_find_tab_rejects_ambiguous_link_without_captured_session(monkeypatch):
-    output = "$8\t@12\t%34\t200\n$7\t@12\t%34\t200\n"
-    monkeypatch.setattr(
-        tmux.subprocess, "run", lambda *args, **kwargs: completed(output)
-    )
-
-    assert TmuxAPI().find_tab(200, {}) is None
-
-
 def test_find_tab_stops_on_process_cycle(monkeypatch):
     monkeypatch.setattr(
         tmux.subprocess, "run", lambda *args, **kwargs: completed("$7\t@1\t%1\t20\n")
@@ -125,14 +116,34 @@ def test_find_tab_handles_command_errors(monkeypatch, error):
     assert TmuxAPI().find_tab(200, TMUX_ENV) is None
 
 
-def test_find_tab_rejects_malformed_tmux_environment(monkeypatch):
+@pytest.mark.parametrize(
+    "terminal_env",
+    [
+        {},
+        {"TMUX": ""},
+        {"TMUX": None},
+        {"TMUX": 0},
+        {"TMUX": "/tmp/socket,broken"},
+    ],
+)
+@pytest.mark.parametrize(
+    ("method", "arguments"),
+    [
+        ("find_tab", (200,)),
+        ("switch_tab", ("$7:@12.%34",)),
+        ("raise_window", ("$7:@12.%34",)),
+    ],
+)
+def test_operations_require_valid_captured_tmux_environment(
+    monkeypatch, terminal_env, method, arguments
+):
     monkeypatch.setattr(
         tmux.subprocess,
         "run",
         lambda *args, **kwargs: pytest.fail("tmux must not be called"),
     )
 
-    assert TmuxAPI().find_tab(200, {"TMUX": "/tmp/socket,broken"}) is None
+    assert not getattr(TmuxAPI(), method)(*arguments, terminal_env)
 
 
 def test_switch_tab_selects_and_verifies_stable_target(monkeypatch):

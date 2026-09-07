@@ -32,9 +32,7 @@ def _tmux_context(terminal_env: dict) -> tuple[list[str], str | None] | None:
     if not isinstance(terminal_env, dict):
         return None
     value = terminal_env.get("TMUX", "")
-    if not value:
-        return ["tmux"], None
-    if not isinstance(value, str):
+    if not isinstance(value, str) or not value:
         return None
     parts = value.rsplit(",", 2)
     if (
