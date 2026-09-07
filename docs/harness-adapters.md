@@ -115,9 +115,13 @@ Keep three identities separate:
 
 Discoverable adapters must match the exact registered process name,
 executable basename or argument zero. A harness name appearing in arbitrary
-arguments is not process evidence. Emitter adapters must provide the exact
-running process PID and a stable instance token. Fleet checks emitter PIDs and
-does not accept a PID merely because it is alive.
+arguments is not process evidence for those adapters. Emitter adapters must
+have their bridge supply the running process PID and a stable instance token.
+For an emitter, `resolve_process_identity` retrieves `ProcessInfo` for that
+PID without checking the process name. The packaged Pi bridge supplies its own
+`process.pid`, while the stored process-start token is used later for stale or
+PID-reuse checks. The normalized emitter endpoint therefore does not
+authenticate an arbitrary supplied PID as belonging to the named harness.
 
 An emitter sequence is mandatory and must increase strictly for each instance
 and session record. Under the record lock Fleet rereads the current sequence
