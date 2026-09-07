@@ -344,3 +344,56 @@ strict Podman job arrives with the shell validation item after the foundation
 passes it. Standard public-repository GitHub runners are the intended execution
 environment; no paid larger runner is required by the current design. Live
 desktop checks remain separate from hosted headless tests.
+
+## Verified feature integration checkpoint
+
+The earlier assignment and candidate paragraphs are historical. Current evidence
+is recorded in [validation progress](validation-progress.md). G0 #34, B0 #24,
+H1 #25 and the S1 #31 inventory/strict nine-shell gate have each passed independent
+Sol high review and their required local/hosted checks, then merged as separate
+child PRs #35 through #38. C1 #28's bounded investigation followed in PR #39.
+The verified feature merge at this checkpoint is
+`d72de3bbf142a371ee35ccb38b32ec977eb5e2e6`. Issues remain open for main delivery.
+
+H2 #26 is assigned to Sol high on `feat/pi-lifecycle`, starting from verified H1
+merge `2b8134854f012eb729fcf4eae1d4898082578e5a`. Its actual Pi, packaging and
+terminal acceptance remains required. H3 follows verified H2 integration.
+The C1 #28 investigation is independently reviewed and feature-integrated;
+its live exact-conversation matrix and concrete C2 mechanism remain unmet.
+
+Andre authorized cross-repository desktop issue dependencies. Tongs #17 natively
+blocks Fleet #30 and records the production plugin host prerequisites. Tongs has
+selected Electron and narrowed its initial target to Fedora 44 KDE x86_64;
+Fleet follows that host contract and does not add a standalone desktop shell.
+The updated [desktop record](desktop.md) retains these external implementation
+and acceptance gates. Pi proceeds independently.
+
+## Pi feature integration checkpoint
+
+The later accepted feature merge is
+`aa0c46482163e4f516d462667553919deb989b1f` from H2 [PR #41](https://github.com/andre-motta/claude-fleet-monitor/pull/41).
+Its exact candidate passed independent Sol high review, 193 local tests with
+optional Tongs and all six hosted gates, including actual Pi lifecycle and tmux
+pane selection with a synthetic localhost provider. GUI activation remains
+explicitly partial. [Validation progress](validation-progress.md) records exact
+revisions, source/wheel boundaries and resolved review findings.
+
+H3 #27 is assigned to Luna xhigh on `feat/harness-guide` from that verified merge.
+The guide, independent review and final V1 acceptance remain pending. C2 and D1
+retain their documented mechanism and external host gates; main merge remains
+reserved for Andre's acceptance.
+
+## Combined candidate handoff
+
+H3's guide is feature-integrated through [PR #42](https://github.com/andre-motta/claude-fleet-monitor/pull/42)
+at `cc9eb41020d3a94f3ceafc49760f569675864a37`, after independent Sol high review
+and all six hosted gates. The [adapter guide](../harness-adapters.md) describes
+implemented Claude Code, Codex and Pi support and four unimplemented candidates.
+Its separate future-priority decision does not block this release candidate.
+
+V1 combines these verified prerequisites with the reviewed acceptance records
+and a headless TUI step in the existing Python matrix. The exact tested head,
+final independent review and actual hosted results are carried by its issue PR
+and final main PR. The [validation record](validation-progress.md) preserves
+source/wheel boundaries, failures, recovery and the remaining desktop gates.
+Creating the final main PR is authorized; merging it remains Andre's gate.

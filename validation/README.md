@@ -34,3 +34,27 @@ To reproduce locally with a downloaded actionlint binary:
 ```console
 actionlint -no-color -shellcheck= -pyflakes= .github/workflows/*.yml
 ```
+
+## Headless Textual application journey
+
+```console
+python validation/tui.py
+```
+
+This runs the real standalone Textual application with its headless driver and
+temporary synthetic Claude, Codex and Pi session records. It checks initial
+loading, status and search filters, selected-session details, attention navigation
+and clean quit. Only host process enumeration is mocked to prevent unrelated
+sessions from entering the fixture; session files, parsing, application workers
+and widgets are real. A parent process enforces a 30-second timeout and propagates
+failure. The check does not invoke focus, the clipboard or desktop notifications.
+
+This is UI integration evidence using legacy-shaped fixture records, not Pi
+ingestion, terminal rendering or live desktop focus evidence. On the validation
+host, the sandboxed asynchronous app stalled and was terminated; the normal host
+run passed. Run outside a sandbox that blocks the asynchronous driver and record
+any timeout as a failure, rather than accepting an incomplete run.
+
+Each hosted Python matrix job also runs this helper after pytest. A failure or
+timeout fails that job; the context manager's teardown cannot substitute for a
+working quit action, and merely making an empty detail panel visible is rejected.
