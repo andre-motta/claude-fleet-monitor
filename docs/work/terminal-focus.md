@@ -391,7 +391,13 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
   unavailable, with the reason, unless `KITTY_PID` is captured, is a `kitty`
   ancestor of the session pid (bounded, cycle-safe walk), qdbus and KWin are
   on the session bus, and `kitten @ ls` lists exactly one OS window holding
-  `KITTY_WINDOW_ID`.
+  `KITTY_WINDOW_ID` whose child process descends from `KITTY_PID` (which
+  refuses a nested kitty that inherited an outer `KITTY_LISTEN_ON`).
+- Placeholders in the KWin script are filled in one pass, so a title holding
+  a placeholder name (for example a program-set tab title) stays literal data.
+  This also fixes the same exposure in Konsole's caption script.
+- Verified on Plasma Wayland only; Plasma X11 and XWayland kitty are not
+  verified.
 - Order: selection (`focus-window` plus `is_active` readback, unchanged) then
   activation. Activation re-checks the single OS window, runs the reporting
   script, sets `raise_requested`, and succeeds only if the script confirmed

@@ -464,8 +464,9 @@ def validate(work, token, redact):
         hidden_record = evidence["hidden_os_window"]
         hidden_ok = (
             hidden_record["kwin_scripts"] == 1
-            and (not hidden_record["activation"]["succeeded"]
-                 or hidden_record["os_focus_after"] is True)
+            and hidden_record["activation"]["attempted"]
+            and not hidden_record["activation"]["succeeded"]
+            and "KWin did not confirm" in hidden_record["activation"]["detail"]
         )
         for to in (b_address, hidden_address):
             kitten("close-window", "--match", "all", to=to)
