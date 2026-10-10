@@ -14,7 +14,6 @@ from claude_fleet_monitor.terminal_apis import (
     detect_terminal,
     get_terminal_api,
     kitty,
-    konsole,
     tmux,
 )
 from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
@@ -382,39 +381,6 @@ def test_claude_md_detection_order_matches_registry():
     assert match is not None
     documented = [name.strip() for name in match.group(1).split(">")]
     assert documented == [cls.name for cls in TERMINALS]
-
-
-def test_ghostty_kwin_raise_uses_resolved_qdbus(monkeypatch):
-    calls = []
-
-    def run(command, **kwargs):
-        calls.append(command)
-        return SimpleNamespace(returncode=0, stdout="7\n")
-
-    monkeypatch.setattr(
-        konsole.shutil,
-        "which",
-        lambda name: "/usr/bin/qdbus-qt6" if name == "qdbus-qt6" else None,
-    )
-    monkeypatch.setattr(konsole.subprocess, "run", run)
-
-    assert not GhosttyAPI._try_kwin_raise()
-    assert [command[0] for command in calls] == [
-        "/usr/bin/qdbus-qt6",
-        "/usr/bin/qdbus-qt6",
-    ]
-    assert calls[1][2] == "/Scripting/Script7"
-
-
-def test_ghostty_kwin_raise_without_qdbus_is_safe(monkeypatch):
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: None)
-    monkeypatch.setattr(
-        konsole.subprocess,
-        "run",
-        lambda *args, **kwargs: pytest.fail("qdbus must not run"),
-    )
-
-    assert not GhosttyAPI._try_kwin_raise()
 
 
 def _process(pid, ppid, name):

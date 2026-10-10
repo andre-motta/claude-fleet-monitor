@@ -4,11 +4,12 @@ import shutil
 import stat
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from claude_fleet_monitor.focus import focus_notification
-from claude_fleet_monitor.terminal_apis import konsole
+from claude_fleet_monitor.terminal_apis import _qdbus, konsole
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from tests.konsole_fakes import fake_konsole, qdbus_result
 
@@ -35,18 +36,18 @@ def test_resolve_qdbus_uses_path_priority_and_fallback(tmp_path, monkeypatch):
     qdbus_qt6 = _executable(bin_dir, "qdbus-qt6")
     monkeypatch.setenv("PATH", str(bin_dir))
 
-    assert konsole._resolve_qdbus() == str(qdbus)
+    assert _qdbus.resolve_qdbus() == str(qdbus)
     qdbus.unlink()
-    assert konsole._resolve_qdbus() == str(qdbus6)
+    assert _qdbus.resolve_qdbus() == str(qdbus6)
     qdbus6.unlink()
-    assert konsole._resolve_qdbus() == str(qdbus_qt6)
+    assert _qdbus.resolve_qdbus() == str(qdbus_qt6)
 
 
 def test_missing_qdbus_is_safe_for_all_operations(monkeypatch):
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: None)
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: None)
     api = konsole.KonsoleAPI()
 
-    assert api._find_service() is None
+    assert api._find_service(42) is None
     assert api.find_tab(42, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole"}) is None
     with pytest.raises(StepError, match="^qdbus is not available$"):
         api.switch_tab("org.kde.konsole|1|2", {})
@@ -64,9 +65,9 @@ def _assert_steps_fail_safely(api):
 
 
 def test_disappearing_qdbus_is_safe(monkeypatch):
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: "/bin/qdbus-qt6")
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: "/bin/qdbus-qt6")
     monkeypatch.setattr(
-        konsole.subprocess,
+        _qdbus.subprocess,
         "run",
         lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError()),
     )
@@ -79,9 +80,9 @@ def test_disappearing_qdbus_is_safe(monkeypatch):
 
 
 def test_nonzero_qdbus_output_cannot_create_target_or_success(monkeypatch):
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: "/bin/qdbus-qt6")
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: "/bin/qdbus-qt6")
     monkeypatch.setattr(
-        konsole.subprocess,
+        _qdbus.subprocess,
         "run",
         lambda *args, **kwargs: qdbus_result(
             1, "org.kde.konsole-123\n/Sessions/2\n/Windows/3\n42\n17\n"
@@ -89,18 +90,18 @@ def test_nonzero_qdbus_output_cannot_create_target_or_success(monkeypatch):
     )
     api = konsole.KonsoleAPI()
 
-    assert api._find_service() is None
+    assert api._find_service(42) is None
     assert api.find_tab(42, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole"}) is None
     _assert_steps_fail_safely(api)
 
 
 def test_qdbus_timeout_cannot_create_target_or_success(monkeypatch):
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: "/bin/qdbus-qt6")
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: "/bin/qdbus-qt6")
     monkeypatch.setattr(
-        konsole.subprocess,
+        _qdbus.subprocess,
         "run",
         lambda *args, **kwargs: (_ for _ in ()).throw(
-            konsole.subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+            _qdbus.subprocess.TimeoutExpired(args[0], kwargs["timeout"])
         ),
     )
     api = konsole.KonsoleAPI()
@@ -113,7 +114,7 @@ def test_qdbus_timeout_cannot_create_target_or_success(monkeypatch):
 
 def test_find_tab_selects_valid_pid_and_window(monkeypatch):
     executable = "/usr/bin/qdbus-qt6"
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: executable)
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: executable)
     calls = []
 
     def run(command, **kwargs):
@@ -128,7 +129,7 @@ def test_find_tab_selects_valid_pid_and_window(monkeypatch):
             return qdbus_result(0, "2\n")
         raise AssertionError(command)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
     tab_id = konsole.KonsoleAPI().find_tab(
         42, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole-123"}
     )
@@ -139,7 +140,7 @@ def test_find_tab_selects_valid_pid_and_window(monkeypatch):
 
 def test_switch_tab_verifies_current_session(monkeypatch):
     executable = "/usr/bin/qdbus-qt6"
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: executable)
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: executable)
     calls = []
 
     def run(command, **kwargs):
@@ -150,7 +151,7 @@ def test_switch_tab_verifies_current_session(monkeypatch):
             return qdbus_result(0, "2\n")
         raise AssertionError(command)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     assert konsole.KonsoleAPI().switch_tab(
         "org.kde.konsole-123|7|2", {}
@@ -176,7 +177,7 @@ def test_switch_tab_rejects_stale_or_failed_readback(
     monkeypatch, returncode, stdout, detail
 ):
     executable = "/usr/bin/qdbus-qt6"
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: executable)
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: executable)
 
     def run(command, **kwargs):
         if command[-2] == "org.kde.konsole.Window.setCurrentSession":
@@ -185,7 +186,7 @@ def test_switch_tab_rejects_stale_or_failed_readback(
             return qdbus_result(returncode, stdout)
         raise AssertionError(command)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     with pytest.raises(StepError, match=detail):
         konsole.KonsoleAPI().switch_tab("org.kde.konsole-123|7|2", {})
@@ -304,7 +305,7 @@ def test_active_window_with_other_tab_names_current_tab(monkeypatch):
             return qdbus_result(0, "title 2\n")
         return original(command, **kwargs)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     result = konsole.KonsoleAPI().focus_result(42, {})
 
@@ -333,7 +334,7 @@ def test_failed_kwin_load_is_named_in_focus_result(monkeypatch):
             return qdbus_result(0, "-1\n")
         return original(command, **kwargs)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     result = konsole.KonsoleAPI().focus_result(42, {})
 
@@ -350,7 +351,7 @@ def test_unreadable_tab_title_is_named(monkeypatch):
             return qdbus_result(1)
         return original(command, **kwargs)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     result = konsole.KonsoleAPI().focus_result(42, {})
 
@@ -371,7 +372,7 @@ def test_missing_owner_pid_never_loads_kwin_script(monkeypatch):
             return qdbus_result(1)
         return original(command, **kwargs)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     with pytest.raises(StepError, match="owner process could not be read"):
         konsole.KonsoleAPI().raise_window("svc|7|2", {})
@@ -397,7 +398,7 @@ def test_kwin_script_embeds_titles_as_data(monkeypatch, title):
             return qdbus_result(0, "3\n")
         return qdbus_result(0)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     assert konsole._activate_by_kwin_caption([title], 7, executable)
     assert _script_titles(scripts[0]) == [title]
@@ -406,7 +407,7 @@ def test_kwin_script_embeds_titles_as_data(monkeypatch, title):
 
 def test_failed_kwin_load_reports_no_activation(monkeypatch):
     monkeypatch.setattr(
-        konsole.subprocess, "run", lambda command, **kwargs: qdbus_result(0, "-1\n")
+        _qdbus.subprocess, "run", lambda command, **kwargs: qdbus_result(0, "-1\n")
     )
 
     with pytest.raises(StepError, match="^KWin script could not be loaded$"):
@@ -475,7 +476,7 @@ def test_other_active_window_with_same_title_is_not_activation(monkeypatch):
             return qdbus_result(0, "true\n" if active else "false\n")
         return original(command, **kwargs)
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     result = konsole.KonsoleAPI().focus_result(42, {})
 
@@ -503,10 +504,114 @@ def test_failed_kwin_load_cleans_up(monkeypatch):
         calls.append(command)
         return qdbus_result(0, "-1\n")
 
-    monkeypatch.setattr(konsole.subprocess, "run", run)
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
 
     with pytest.raises(StepError):
         konsole._activate_by_kwin_caption(["t"], 7, "/usr/bin/qdbus-qt6")
     path = calls[0][4]
     assert calls[-1][3:] == ["org.kde.kwin.Scripting.unloadScript", calls[0][5]]
     assert not os.path.exists(path)
+
+
+def _process(pid, ppid):
+    return SimpleNamespace(pid=pid, ppid=ppid)
+
+
+def _two_konsoles(monkeypatch, listing=None, owners=None, tree=None):
+    executable = "/usr/bin/qdbus-qt6"
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: executable)
+    listing = listing or (
+        ":1.40\norg.kde.konsole-1000\norg.kde.KWin\norg.kde.konsole-2000\n"
+    )
+    if owners is None:
+        owners = {"org.kde.konsole-1000": 1000, "org.kde.konsole-2000": 2000}
+    tree = tree if tree is not None else {
+        200: _process(200, 150),
+        150: _process(150, 2000),
+        2000: _process(2000, 1),
+        1000: _process(1000, 1),
+    }
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command[1:])
+        args = command[1:]
+        if args == []:
+            return qdbus_result(0, listing)
+        if args[:3] == [
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus.GetConnectionUnixProcessID",
+        ]:
+            owner = owners.get(args[3])
+            return qdbus_result(1) if owner is None else qdbus_result(0, f"{owner}\n")
+        if args == ["org.kde.konsole-2000"]:
+            return qdbus_result(0, "/Sessions/4\n/Windows/1\n")
+        if args[2:] == ["org.kde.konsole.Session.foregroundProcessId"]:
+            return qdbus_result(0, "200\n")
+        if args[2:] == ["org.kde.konsole.Window.sessionList"]:
+            return qdbus_result(0, "4\n")
+        raise AssertionError(command)
+
+    monkeypatch.setattr(_qdbus.subprocess, "run", run)
+    monkeypatch.setattr(konsole.discovery, "get_process_info", tree.get)
+    return calls
+
+
+def test_parent_routing_finds_the_konsole_hosting_the_client(monkeypatch):
+    calls = _two_konsoles(monkeypatch)
+
+    tab_id = konsole.KonsoleAPI().find_tab(200, {})
+
+    assert tab_id == "org.kde.konsole-2000|1|4"
+    assert ["org.kde.konsole-1000"] not in calls
+    assert ["org.kde.KWin"] not in calls
+
+
+def test_captured_service_skips_bus_listing(monkeypatch):
+    calls = _two_konsoles(monkeypatch)
+
+    tab_id = konsole.KonsoleAPI().find_tab(
+        200, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole-2000"}
+    )
+
+    assert tab_id == "org.kde.konsole-2000|1|4"
+    assert [] not in calls
+
+
+@pytest.mark.parametrize(
+    ("owners", "tree"),
+    [
+        ({"org.kde.konsole-1000": 1000, "org.kde.konsole-2000": 1000}, None),
+        ({"org.kde.konsole-1000": 1000}, None),
+        ({}, None),
+        (None, {200: _process(200, 150), 150: _process(150, 200)}),
+        (None, {200: _process(200, 150)}),
+    ],
+    ids=[
+        "ambiguous-names",
+        "ancestor-owner-unreadable",
+        "no-owners",
+        "cycle",
+        "walk-ends",
+    ],
+)
+def test_unidentified_konsole_service_fails_safely(monkeypatch, owners, tree):
+    _two_konsoles(monkeypatch, owners=owners, tree=tree)
+
+    assert konsole.KonsoleAPI()._find_service(200) is None
+    assert konsole.KonsoleAPI().find_tab(200, {}) is None
+
+
+def test_konsole_ancestor_walk_is_bounded(monkeypatch):
+    visited = []
+
+    def endless(pid):
+        visited.append(pid)
+        return _process(pid, pid + 1)
+
+    _two_konsoles(monkeypatch)
+    monkeypatch.setattr(konsole.discovery, "get_process_info", endless)
+
+    assert konsole.KonsoleAPI()._find_service(5000) is None
+    assert len(visited) == 64

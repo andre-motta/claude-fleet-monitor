@@ -1,8 +1,9 @@
 """GNOME Terminal API: exact owner window activation through xdotool on X11.
 
 There is no public tab API, so selection is unsupported. Activation targets
-the single X11 window owned by the session's gnome-terminal-server ancestor
-and is reported unavailable whenever that window is not unique.
+the single visible X11 window owned by the session's gnome-terminal-server
+ancestor and is reported unavailable whenever that window is not unique.
+Visible-only matters: GTK gives every server a hidden client-leader window.
 """
 
 import os
@@ -99,7 +100,7 @@ class GnomeAPI(TerminalAPI):
             raise LookupError("process ancestry walk timed out")
         try:
             result = _xdotool(
-                ["search", "--pid", str(server_pid)],
+                ["search", "--onlyvisible", "--pid", str(server_pid)],
                 min(remaining, _XDOTOOL_TIMEOUT),
             )
         except RuntimeError as error:
@@ -108,10 +109,11 @@ class GnomeAPI(TerminalAPI):
             raise LookupError(f"xdotool search exited {result.returncode}")
         windows = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         if not windows:
-            raise LookupError(f"{SERVER_NAME} owns no X11 window")
+            raise LookupError(f"{SERVER_NAME} owns no visible X11 window")
         if len(windows) > 1:
             raise LookupError(
-                f"{SERVER_NAME} owns {len(windows)} windows; exact window unknown"
+                f"{SERVER_NAME} owns {len(windows)} visible windows;"
+                " exact window unknown"
             )
         if not is_decimal_id(windows[0]):
             raise LookupError("xdotool returned an invalid window id")

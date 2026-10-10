@@ -1,18 +1,24 @@
 """KDE Konsole terminal API via qdbus + KWin."""
 
-import contextlib
 import json
 import os
 import re
-import shutil
-import subprocess
-import tempfile
 import time
-import uuid
 
+from claude_fleet_monitor import discovery
+from claude_fleet_monitor.terminal_apis._qdbus import (
+    KWinScriptError,
+    bus_owner_pid,
+    is_number,
+    qdbus_text,
+    resolve_qdbus,
+    run_kwin_script,
+    run_qdbus,
+)
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
-_QDBUS_CANDIDATES = ("qdbus", "qdbus6", "qdbus-qt6")
+_SERVICE_PREFIX = "org.kde.konsole"
+_MAX_ANCESTORS = 64
 _ACTIVATION_SETTLE_SECONDS = 1.0
 _ACTIVATION_POLL_SECONDS = 0.05
 _KWIN_ACTIVATE_SCRIPT = """
@@ -41,42 +47,29 @@ if (matches.length === 1) {
 """
 
 
-class KonsoleFocusError(RuntimeError):
-    """A failed Konsole focus step; the message is the user-facing detail."""
-
-
-def _resolve_qdbus() -> str | None:
-    for candidate in _QDBUS_CANDIDATES:
+def _nearest_owner_ancestor(pid: int, owners: set[int]) -> int | None:
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 1:
+        return None
+    visited = set()
+    current = pid
+    for _ in range(_MAX_ANCESTORS):
+        if current in owners:
+            return current
+        if current <= 1 or current in visited:
+            return None
+        visited.add(current)
         try:
-            executable = shutil.which(candidate)
-        except OSError:
-            continue
-        if executable:
-            return executable
+            process = discovery.get_process_info(current)
+        except Exception:
+            return None
+        if process is None or process.ppid is None:
+            return None
+        current = process.ppid
     return None
 
 
-def _run_qdbus(
-    executable: str | None,
-    arguments: list[str],
-    *,
-    timeout: float,
-    text: bool,
-) -> subprocess.CompletedProcess | None:
-    if not executable:
-        return None
-    try:
-        result = subprocess.run(
-            [executable, *arguments],
-            capture_output=True,
-            text=text,
-            timeout=timeout,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    if result.returncode != 0:
-        return None
-    return result
+class KonsoleFocusError(RuntimeError):
+    """A failed Konsole focus step; the message is the user-facing detail."""
 
 
 class KonsoleAPI(TerminalAPI):
@@ -95,28 +88,45 @@ class KonsoleAPI(TerminalAPI):
             "KONSOLE_VERSION": os.environ.get("KONSOLE_VERSION", ""),
         }
 
-    def _find_service(self, executable: str | None = None) -> str | None:
+    def _find_service(
+        self, pid: int, executable: str | None = None
+    ) -> str | None:
+        """Return the Konsole service owned by the nearest ancestor of pid.
+
+        Each Konsole process owns its own org.kde.konsole-<pid> name, so the
+        first listed name is only correct when a single Konsole runs.
+        """
         if executable is None:
-            executable = _resolve_qdbus()
-        result = _run_qdbus(executable, [], timeout=5, text=True)
+            executable = resolve_qdbus()
+        result = run_qdbus(executable, [], timeout=5, text=True)
         if result is None:
             return None
-        for line in (result.stdout or "").strip().split("\n"):
-            if "org.kde.konsole" in line:
-                return line.strip()
-        return None
+        owners: dict[int, set[str]] = {}
+        for line in (result.stdout or "").splitlines():
+            name = line.strip()
+            if not name.startswith(_SERVICE_PREFIX):
+                continue
+            owner = bus_owner_pid(executable, name)
+            if owner is not None:
+                owners.setdefault(owner, set()).add(name)
+        if not owners:
+            return None
+        ancestor = _nearest_owner_ancestor(pid, set(owners))
+        if ancestor is None or len(owners[ancestor]) != 1:
+            return None
+        return next(iter(owners[ancestor]))
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
-        executable = _resolve_qdbus()
+        executable = resolve_qdbus()
         if not executable:
             return None
         svc = terminal_env.get("KONSOLE_DBUS_SERVICE") or self._find_service(
-            executable
+            pid, executable
         )
         if not svc:
             return None
 
-        sessions_result = _run_qdbus(
+        sessions_result = run_qdbus(
             executable, [svc], timeout=5, text=True
         )
         if sessions_result is None:
@@ -128,7 +138,7 @@ class KonsoleAPI(TerminalAPI):
 
         for sess_id in session_ids:
             for prop in ("foregroundProcessId", "processId"):
-                result = _run_qdbus(
+                result = run_qdbus(
                     executable,
                     [
                         svc,
@@ -143,7 +153,7 @@ class KonsoleAPI(TerminalAPI):
                 p = (result.stdout or "").strip()
                 if p == str(pid):
                     for win_id in window_ids:
-                        result = _run_qdbus(
+                        result = run_qdbus(
                             executable,
                             [
                                 svc,
@@ -166,7 +176,7 @@ class KonsoleAPI(TerminalAPI):
             return False
         executable = _require_qdbus()
         svc, win_id, sess_id = target
-        selected = _run_qdbus(
+        selected = run_qdbus(
             executable,
             [
                 svc,
@@ -179,7 +189,7 @@ class KonsoleAPI(TerminalAPI):
         )
         if selected is None:
             raise KonsoleFocusError(f"Konsole could not select tab {sess_id}")
-        current = _run_qdbus(
+        current = run_qdbus(
             executable,
             [
                 svc,
@@ -192,7 +202,7 @@ class KonsoleAPI(TerminalAPI):
         if current is None:
             raise KonsoleFocusError("Konsole current tab could not be read")
         current_id = (current.stdout or "").strip()
-        if current_id != sess_id and _is_number(current_id):
+        if current_id != sess_id and is_number(current_id):
             raise KonsoleFocusError(
                 f"tab {sess_id} selection not confirmed (Konsole reports tab"
                 f" {current_id}; readback may be stale until activation)"
@@ -220,20 +230,12 @@ class KonsoleAPI(TerminalAPI):
             focused_title = _session_title(executable, svc, focused)
             if focused_title and focused_title not in titles:
                 titles.append(focused_title)
-        owner = _qdbus_text(
-            executable,
-            [
-                "org.freedesktop.DBus",
-                "/org/freedesktop/DBus",
-                "org.freedesktop.DBus.GetConnectionUnixProcessID",
-                svc,
-            ],
-        )
-        if not _is_number(owner):
+        owner = bus_owner_pid(executable, svc)
+        if owner is None:
             raise KonsoleFocusError(
                 "Konsole D-Bus owner process could not be read"
             )
-        _activate_by_kwin_caption(titles, int(owner), executable)
+        _activate_by_kwin_caption(titles, owner, executable)
         if _wait_for_active_target(
             executable, svc, win_id, sess_id, target_title
         ):
@@ -244,7 +246,7 @@ class KonsoleAPI(TerminalAPI):
 
     def verify_selection(self, tab_id: str, terminal_env: dict) -> bool:
         target = _parse_tab_id(tab_id)
-        executable = _resolve_qdbus()
+        executable = resolve_qdbus()
         if target is None or not executable:
             return False
         svc, win_id, sess_id = target
@@ -252,14 +254,14 @@ class KonsoleAPI(TerminalAPI):
 
 
 def _require_qdbus() -> str:
-    executable = _resolve_qdbus()
+    executable = resolve_qdbus()
     if not executable:
         raise KonsoleFocusError("qdbus is not available")
     return executable
 
 
 def _current_tab_detail(current: str | None, expected: str) -> str:
-    if not _is_number(current):
+    if not is_number(current):
         return f"Konsole did not report tab {expected} as current"
     return f"Konsole reports tab {current} current, not {expected}"
 
@@ -270,52 +272,41 @@ def _parse_tab_id(tab_id: str) -> tuple[str, str, str] | None:
     parts = tab_id.split("|")
     if len(parts) != 3 or not all(parts):
         return None
-    if not _is_number(parts[1]) or not _is_number(parts[2]):
+    if not is_number(parts[1]) or not is_number(parts[2]):
         return None
     return parts[0], parts[1], parts[2]
 
 
-def _is_number(value: str | None) -> bool:
-    return bool(value) and value.isascii() and value.isdigit()
-
-
-def _qdbus_text(executable: str, arguments: list[str]) -> str | None:
-    result = _run_qdbus(executable, arguments, timeout=2, text=True)
-    if result is None:
-        return None
-    return (result.stdout or "").strip()
-
-
 def _current_session(executable: str, svc: str, win_id: str) -> str | None:
-    value = _qdbus_text(
+    value = qdbus_text(
         executable,
         [svc, f"/Windows/{win_id}", "org.kde.konsole.Window.currentSession"],
     )
-    return value if _is_number(value) else None
+    return value if is_number(value) else None
 
 
 def _session_title(executable: str, svc: str, sess_id: str) -> str | None:
-    return _qdbus_text(
+    return qdbus_text(
         executable,
         [svc, f"/Sessions/{sess_id}", "org.kde.konsole.Session.title", "1"],
     ) or None
 
 
 def _titled_windows(executable: str, svc: str, title: str) -> list[str]:
-    listing = _qdbus_text(executable, [svc])
+    listing = qdbus_text(executable, [svc])
     if not listing:
         return []
     return [
         path
         for path in re.findall(r"^/konsole/MainWindow_\d+$", listing, re.MULTILINE)
-        if _qdbus_text(
+        if qdbus_text(
             executable, [svc, path, "org.qtproject.Qt.QWidget.windowTitle"]
         ) == title
     ]
 
 
 def _window_is_active(executable: str, svc: str, path: str) -> bool:
-    return _qdbus_text(
+    return qdbus_text(
         executable, [svc, path, "org.qtproject.Qt.QWidget.isActiveWindow"]
     ) == "true"
 
@@ -374,47 +365,8 @@ def _activate_by_kwin_caption(
 ) -> bool:
     """Activate the single Konsole window of owner_pid showing one of titles."""
     script = _kwin_activation_script(titles, owner_pid)
-    plugin = f"claude-fleet-focus-{uuid.uuid4().hex}"
-    descriptor, path = tempfile.mkstemp(suffix=".js")
     try:
-        with os.fdopen(descriptor, "w") as script_file:
-            script_file.write(script)
-        loaded = _qdbus_text(
-            executable,
-            [
-                "org.kde.KWin",
-                "/Scripting",
-                "org.kde.kwin.Scripting.loadScript",
-                path,
-                plugin,
-            ],
-        )
-        if not _is_number(loaded):
-            raise KonsoleFocusError("KWin script could not be loaded")
-        ran = _run_qdbus(
-            executable,
-            [
-                "org.kde.KWin",
-                f"/Scripting/Script{loaded}",
-                "org.kde.kwin.Script.run",
-            ],
-            timeout=5,
-            text=False,
-        )
-        if ran is None:
-            raise KonsoleFocusError("KWin script could not be run")
-        return True
-    finally:
-        _run_qdbus(
-            executable,
-            [
-                "org.kde.KWin",
-                "/Scripting",
-                "org.kde.kwin.Scripting.unloadScript",
-                plugin,
-            ],
-            timeout=5,
-            text=False,
-        )
-        with contextlib.suppress(OSError):
-            os.unlink(path)
+        run_kwin_script(executable, script, "claude-fleet-focus")
+    except KWinScriptError as error:
+        raise KonsoleFocusError(str(error)) from None
+    return True

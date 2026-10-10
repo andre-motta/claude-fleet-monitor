@@ -1,19 +1,71 @@
-"""Ghostty terminal API via GTK DBus interface."""
+"""Ghostty terminal API.
 
+Activation targets only the single visible window owned by the Ghostty process
+hosting the session. KWin is asked first when available, but KWin cannot report
+back, so success needs xdotool to read the target as the active X11 window.
+Tab selection sends Alt+N and therefore runs only after confirmed activation.
+"""
+
+import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
 
+from claude_fleet_monitor.terminal_apis._env import is_decimal_id
+from claude_fleet_monitor.terminal_apis._qdbus import (
+    KWinScriptError,
+    resolve_qdbus,
+    run_kwin_script,
+)
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
-from claude_fleet_monitor.terminal_apis.konsole import _resolve_qdbus, _run_qdbus
+
+_XDOTOOL_TIMEOUT = 2.0
+_KWIN_ACTIVATE_SCRIPT = """
+var owner = __OWNER__;
+var matches = [];
+var windows = workspace.windowList();
+for (var i = 0; i < windows.length; i++) {
+    if (windows[i].pid === owner) {
+        matches.push(windows[i]);
+    }
+}
+if (matches.length === 1) {
+    matches[0].minimized = false;
+    workspace.activeWindow = matches[0];
+}
+"""
 
 # ydotool evdev keycodes for number keys 1-9
 _YDOTOOL_NUM_KEYS = {
     1: "2", 2: "3", 3: "4", 4: "5", 5: "6",
     6: "7", 7: "8", 8: "9", 9: "10",
 }
+
+
+def _xdotool(args: list[str]) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(
+            ["xdotool", *args],
+            capture_output=True,
+            text=True,
+            timeout=_XDOTOOL_TIMEOUT,
+        )
+    except FileNotFoundError:
+        raise RuntimeError("xdotool is not installed") from None
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"xdotool {args[0]} timed out") from None
+    except OSError as error:
+        raise RuntimeError(f"xdotool {args[0]} failed: {error.strerror}") from None
+
+
+def _tab_pid(tab_id) -> int | None:
+    if not isinstance(tab_id, str):
+        return None
+    pid, separator, _ = tab_id.partition(":")
+    if not separator or not is_decimal_id(pid):
+        return None
+    return int(pid)
 
 
 def _find_ghostty_pid() -> int | None:
@@ -125,9 +177,23 @@ class GhosttyAPI(TerminalAPI):
         return False
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
-        if sys.platform == "linux" and self._try_kwin_raise():
-            return True
-        return self._try_xdotool_raise()
+        agent_pid = _tab_pid(tab_id)
+        if agent_pid is None:
+            raise RuntimeError("invalid Ghostty tab target")
+        ghostty_pid = _find_ghostty_pid()
+        if not ghostty_pid:
+            raise RuntimeError("Ghostty process not found")
+        if _find_ancestor_child(agent_pid, ghostty_pid) is None:
+            raise RuntimeError("session is not inside the running Ghostty process")
+        kwin_note = None
+        if sys.platform == "linux":
+            kwin_note = self._try_kwin_raise(ghostty_pid)
+        try:
+            return self._try_xdotool_raise(ghostty_pid)
+        except RuntimeError as error:
+            if kwin_note:
+                raise RuntimeError(f"{error}; KWin: {kwin_note}") from None
+            raise
 
     @staticmethod
     def _try_ydotool_goto_tab(tab_num: int) -> bool:
@@ -162,55 +228,53 @@ class GhosttyAPI(TerminalAPI):
             return False
 
     @staticmethod
-    def _try_kwin_raise() -> bool:
-        script = """
-var windows = workspace.windowList();
-for (var i = 0; i < windows.length; i++) {
-    if (windows[i].resourceClass === 'com.mitchellh.ghostty') {
-        workspace.activeWindow = windows[i];
-        break;
-    }
-}
-"""
-        executable = _resolve_qdbus()
+    def _try_kwin_raise(ghostty_pid: int) -> str | None:
+        """Ask KWin to activate the single window of ghostty_pid.
+
+        Returns a note for the failure detail; never a success claim.
+        """
+        executable = resolve_qdbus()
         if not executable:
-            return False
-        with tempfile.NamedTemporaryFile(suffix=".js", mode="w", delete=False) as f:
-            f.write(script)
-            f.flush()
-            try:
-                r = _run_qdbus(
-                    executable,
-                    ["org.kde.KWin", "/Scripting",
-                     "org.kde.kwin.Scripting.loadScript", f.name],
-                    timeout=5, text=True,
-                )
-                sid = r.stdout.strip() if r else ""
-                if sid.isdigit():
-                    _run_qdbus(
-                        executable,
-                        ["org.kde.KWin", f"/Scripting/Script{sid}",
-                         "org.kde.kwin.Script.run"],
-                        timeout=5, text=False,
-                    )
-            finally:
-                os.unlink(f.name)
-        return False
+            return None
+        script = _KWIN_ACTIVATE_SCRIPT.replace(
+            "__OWNER__", json.dumps(ghostty_pid)
+        )
+        try:
+            run_kwin_script(executable, script, "claude-fleet-ghostty")
+        except KWinScriptError as error:
+            return str(error)
+        return "activation requested but unconfirmed"
 
     @staticmethod
-    def _try_xdotool_raise() -> bool:
-        try:
-            result = subprocess.run(
-                ["xdotool", "search", "--class", "com.mitchellh.ghostty"],
-                capture_output=True, text=True, timeout=5
+    def _try_xdotool_raise(ghostty_pid: int) -> bool:
+        search = _xdotool(
+            ["search", "--onlyvisible", "--pid", str(ghostty_pid)]
+        )
+        if search.returncode not in (0, 1):
+            raise RuntimeError(f"xdotool search exited {search.returncode}")
+        windows = [
+            line.strip() for line in search.stdout.splitlines() if line.strip()
+        ]
+        if not windows:
+            raise RuntimeError("Ghostty owns no visible X11 window")
+        if len(windows) > 1:
+            raise RuntimeError(
+                f"Ghostty owns {len(windows)} visible windows;"
+                " exact window unknown"
             )
-            wid = result.stdout.strip().split("\n")[0] if result.stdout.strip() else ""
-            if wid:
-                activated = subprocess.run(
-                    ["xdotool", "windowactivate", wid],
-                    capture_output=True, timeout=5
-                )
-                return activated.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
-        return False
+        window = windows[0]
+        if not is_decimal_id(window):
+            raise RuntimeError("xdotool returned an invalid window id")
+        activated = _xdotool(["windowactivate", "--sync", window])
+        if activated.returncode != 0:
+            raise RuntimeError(
+                f"xdotool windowactivate exited {activated.returncode}"
+            )
+        active = _xdotool(["getactivewindow"])
+        if active.returncode != 0:
+            raise RuntimeError(
+                f"xdotool getactivewindow exited {active.returncode}"
+            )
+        if active.stdout.strip() != window:
+            raise RuntimeError("active window readback did not match the target")
+        return True

@@ -111,10 +111,35 @@ def test_gnome_activates_single_owned_window_with_readback(gnome_env):
     assert result.activation.succeeded
     assert not result.selection.attempted
     assert calls == [
-        ["xdotool", "search", "--pid", "100"],
+        ["xdotool", "search", "--onlyvisible", "--pid", "100"],
         ["xdotool", "windowactivate", "--sync", "4194307"],
         ["xdotool", "getactivewindow"],
     ]
+
+
+def test_gnome_hidden_client_leader_does_not_hide_the_owned_window(
+    gnome_env, monkeypatch
+):
+    calls = []
+    hidden_leader, window = "4194305", "4194307"
+
+    def run(argv, **kwargs):
+        calls.append(argv)
+        if argv[1] == "search":
+            visible_only = "--onlyvisible" in argv
+            listed = [window] if visible_only else [hidden_leader, window]
+            return _completed("".join(f"{wid}\n" for wid in listed))
+        if argv[1] == "getactivewindow":
+            return _completed(f"{window}\n")
+        return _completed()
+
+    monkeypatch.setattr(gnome.subprocess, "run", run)
+
+    result = GnomeAPI().focus_result(300, {})
+
+    assert result.activation.succeeded
+    assert calls[0] == ["xdotool", "search", "--onlyvisible", "--pid", "100"]
+    assert calls[1] == ["xdotool", "windowactivate", "--sync", window]
 
 
 def test_gnome_several_windows_is_unavailable(gnome_env):
@@ -126,7 +151,7 @@ def test_gnome_several_windows_is_unavailable(gnome_env):
     assert not result.target_found
     assert not result.activation.attempted
     assert result.activation.detail == (
-        "gnome-terminal-server owns 3 windows; exact window unknown"
+        "gnome-terminal-server owns 3 visible windows; exact window unknown"
     )
     assert len(calls) == 1
 
@@ -137,7 +162,7 @@ def test_gnome_no_owned_window_is_unavailable(gnome_env):
     result = GnomeAPI().focus_result(300, {})
 
     assert not result.activation.attempted
-    assert "owns no X11 window" in result.activation.detail
+    assert "owns no visible X11 window" in result.activation.detail
 
 
 def test_gnome_activation_readback_mismatch_is_not_success(gnome_env):
@@ -282,7 +307,7 @@ def test_gnome_matches_full_server_executable(gnome_env, monkeypatch):
 
     result = GnomeAPI().focus_result(300, {})
 
-    assert "owns 2 windows" in result.activation.detail
+    assert "owns 2 visible windows" in result.activation.detail
 
 
 def test_gnome_selection_stays_unsupported():

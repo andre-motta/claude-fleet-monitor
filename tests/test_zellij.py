@@ -157,8 +157,14 @@ def test_find_tab_without_env_is_truthfully_none(no_cli):
     assert ZellijAPI().find_tab(101, {}) is None
 
 
+PRE_CAPTURE = (
+    "session recorded before zellij pane capture; restart the agent session"
+    " to enable selection"
+)
+
+
 def test_pre_upgrade_record_reports_selection_unavailable(monkeypatch, no_cli):
-    with pytest.raises(LookupError, match="record predates pane capture"):
+    with pytest.raises(LookupError, match=f"^{PRE_CAPTURE}$"):
         ZellijAPI().find_tab(101, dict(ZELLIJ_ENV))
     monkeypatch.setattr(DETECT_PARENT, lambda pid: WindowParent())
 
@@ -166,7 +172,7 @@ def test_pre_upgrade_record_reports_selection_unavailable(monkeypatch, no_cli):
 
     assert result.state == "partial"
     assert not result.selection.attempted
-    assert result.selection.detail == "record predates pane capture"
+    assert result.selection.detail == PRE_CAPTURE
     assert result.activation.succeeded
 
 

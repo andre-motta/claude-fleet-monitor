@@ -61,13 +61,13 @@ with substituted OS calls), **inspected** (source or documentation only) and
 
 | Terminal | Tab or pane selection | Window raise | Nested support | Evidence |
 |----------|:---:|:---:|:---:|---|
-| **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked |
-| **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked |
+| **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked; as a tmux parent the Konsole service owned by the client's nearest ancestor is used (mocked) |
+| **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client; failures name the reason (no attached client, no parent emulator, unsupported or unconfirmed parent) | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked; failure details mocked |
 | **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client and the monitor's zellij socket dir | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)); moved-client rule mocked |
 | **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); window raise unverified |
 | **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
-| **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N) | GTK DBus / KWin | -- | mocked and inspected; not installed on the validation host |
-| **GNOME Terminal** | No | Exact owner window only, X11 (xdotool readback) | -- | mocked |
+| **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires a single visible Ghostty window owned by the session's Ghostty process; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
+| **GNOME Terminal** | No | Exact owner window only: the single visible window of the session's gnome-terminal-server, X11 only (xdotool readback) | -- | mocked; not live-validated |
 | **Terminator** | No (detection only, #47) | No | -- | detection live (terminator 2.1.5 [probe](validation/evidence/terminal-probe-fedora44.json)); mocked; #47 inspection |
 | **iTerm2** | Yes (osascript) | Yes (osascript) | -- | mocked and inspected; unvalidated on macOS |
 | **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- | mocked and inspected; unvalidated on macOS |
@@ -349,7 +349,8 @@ src/claude_fleet_monitor/
 
 - **Same-title tabs in different windows (Konsole/KDE):** Konsole window activation must match exactly one window of the owning Konsole process. When two windows show the same caption, focus selects the tab but reports activation as failed ("no unique Konsole window matched the tab title") instead of raising a guess.
 - **Wayland window activation:** On Wayland/KDE, window raising uses KWin scripting via DBus. Other Wayland compositors may not support programmatic window activation.
-- **GNOME Terminal:** No tab switching API available; window raise only for the exact owning window on X11.
+- **GNOME Terminal:** No tab switching API available; window raise only for the exact owning window on X11. A server with several visible windows reports activation unavailable.
+- **Ghostty:** Window activation requires a single visible Ghostty window and an X11 readback; with several windows, or on Wayland without xdotool readback, activation fails with a detail and no Alt+N keys are sent. This path is mocked only.
 - **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
 - **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
 - **Kitty, GNU screen and zellij windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback, a screen session owns no window, and a zellij client's emulator is not reachable from the daemonized server.

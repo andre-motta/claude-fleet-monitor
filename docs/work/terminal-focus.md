@@ -238,6 +238,33 @@ hands-on, manual observation; no JSON was recorded for it.
   evidence already shows one display; not rerun). README rows now state the
   attached display or client requirement, the zellij socket directory match
   and the kitty `unix:` socket requirement.
+- **F11**: closes the final whole-branch review notes (base `2e01b6f`, head
+  `065d3a6`). The qdbus helpers and the KWin load, run and always-unload
+  helper (unique plugin name, temp file removed on every path) moved to
+  `terminal_apis/_qdbus.py`, shared by Konsole and Ghostty; Konsole behavior
+  is unchanged. Ghostty no longer activates an arbitrary window: activation
+  first requires the session to descend from the running Ghostty process, the
+  KWin script activates only when exactly one window has that owner PID and is
+  never a success on its own, and the xdotool path searches
+  `--onlyvisible --pid <ghostty>`, acts only on exactly one window and
+  succeeds only when `getactivewindow` reads it back. Otherwise activation
+  fails with a detail and Alt+N is not sent. GNOME Terminal searches
+  `--onlyvisible` so GTK's hidden client-leader window no longer makes every
+  server look like it owns two windows. Without a captured
+  `KONSOLE_DBUS_SERVICE` (a tmux parent is called with `{}`), Konsole now picks
+  the `org.kde.konsole*` service whose D-Bus owner is the nearest ancestor of
+  the client (bounded, cycle-safe walk of at most 64 steps) and fails safely
+  when none or several names match, instead of taking the first listed name.
+  tmux `raise_window` raises a short reason when no client succeeds (no
+  attached client shows the pane, no parent emulator, parent unsupported, or
+  parent did not activate; list failures are named too). `claude-fleet focus`
+  and MCP `fleet_focus` print the same step details as the toast for partial
+  and failed results, and an operation never attempted because the backend
+  does not support it renders as `unsupported`. The zellij pre-capture detail
+  now tells the user to restart the agent session. Evidence: mocked only.
+  Ghostty and GNOME Terminal activation are mocked only (Ghostty is not
+  installed; no GNOME session was used); no live validator was run and no
+  real qdbus, KWin or xdotool was called.
 
 ### Multi-client tmux routing note
 
@@ -285,6 +312,12 @@ change, Fedora 44 KDE Plasma Wayland:
 - Andre at the desktop: tmux inside a background Konsole window, focused from
   the TUI, should report complete (needs K1 and F3b together); this is the
   post-K1 hands-on re-run.
+- F11 changed two strings and one return path that the live validators pin:
+  `validation/tmux.py` still asserts `raise_window` returns False where it now
+  raises a reason, and `validation/zellij.py` expects the old
+  "record predates pane capture" detail. Both validators and the committed
+  zellij evidence need reconciling before they are rerun; F11 did not own
+  them.
 - Andre at the desktop: a fresh agent session in each installed terminal
   should show its label (`KDE`, `tmx`, `zel`, `kty`, `scr`, `trm`) and the
   focus result listed in the README table. Sessions recorded before the
@@ -294,8 +327,9 @@ change, Fedora 44 KDE Plasma Wayland:
 
 - Windows Terminal: Win32 owner-window activation, which needs validation on a
   Windows host.
-- Kitty and WezTerm GUI activation through a shared KWin helper extracted from
-  Konsole (not done; needs its own high-risk review).
+- Kitty and WezTerm GUI activation through the shared KWin helper in
+  `terminal_apis/_qdbus.py` (extracted in F11; using it for Kitty or WezTerm
+  is not done and needs its own high-risk review).
 - Zellij parent GUI activation: client PIDs are not obtainable from the CLI.
 - Version floors: only one version of zellij, kitty and screen was validated;
   adapters gate on behavior, not on a version number.
