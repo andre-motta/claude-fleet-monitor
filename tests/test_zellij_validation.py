@@ -1,7 +1,9 @@
 """Safety controls for the isolated live zellij validator."""
 
 import importlib.util
+import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -93,3 +95,53 @@ def test_public_text_flags_private_paths(private):
     _, leaks = validator.public_text({"path": value}, lambda text: text)
 
     assert leaks
+
+
+EVIDENCE = ROOT / "validation" / "evidence" / "zellij-fedora44.json"
+
+
+def test_committed_evidence_is_live_and_complete():
+    evidence = json.loads(EVIDENCE.read_text())
+
+    assert evidence["schema"] == "zellij-validation/1"
+    assert evidence["result"] == "pass" and evidence["error"] is None
+    assert evidence["provenance"] == "live"
+    assert evidence["zellij_version"] == "zellij 0.45.1"
+    assert evidence["validated_versions"] == ["0.45.1"]
+    assert evidence["version_floor"].startswith("not established")
+    assert evidence["gui_activation"].startswith("unavailable")
+    assert evidence["duplicate_targets"]["titles"] == ["dup"]
+    assert evidence["duplicate_targets"]["tabs"] == 2
+    steps = evidence["selections"]
+    assert {step["tab"] for step in steps} == {1, 2}
+    assert all(
+        step["selected"]
+        and step["list_clients_matches"]
+        and step["keystroke_routed_to"] == [step["target"]]
+        for step in steps
+    )
+    assert not evidence["before_any_client_input"]["selected"]
+    for stale in evidence["stale_ids"].values():
+        assert not stale["selected"] and stale["clients_unchanged"]
+    assert evidence["zero_clients"]["detail"] == "no attached zellij client"
+    assert evidence["two_clients"]["selected"]
+    assert evidence["injection_rejected_before_subprocess"]
+    assert evidence["pre_upgrade_record_detail"] == "record predates pane capture"
+    assert evidence["focus_result"]["state"] == "partial"
+    assert evidence["cleanup"]["survivors"] == 0
+    assert evidence["cleanup"]["marker_strays_after_run"] == 0
+    assert evidence["cleanup"]["temp_dir_removed"]
+    assert evidence["user_config_unchanged"]
+    assert evidence["user_zellij_cache_entries_for_run"] == 0
+    assert evidence["kwin_calls"] == 0
+    assert re.fullmatch(r"[0-9a-f]{40}", evidence["tested_commit"])
+    assert not evidence["modified_since_commit"]
+
+
+def test_committed_evidence_is_public_safe():
+    text = EVIDENCE.read_text()
+
+    assert "/home/" not in text and "/tmp/" not in text and "/run/user/" not in text
+    assert "—" not in text
+    assert "fleet-z5-" not in text
+    assert "<session>" in text
