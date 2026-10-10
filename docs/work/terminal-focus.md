@@ -292,6 +292,12 @@ hands-on, manual observation; no JSON was recorded for it.
   ties the validator's expectation to the adapter's current message.
   Evidence: mocked plus the local tmux validator; no real qdbus, KWin or
   xdotool was called.
+- Acceptance follow-up: zellij now names a parent that did not activate
+  ("parent terminal <name> did not activate"), and the remaining docs that
+  described the removed Ghostty GTK D-Bus path were corrected. The zellij live
+  validator was rerun on that commit (isolated sockets and PTYs, zellij
+  0.45.1): it passed under the tightened selection rule, and the committed
+  evidence now records the new pre-capture detail.
 
 ### Multi-client tmux routing note
 
@@ -339,8 +345,6 @@ change, Fedora 44 KDE Plasma Wayland:
 - Andre at the desktop: tmux inside a background Konsole window, focused from
   the TUI, should report complete (needs K1 and F3b together); this is the
   post-K1 hands-on re-run.
-- The committed zellij evidence predates the F11 pre-capture wording; the
-  next live `python validation/zellij.py` run will record the new detail.
 - Andre at the desktop: a fresh agent session in each installed terminal
   should show its label (`KDE`, `tmx`, `zel`, `kty`, `scr`, `trm`) and the
   focus result listed in the README table. Sessions recorded before the

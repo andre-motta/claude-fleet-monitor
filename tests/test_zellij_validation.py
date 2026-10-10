@@ -128,8 +128,7 @@ def test_committed_evidence_is_live_and_complete():
     assert evidence["zero_clients"]["detail"] == "no attached zellij client"
     assert evidence["two_clients"]["selected"]
     assert evidence["injection_rejected_before_subprocess"]
-    # Recorded before F11 reworded the detail; the validator now expects the new text.
-    assert evidence["pre_upgrade_record_detail"] == "record predates pane capture"
+    assert evidence["pre_upgrade_record_detail"] == validator.LEGACY_DETAIL
     assert evidence["focus_result"]["state"] == "partial"
     assert evidence["cleanup"]["survivors"] == 0
     assert evidence["cleanup"]["marker_strays_after_run"] == 0
