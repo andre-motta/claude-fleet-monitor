@@ -53,6 +53,7 @@ OWNED = (
     "validation/kitty.py",
 )
 real_which = kitty_module.shutil.which
+SETTLE_SECONDS = 2.0
 DEFAULT_OUT = ROOT / "validation" / "evidence" / "kitty-fedora44.json"
 CAPTURE = (
     "import json, sys\n"
@@ -366,6 +367,8 @@ def validate(work, token, redact):
         if not wait_until(lambda: tree(b_address) and read_capture(b_dir, "1"), 20):
             raise RuntimeError("second kitty instance did not become ready")
         b_capture, b_shell = probe(b_dir, b_process)
+        # Newly mapped probe windows can still take focus shortly after startup.
+        time.sleep(SETTLE_SECONDS)
         instances = {
             "A": (shells["1"], captures["1"]["env"], address),
             "B": (b_shell, b_capture["env"], b_address),
