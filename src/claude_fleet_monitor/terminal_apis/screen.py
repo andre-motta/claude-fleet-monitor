@@ -90,7 +90,12 @@ class ScreenAPI(TerminalAPI):
     @staticmethod
     def capture_env() -> dict:
         captured = bounded_env(ENV_KEYS)
-        return {key: captured.get(key, "") for key in ENV_KEYS}
+        sty = captured.get("STY")
+        window = captured.get("WINDOW")
+        return {
+            "STY": sty if _valid_sty(sty) else "",
+            "WINDOW": window if _window(window) is not None else "",
+        }
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
         if _session(terminal_env) is None:

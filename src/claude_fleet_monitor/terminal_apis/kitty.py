@@ -17,7 +17,24 @@ ENV_KEYS = ("KITTY_WINDOW_ID", "KITTY_LISTEN_ON")
 TIMEOUT = 5
 _STDERR_LIMIT = 80
 REMOTE_CONTROL_UNAVAILABLE = (
-    "kitty remote control unavailable (allow_remote_control/listen_on not configured)"
+    "kitty remote control unavailable: needs allow_remote_control and a unix:"
+    " listen_on socket"
+)
+_SOCKET_FAILURE = (
+    "remote control socket refused or missing (kitty closed or remote control off)"
+)
+# Matched against the start of kitty's message only, since connect errors echo
+# the socket address and that path may contain any of these words.
+_KNOWN_ERRORS = (
+    ("failed to connect to ", _SOCKET_FAILURE),
+    ("remote control is disabled", "remote control is disabled (allow_remote_control)"),
+    (
+        "remote control is allowed over a socket only",
+        "remote control is allowed over a socket only",
+    ),
+    ("the user rejected this password", "remote control password was refused"),
+    ("the user rejected this request", "remote control request was rejected"),
+    ("no matching windows", "target window no longer exists"),
 )
 
 
@@ -70,19 +87,11 @@ def _failure(action: str, result: subprocess.CompletedProcess | None) -> str:
         return f"kitty {action} did not complete within {TIMEOUT}s"
     message = _first_line(result.stderr) or _first_line(result.stdout)
     lowered = message.lower()
-    if "remote control is disabled" in lowered:
-        return f"kitty {action}: remote control is disabled (allow_remote_control)"
-    if "allowed over a socket only" in lowered:
-        return f"kitty {action}: remote control is allowed over a socket only"
-    if "password" in lowered:
-        return f"kitty {action}: remote control password was refused"
-    if "failed to connect" in lowered:
-        return (
-            f"kitty {action}: remote control socket refused or missing"
-            " (kitty closed or remote control off)"
-        )
-    if "no matching windows" in lowered:
-        return f"kitty {action}: target window no longer exists"
+    if lowered.startswith("error:"):
+        lowered = lowered[len("error:"):].lstrip()
+    for prefix, label in _KNOWN_ERRORS:
+        if lowered.startswith(prefix):
+            return f"kitty {action}: {label}"
     detail = f"kitty {action} exited {result.returncode}"
     return f"{detail}: {message}" if message else detail
 

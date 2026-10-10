@@ -63,9 +63,9 @@ with substituted OS calls), **inspected** (source or documentation only) and
 |----------|:---:|:---:|:---:|---|
 | **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked |
 | **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked |
-| **zellij** | Yes (`focus-pane-id`, `list-clients` readback) | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)) |
-| **Kitty** | Yes, opt-in remote control (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); activation unverified |
-| **GNU screen** | Yes (`-X select`, `-Q number` readback) | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
+| **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client and the monitor's zellij socket dir | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)); moved-client rule mocked |
+| **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); window raise unverified |
+| **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N) | GTK DBus / KWin | -- | mocked and inspected; not installed on the validation host |
 | **GNOME Terminal** | No | Exact owner window only, X11 (xdotool readback) | -- | mocked |
 | **Terminator** | No (detection only, #47) | No | -- | detection live (terminator 2.1.5 [probe](validation/evidence/terminal-probe-fedora44.json)); mocked; #47 inspection |
@@ -118,9 +118,10 @@ listen_on unix:${XDG_RUNTIME_DIR}/kitty-{kitty_pid}
 
 Kitty then exports `KITTY_LISTEN_ON`, which the hook captures with
 `KITTY_WINDOW_ID`. Only `unix:` socket addresses (an absolute path or an
-`@abstract` name) are used; `tcp:` and other addresses are rejected. Without
-remote control, focus reports "kitty remote control unavailable" and changes
-nothing.
+`@abstract` name) are used; `tcp:`, `fd:` and relative addresses are dropped
+at capture. Without remote control or a `unix:` listen_on socket, focus reports
+"kitty remote control unavailable: needs allow_remote_control and a unix:
+listen_on socket" and changes nothing.
 
 **Security warning:** with `allow_remote_control` enabled, any local process
 that can reach the socket can control kitty, including sending text to its
@@ -352,7 +353,9 @@ src/claude_fleet_monitor/
 - **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
 - **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
 - **Kitty, GNU screen and zellij windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback, a screen session owns no window, and a zellij client's emulator is not reachable from the daemonized server.
-- **GNU screen and zellij with several displays or clients:** Selection acts on the display or client that most recently received input; other displays keep their own window or pane.
+- **GNU screen and zellij with several displays or clients:** GNU screen switches only the most recently attached display, and zellij moves only the client that most recently received input; other displays and clients keep their own window or pane. Both need an attached display or client: a detached session reports a failed selection.
+- **zellij socket directory:** Fleet runs `zellij --session` with its own environment, so it finds a session only when its `ZELLIJ_SOCKET_DIR` matches the session's. Sessions started with a custom `ZELLIJ_SOCKET_DIR` report a failed selection instead of a guess.
+- **zellij selection proof:** Selection succeeds only when a client that was elsewhere moves to the pane, or when every attached client already showed it ("pane already focused"). An idle client that already showed the pane while the active client did not move is a failure.
 - **Generic fallback:** Unknown terminals get no selection or window raise; the earlier best-effort raise could activate an unrelated window and was removed.
 
 ## Configuration

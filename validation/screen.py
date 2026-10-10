@@ -279,10 +279,13 @@ def validate(fixture, checks, cases):
         cases["two_displays_observed_rule"] = "display that last received input"
     else:
         cases["two_displays_observed_rule"] = "inconsistent"
-    checks["two_displays_selection_verified_on_one_display"] = all(
-        item["result"]["selection"]["succeeded"] and item["number"] == item["target"]
-        and len(item["displays_showing_target"]) >= 1
-        for item in two_displays)
+    checks["two_displays_selection_verified_on_one_display"] = (
+        cases["two_displays_observed_rule"] != "inconsistent"
+        and all(
+            item["result"]["selection"]["succeeded"]
+            and item["number"] == item["target"]
+            and len(item["displays_showing_target"]) == 1
+            for item in two_displays))
 
     checks["unrelated_session_unchanged"] = fixture.number(other_sty) == other_before
     cases["unrelated_session"] = {"name_shares_prefix": True,
