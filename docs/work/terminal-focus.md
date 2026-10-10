@@ -398,7 +398,14 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
   This also fixes the same exposure in Konsole's caption script.
 - Verified on Plasma Wayland only; Plasma X11 and XWayland kitty are not
   verified.
-- Order: selection (`focus-window` plus `is_active` readback, unchanged) then
+- Selection uses the same ownership rule: `find_tab` and `switch_tab` list
+  the socket first and refuse, before any `focus-window`, unless `KITTY_PID`
+  is captured, owns the listed window's child process and is an ancestor of
+  the session. Records without `KITTY_PID` are refused with "restart the
+  agent session to enable kitty focus" rather than trusted, because without
+  it an inherited outer socket could select a same-numbered window in the
+  wrong kitty.
+- Order: selection (`focus-window` plus `is_active` readback) then
   activation. Activation re-checks the single OS window, runs the reporting
   script, sets `raise_requested`, and succeeds only if the script confirmed
   and kitty reports the OS window `is_focused` within 1 s. Requiring the KWin

@@ -64,7 +64,7 @@ with substituted OS calls), **inspected** (source or documentation only) and
 | **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked; as a tmux parent the Konsole service owned by the client's nearest ancestor is used (mocked) |
 | **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client; failures name the reason (no attached client, no parent emulator, unsupported or unconfirmed parent) | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked; failure details mocked |
 | **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client; custom socket dirs supported | Linux only, via parent terminal when exactly one client is attached (client found by its socket peer) | Yes | live: zellij 0.45.1 selection, custom and derived socket dirs, client mapping and refusals ([JSON](validation/evidence/zellij-fedora44.json)); floor 0.44.2, validator passing on 0.44.2 to 0.45.1 ([JSON](validation/evidence/zellij-version-floor-fedora44.json)); parent routing instrumented and mocked |
-| **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | KDE Plasma only (verified on Plasma Wayland; X11 not verified): KWin activates the single normal window owned by the captured `KITTY_PID`, confirmed by kitty's OS window `is_focused` readback; needs one OS window per kitty process and a session started after upgrading | -- | live: kitty 0.47.1 on Plasma Wayland, selection and window raise verified between two probe instances ([JSON](validation/evidence/kitty-fedora44.json)) |
+| **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback); needs the captured `KITTY_PID` to own the socket's window and the session | KDE Plasma only (verified on Plasma Wayland; X11 not verified): KWin activates the single normal window owned by the captured `KITTY_PID`, confirmed by kitty's OS window `is_focused` readback; needs one OS window per kitty process and a session started after upgrading | -- | live: kitty 0.47.1 on Plasma Wayland, selection and window raise verified between two probe instances ([JSON](validation/evidence/kitty-fedora44.json)) |
 | **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires exactly one window-manager-managed window (minimized or on another desktop counts) owned by the Ghostty process the session descends from; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
 | **GNOME Terminal** | No | Exact owner window only: the single window-manager-managed window (minimized or on another desktop counts) of the session's gnome-terminal-server, X11 only (xdotool readback) | -- | mocked; not live-validated |
@@ -155,6 +155,14 @@ at capture. Without remote control or a `unix:` listen_on socket, focus reports
 "kitty remote control unavailable: needs allow_remote_control and a unix:
 listen_on socket" and changes nothing.
 
+Selection also needs `KITTY_PID`, which the hook captures since this release:
+the kitty process it names must be an ancestor of the agent process and of
+the target window's child process that `kitten @ ls` reports. This keeps
+kitty variables leaked into another terminal, or a nested kitty that
+inherited an outer `KITTY_LISTEN_ON`, from selecting a same-numbered window
+in the wrong kitty. Sessions recorded earlier have no `KITTY_PID` and report
+"restart the agent session to enable kitty focus" without selecting.
+
 **Security warning:** with `allow_remote_control` enabled, any local process
 that can reach the socket can control kitty, including sending text to its
 windows and running commands. Prefer `socket-only` over `yes`, keep the socket
@@ -164,15 +172,9 @@ not need it. Fleet only runs `ls` and `focus-window` and never sends a remote
 control password; if kitty requires one, focus reports the refusal instead of
 selecting.
 
-Kitty window raise works on KDE Plasma only and needs, besides remote control:
+Kitty window raise works on KDE Plasma only and needs, besides the selection
+requirements above:
 
-- `KITTY_PID`, captured by the hook since this release. Sessions recorded
-  earlier report "restart the agent session to enable kitty window
-  activation".
-- The kitty process named by `KITTY_PID` must be an ancestor of the agent
-  process and of the window's child process that `kitten @ ls` reports, which
-  rejects kitty variables leaked into another terminal and a nested kitty that
-  inherited an outer `KITTY_LISTEN_ON`.
 - Exactly one OS window in that kitty process. KWin sees every OS window of a
   kitty process (including `--single-instance` windows) under one pid and
   cannot tell them apart, so focus then selects the tab but reports activation

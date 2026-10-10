@@ -191,8 +191,9 @@ it only on a desktop where that is acceptable; it closes every window it
 opened. On KDE Plasma it also activates the two probe instances alternately
 through `KittyAPI.focus_result` (each probe window briefly takes focus) and
 confirms each raise with OS window `is_focused` on both instances; it records
-that two OS windows in one process, a missing `KITTY_PID` and a leaked
-`KITTY_PID` are refused before any KWin call, and that a hidden kitty
+that two OS windows in one process, a missing `KITTY_PID`, a leaked
+`KITTY_PID` and an inherited outer socket are refused before any KWin call
+(and, except for two OS windows, before any `focus-window`), and that a hidden kitty
 reporting `is_focused` is not claimed. An interlock lets KWin scripts run only
 for probe kitty pids and the run fails if any script stays loaded. The
 committed [evidence](evidence/kitty-fedora44.json) covers kitty 0.47.1 on

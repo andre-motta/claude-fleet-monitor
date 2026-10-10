@@ -321,7 +321,8 @@ def validate(work, token, redact):
             "active_unchanged": active_state(tree()) == before,
         }
 
-        missing_env = {"KITTY_WINDOW_ID": "1", "KITTY_LISTEN_ON": f"unix:{work}/missing.sock"}
+        missing_env = {"KITTY_WINDOW_ID": "1", "KITTY_LISTEN_ON": f"unix:{work}/missing.sock",
+                       "KITTY_PID": str(process.pid)}
         missing = api.focus_result(shells["1"], missing_env)
         evidence["missing_socket"] = {
             "state": missing.state, "selection_attempted": missing.selection.attempted,
@@ -416,12 +417,33 @@ def validate(work, token, redact):
         wait_until(lambda: len(listing(b_address) or []) == 1, 10)
 
         count = len(guard.plugins)
-        no_pid = {key: value for key, value in b_capture["env"].items() if key != "KITTY_PID"}
-        missing_pid = api.focus_result(b_shell, no_pid)
-        leaked = api.focus_result(b_shell, {**b_capture["env"], "KITTY_PID": str(process.pid)})
+        remote = []
+        real_run = kitty_module._run
+
+        def recording_run(argv):
+            remote.append(argv[4] if len(argv) > 4 else argv[-1])
+            return real_run(argv)
+
+        a_before = active_state(tree())
+        with patch.object(kitty_module, "_run", recording_run):
+            no_pid = {key: value for key, value in b_capture["env"].items()
+                      if key != "KITTY_PID"}
+            missing_pid = api.focus_result(b_shell, no_pid)
+            leaked = api.focus_result(
+                b_shell, {**b_capture["env"], "KITTY_PID": str(process.pid)})
+            inherited = api.focus_result(
+                b_shell, {**b_capture["env"], "KITTY_LISTEN_ON": address,
+                          "KITTY_WINDOW_ID": "1"})
         evidence["preconditions"] = {
-            "kitty_pid_missing": operation(missing_pid.activation),
-            "kitty_pid_not_an_ancestor": operation(leaked.activation),
+            "kitty_pid_missing": {"selection": operation(missing_pid.selection),
+                                  "activation": operation(missing_pid.activation)},
+            "kitty_pid_not_an_ancestor": {"selection": operation(leaked.selection),
+                                          "activation": operation(leaked.activation)},
+            "inherited_outer_socket": {"selection": operation(inherited.selection),
+                                       "activation": operation(inherited.activation),
+                                       "outer_active_unchanged": active_state(tree())
+                                       == a_before},
+            "remote_control_commands": sorted(set(remote)),
             "kwin_scripts": scripts_since(count),
         }
 
@@ -455,10 +477,20 @@ def validate(work, token, redact):
         refusals_ok = (
             two["os_windows"] == 2 and not two["activation"]["attempted"]
             and "2 OS windows" in two["activation"]["detail"] and two["kwin_scripts"] == 0
-            and not pre["kitty_pid_missing"]["attempted"]
-            and pre["kitty_pid_missing"]["detail"] == kitty_module.KITTY_PID_MISSING
-            and not pre["kitty_pid_not_an_ancestor"]["attempted"]
-            and "not an ancestor" in pre["kitty_pid_not_an_ancestor"]["detail"]
+            and all(not pre[case][step]["attempted"]
+                    for case in ("kitty_pid_missing", "kitty_pid_not_an_ancestor",
+                                 "inherited_outer_socket")
+                    for step in ("selection", "activation"))
+            and pre["kitty_pid_missing"]["selection"]["detail"]
+            == kitty_module.KITTY_PID_MISSING
+            and pre["kitty_pid_missing"]["activation"]["detail"]
+            == kitty_module.KITTY_PID_MISSING
+            and "does not belong" in pre["kitty_pid_not_an_ancestor"]["selection"]["detail"]
+            and "not an ancestor" in pre["kitty_pid_not_an_ancestor"]["activation"]["detail"]
+            and "does not belong" in pre["inherited_outer_socket"]["selection"]["detail"]
+            and "does not belong" in pre["inherited_outer_socket"]["activation"]["detail"]
+            and pre["inherited_outer_socket"]["outer_active_unchanged"]
+            and "focus-window" not in pre["remote_control_commands"]
             and pre["kwin_scripts"] == 0
         )
         hidden_record = evidence["hidden_os_window"]
@@ -471,8 +503,7 @@ def validate(work, token, redact):
         for to in (b_address, hidden_address):
             kitten("close-window", "--match", "all", to=to)
         rejected = (
-            stale.state == "failed" and stale.selection.attempted
-            and "no longer exists" in stale.selection.detail
+            stale.state == "failed" and "no longer exists" in stale.selection.detail
             and evidence["stale_target"]["active_unchanged"]
             and missing.state == "failed" and "socket refused or missing" in
             missing.selection.detail

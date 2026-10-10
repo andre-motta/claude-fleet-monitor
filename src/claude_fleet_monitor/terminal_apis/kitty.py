@@ -2,7 +2,10 @@
 
 Selection needs kitty started with allow_remote_control (socket-only is
 recommended) and listen_on. Fleet never edits kitty.conf. Only unix socket
-addresses are used; tcp and fd addresses are rejected.
+addresses are used; tcp and fd addresses are rejected. Selection also needs
+the captured KITTY_PID: the session and the listed window's child process must
+descend from it, so a socket inherited from an outer kitty or kitty variables
+leaked into another terminal never select a same-numbered window.
 
 Window activation needs KDE Plasma: KWin activates the single normal window
 owned by the captured KITTY_PID, and only kitty's own is_focused readback for
@@ -33,7 +36,11 @@ _MAX_ANCESTORS = 64
 _ACTIVATION_TARGET = re.compile(r"^(\d{1,12}):(\d{1,12})$")
 KITTY_PID_MISSING = (
     "kitty process id was not captured; restart the agent session to enable"
-    " kitty window activation"
+    " kitty focus"
+)
+NOT_AN_ANCESTOR = (
+    "captured kitty process is not an ancestor of the session (kitty variables"
+    " may have leaked from another terminal)"
 )
 _STDERR_LIMIT = 80
 REMOTE_CONTROL_UNAVAILABLE = (
@@ -188,10 +195,22 @@ def _single_os_window(listing, window_id: int) -> dict:
     return os_window
 
 
+def _kitty_pid(terminal_env) -> int:
+    value = terminal_env.get("KITTY_PID") if isinstance(terminal_env, dict) else None
+    if not is_decimal_id(value):
+        raise LookupError(KITTY_PID_MISSING)
+    return int(value)
+
+
 def _require_owned(listing, window_id: int, kitty_pid: int) -> None:
     """Refuse a socket served by another kitty, such as an inherited outer one."""
-    found = _locate(listing, window_id)
-    child = found[1].get("pid") if found else None
+    try:
+        found = _locate(listing, window_id)
+    except (ValueError, TypeError, KeyError):
+        raise RuntimeError("kitty ls readback returned malformed JSON") from None
+    if found is None:
+        raise RuntimeError("kitty ls readback: target window no longer exists")
+    child = found[1].get("pid")
     if not (
         type(child) is int and child > 1 and _is_kitty_ancestor(child, kitty_pid)
     ):
@@ -233,20 +252,31 @@ class KittyAPI(TerminalAPI):
         return captured
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
+        """Return the window only if the socket and session belong to KITTY_PID."""
         if not isinstance(terminal_env, dict):
             return None
         window_id = terminal_env.get("KITTY_WINDOW_ID")
         if not is_decimal_id(window_id):
             return None
-        _address(terminal_env)
+        address = _address(terminal_env)
+        kitty_pid = _kitty_pid(terminal_env)
+        command = [*_remote_command(), "--to", address]
+        try:
+            _require_owned(_list(command, "ls"), int(window_id), kitty_pid)
+        except RuntimeError as error:
+            raise LookupError(str(error)) from None
+        if not _is_kitty_ancestor(pid, kitty_pid):
+            raise LookupError(NOT_AN_ANCESTOR)
         return window_id
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         if not is_decimal_id(tab_id):
             return False
         address = _address(terminal_env)
+        kitty_pid = _kitty_pid(terminal_env)
         window_id = int(tab_id)
         command = [*_remote_command(), "--to", address]
+        _require_owned(_list(command, "ls"), window_id, kitty_pid)
         selected = _run([*command, "focus-window", "--match", f"id:{window_id}"])
         if selected is None or selected.returncode != 0:
             raise RuntimeError(_failure("focus-window", selected))
@@ -276,14 +306,9 @@ class KittyAPI(TerminalAPI):
         if not is_decimal_id(window_id):
             raise LookupError("kitty window id was not captured")
         address = _address(terminal_env)
-        kitty_pid = terminal_env.get("KITTY_PID")
-        if not is_decimal_id(kitty_pid):
-            raise LookupError(KITTY_PID_MISSING)
-        if not _is_kitty_ancestor(pid, int(kitty_pid)):
-            raise LookupError(
-                "captured kitty process is not an ancestor of the session"
-                " (kitty variables may have leaked from another terminal)"
-            )
+        kitty_pid = _kitty_pid(terminal_env)
+        if not _is_kitty_ancestor(pid, kitty_pid):
+            raise LookupError(NOT_AN_ANCESTOR)
         executable = resolve_qdbus()
         if not executable:
             raise LookupError(
