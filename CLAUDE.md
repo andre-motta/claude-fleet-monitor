@@ -49,7 +49,7 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 
 - `base.py`: ABC defining `detect()`, `capture_env()`, `find_tab()`, `switch_tab()`, `raise_window()`, `focus()` and the structured `focus_result()`. Capability flags: `selection_supported`, `activation_supported`, `activation_before_selection`, `deferred_selection_readback`.
 - `konsole.py`: KDE Konsole via qdbus (qdbus, qdbus6 or qdbus-qt6) + KWin scripting. Selection is read back over D-Bus; activation targets one unique owned window and is verified after KWin activation (`deferred_selection_readback`).
-- `tmux.py`: tmux via CLI with stable session/window/pane IDs and readback. Routes parent activation per attached client through `parent.py`; owns `TERMINAL_PROCESS_NAMES` and the bounded parent walk.
+- `tmux.py`: tmux via CLI with stable session/window/pane IDs and readback. Routes parent activation per attached client through `parent.py`; owns `TERMINAL_PROCESS_NAMES` (including the `UNSUPPORTED_TERMINAL_NAMES` stop-list mapped to `generic`, #58) and the bounded parent walk.
 - `zellij.py`: zellij via CLI. Exact pane selection with `focus-pane-id` and `list-clients` readback using the captured `ZELLIJ_PANE_ID`. Every CLI call carries the session's socket dir (derived from the daemonized server's `--server` argv, else captured `ZELLIJ_SOCKET_DIR`, else default). Linux parent activation: agent ancestry -> server -> the one attached client via `_unix_peers.py`, then `parent.py`; only a plain `zellij` or `attach` peer counts (argv parsed past global options; `action` ignored); several clients, any other peer (`web`, `watch`, `pipe`, ...), a renamed session, a list-clients mismatch or a client whose start time changed is refused.
 - `ghostty.py`: Ghostty on Linux: activates only the single managed window owned by the session's Ghostty ancestor (KWin owner-pid request plus xdotool `getactivewindow` readback, X11 only); Alt+N tab switching via ydotool/xdotool only after confirmed activation (requires ydotoold on Wayland).
 - `gnome.py`: GNOME Terminal on Linux X11. No tab selection; activates only the single window owned by the `gnome-terminal-server` ancestor and confirms it with `xdotool getactivewindow`.
@@ -64,7 +64,7 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `generic.py`: Fallback that identifies no target and never selects or activates
 - `parent.py`: `activate_parent()`, the one nested-parent routing helper (`parent_activation_supported()` lets an adapter that activates standalone, like kitty, still refuse parent routing) used by tmux and zellij. Delegates to the parent's own `focus_result()` for activation-first, selection-less or deferred-readback parents; otherwise a failed selection never raises the window.
 - `_env.py`: Env-only, never-raising capture helpers for adapters (`bounded_env`, `is_decimal_id`)
-- `_ancestry.py`: Linux-only hook-time ancestry walk (`nearest_terminal()`). Reads only `/proc/<pid>/stat` (comm, ppid), at most 64 steps, cycle-safe and never raising. Maps comm names through `tmux.TERMINAL_PROCESS_NAMES` (truncated to 15 characters) plus the tmux, zellij and screen multiplexers.
+- `_ancestry.py`: Linux-only hook-time ancestry walk (`nearest_terminal()`). Reads only `/proc/<pid>/stat` (comm, ppid), at most 64 steps, cycle-safe and never raising. Maps comm names through `tmux.TERMINAL_PROCESS_NAMES` (truncated to 15 characters) plus the tmux, zellij and screen multiplexers. A stop-listed emulator without an adapter yields `generic`, with no env fallback.
 - `_unix_peers.py`: Linux-only, never-raising unix-socket peer lookup: `sock_diag` netlink dump plus `/proc/<pid>/fd` links of same-UID processes (never `environ`). Used by zellij client discovery.
 - `__init__.py`: `detect_terminal()`, `capture_terminal_info()`, `get_terminal_api()`
 
@@ -72,7 +72,7 @@ Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > g
 
 Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields. Capture reads the environment plus, on Linux only, `/proc/<pid>/stat` of the hook's ancestors (approved 2026-10-10, #52). Never `/proc/<pid>/environ` or `cmdline`, no subprocess and no D-Bus at hook time; any walk failure falls back to env detection.
 
-For nested terminals (tmux inside Konsole), `raise_window()` walks the process tree from the tmux client PID to the first name in `TERMINAL_PROCESS_NAMES` and routes through `parent.activate_parent()`. Terminator and Kitty stop the walk and report activation unsupported; screen is never a parent.
+For nested terminals (tmux inside Konsole), `raise_window()` walks the process tree from the tmux client PID to the first name in `TERMINAL_PROCESS_NAMES` and routes through `parent.activate_parent()`. Terminator, Kitty and stop-listed emulators (generic) stop the walk and report activation unsupported; screen is never a parent.
 
 ## Key Design Decisions
 

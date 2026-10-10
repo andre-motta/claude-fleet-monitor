@@ -174,7 +174,7 @@ Primary references inspected on 2026-09-07:
 
 | Boundary | Current behavior | Required claim and validation |
 | --- | --- | --- |
-| tmux | Exact pane selection is live; the parent walk recognizes Konsole, Ghostty, GNOME Terminal, Terminator, Kitty, iTerm2, Terminal.app and Windows Terminal process names and stops at the first | Kitty and Terminator stop the walk with activation unsupported; WezTerm has no backend, so `wezterm-gui` is not a stop; tmux inside a background Konsole window needs Andre's hands-on check |
+| tmux | Exact pane selection is live; the parent walk recognizes Konsole, Ghostty, GNOME Terminal, Terminator, Kitty, iTerm2, Terminal.app and Windows Terminal process names, plus the stop-list of emulators without an adapter (#58), and stops at the first | Kitty, Terminator and stop-listed emulators (WezTerm, Alacritty, foot, ...) stop the walk with activation unsupported; tmux inside a background Konsole window needs Andre's hands-on check |
 | Zellij | Hook-time `ZELLIJ_PANE_ID` gives live exact-pane selection; the generic fallback raise was removed | Parent activation stays unavailable unless a reliable client-PID mapping is found |
 | GNU screen | Window selection is live with readback; detection sits immediately before generic, so screen inside another emulator keeps that emulator's label | Region (split) selection and parent activation remain unclaimed; screen is never a parent-walk stop |
 | SSH to a remote host | Hooks and `FLEET_DIR` are host-local; a remote agent writes a remote store and a remote focus process cannot directly activate the local terminal | Document local and remote Fleet instances explicitly; do not claim cross-host focus without an authenticated bridge design |

@@ -498,8 +498,22 @@ def test_zellij_in_kitty_reports_unsupported_parent(monkeypatch):
     assert 50 not in visited
 
 
-def test_zellij_in_wezterm_reports_no_parent(monkeypatch):
-    _zellij_host(monkeypatch, (250, 200, "bash"), (200, 1, "wezterm-gui"))
+def test_zellij_in_wezterm_stops_before_its_launcher(monkeypatch):
+    visited = _zellij_host(
+        monkeypatch, (250, 200, "bash"), (200, 50, "wezterm-gui"), (50, 1, "konsole")
+    )
+
+    result = ZellijAPI().focus_result(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "s"})
+
+    assert result.state == "failed"
+    assert result.activation.attempted
+    assert not result.activation.succeeded
+    assert result.activation.detail == "parent terminal emulator has no Fleet adapter"
+    assert 50 not in visited
+
+
+def test_zellij_without_any_emulator_reports_no_parent(monkeypatch):
+    _zellij_host(monkeypatch, (250, 200, "bash"), (200, 1, "sshd"))
 
     result = ZellijAPI().focus_result(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "s"})
 
@@ -511,7 +525,7 @@ def test_zellij_in_wezterm_reports_no_parent(monkeypatch):
 def test_screen_is_never_a_parent_terminal():
     assert "screen" not in tmux.TERMINAL_PROCESS_NAMES
     assert "SCREEN" not in tmux.TERMINAL_PROCESS_NAMES
-    assert "wezterm-gui" not in tmux.TERMINAL_PROCESS_NAMES
+    assert tmux.TERMINAL_PROCESS_NAMES["wezterm-gui"] == "generic"
     assert tmux.TERMINAL_PROCESS_NAMES["kitty"] == "kitty"
 
 
@@ -660,6 +674,122 @@ def test_walk_stops_at_the_nearest_terminal(monkeypatch):
     assert reads == [900, 890, 880, 870]
 
 
+UNSUPPORTED_LEAK_CASES = [
+    pytest.param(
+        ADAPTER_MARKERS["tmux"],
+        ("alacritty", "bash", "tmux: server"),
+        id="alacritty-from-tmux-pane",
+    ),
+    pytest.param(
+        ADAPTER_MARKERS["kitty"], ("foot", "bash", "kitty"), id="foot-from-kitty"
+    ),
+    pytest.param(
+        ADAPTER_MARKERS["ghostty"],
+        ("wezterm-gui", "bash", "ghostty"),
+        id="wezterm-from-ghostty",
+    ),
+    pytest.param(
+        ADAPTER_MARKERS["konsole"],
+        ("code", "bash", "konsole"),
+        id="vscode-from-konsole",
+    ),
+]
+
+
+@pytest.mark.parametrize("markers, ancestors", UNSUPPORTED_LEAK_CASES)
+def test_unsupported_emulator_is_generic_despite_leaked_markers(
+    monkeypatch, markers, ancestors
+):
+    _set_markers(monkeypatch, markers)
+    _proc(monkeypatch, *_agent_under(*ancestors))
+
+    info = capture_terminal_info()
+    result = get_terminal_api(info["terminal"]).focus_result(890, info["terminal_env"])
+
+    assert info == {"terminal": "generic", "terminal_env": {}}
+    assert result.state == "failed"
+    assert not result.target_found
+    assert not result.selection.attempted
+    assert not result.activation.attempted
+
+
+@pytest.mark.parametrize("name", tmux.UNSUPPORTED_TERMINAL_NAMES)
+def test_every_unsupported_emulator_stops_the_hook_walk(monkeypatch, name):
+    _set_markers(
+        monkeypatch,
+        {
+            **ADAPTER_MARKERS["konsole"],
+            **ADAPTER_MARKERS["kitty"],
+            **ADAPTER_MARKERS["tmux"],
+        },
+    )
+    reads = _proc(
+        monkeypatch,
+        *_agent_under(name[: ancestry.COMM_LENGTH], "bash", "kitty", "konsole"),
+    )
+
+    assert detect_terminal().name == "generic"
+    assert reads == [900, 890, 880, 870]
+
+
+@pytest.mark.parametrize("name", tmux.UNSUPPORTED_TERMINAL_NAMES)
+def test_every_unsupported_emulator_stops_the_parent_walk(monkeypatch, name):
+    visited = _ancestry(
+        monkeypatch,
+        (200, 150, "tmux: client"),
+        (150, 100, "bash"),
+        (100, 50, name),
+        (50, 1, "konsole"),
+    )
+
+    assert tmux._detect_parent_terminal(200).name == "generic"
+    assert visited == [200, 150, 100]
+
+
+def test_tmux_client_in_unsupported_emulator_never_raises_its_launcher(monkeypatch):
+    _ancestry(
+        monkeypatch,
+        (200, 150, "tmux: client"),
+        (150, 100, "bash"),
+        (100, 50, "alacritty"),
+        (50, 1, "kitty"),
+    )
+    _forbid_kitty(monkeypatch)
+    commands = []
+    monkeypatch.setattr(
+        tmux.subprocess,
+        "run",
+        lambda command, **kwargs: commands.append(command)
+        or SimpleNamespace(stdout="200\t$7\t@12\t%34\t0\n", returncode=0),
+    )
+
+    with pytest.raises(
+        RuntimeError, match="^parent terminal emulator has no Fleet adapter$"
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", {"TMUX": "/tmp/fleet,socket,4400,7"})
+    assert [command[3] for command in commands] == ["list-clients"]
+
+
+@pytest.mark.parametrize("name", ["yakuake", "kate", "dolphin", "st"])
+def test_konsole_part_hosts_and_short_names_are_not_stop_listed(name):
+    assert name not in tmux.TERMINAL_PROCESS_NAMES
+    assert ancestry.comm_terminal(name) is None
+
+
+def test_stop_list_is_distinct_from_supported_names():
+    supported = {
+        name for name, terminal in tmux.TERMINAL_PROCESS_NAMES.items()
+        if terminal != "generic"
+    }
+    names = tmux.UNSUPPORTED_TERMINAL_NAMES
+    comms = {name[: ancestry.COMM_LENGTH] for name in names}
+
+    assert len(set(names)) == len(names) == len(comms)
+    assert not set(names) & supported
+    assert not comms & set(ancestry.MULTIPLEXER_PROCESS_NAMES)
+    assert all(len(name) >= 3 for name in names)
+
+
 @pytest.mark.parametrize(
     "comm, expected",
     [
@@ -675,7 +805,10 @@ def test_walk_stops_at_the_nearest_terminal(monkeypatch):
         ("gnome-terminal-", "gnome"),
         ("terminator", "terminator"),
         ("kitty", "kitty"),
-        ("wezterm-gui", None),
+        ("wezterm-gui", "generic"),
+        ("wezterm-mux-ser", "generic"),
+        ("alacritty", "generic"),
+        ("yakuake", None),
         ("bash", None),
         ("", None),
     ],

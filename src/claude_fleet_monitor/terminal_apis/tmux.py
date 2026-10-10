@@ -8,7 +8,47 @@ from claude_fleet_monitor import discovery
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.parent import activate_parent
 
+# Emulators without an adapter that set no adapter markers of their own.
+# They stop ancestry walks as "generic" so leaked markers from a launching
+# terminal never pick the outer terminal. Konsole-part hosts (Yakuake, Kate,
+# Dolphin) are omitted, and very short ambiguous names are avoided.
+UNSUPPORTED_TERMINAL_NAMES = (
+    "alacritty",
+    "foot",
+    "xterm",
+    "urxvt",
+    "urxvtd",
+    "urxvt256c",
+    "urxvt256cd",
+    "urxvt256c-ml",
+    "urxvt256c-mld",
+    "rxvt",
+    "rxvt-unicode",
+    "wezterm-gui",
+    "wezterm-mux-server",
+    "xfce4-terminal",
+    "mate-terminal",
+    "lxterminal",
+    "qterminal",
+    "tilix",
+    "ptyxis",
+    "ptyxis-agent",
+    "kgx",
+    "terminology",
+    "sakura",
+    "tilda",
+    "guake",
+    "cool-retro-term",
+    "contour",
+    "code",
+    "code-oss",
+    "code-insiders",
+    "codium",
+    "cursor",
+)
+
 TERMINAL_PROCESS_NAMES = {
+    **dict.fromkeys(UNSUPPORTED_TERMINAL_NAMES, "generic"),
     "konsole": "konsole",
     "ghostty": "ghostty",
     "gnome-terminal": "gnome",
