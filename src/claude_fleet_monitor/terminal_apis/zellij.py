@@ -201,7 +201,11 @@ def _subcommand(argv):
 def _refused_peer(command) -> str:
     if command in WATCH_COMMANDS:
         return WATCHER
-    shown = "unrecognized" if command is UNKNOWN_SHAPE else f"`{command}`"
+    shown = (
+        "unrecognized"
+        if command is UNKNOWN_SHAPE
+        else "`" + " ".join(str(command).split())[:40] + "`"
+    )
     return (
         f"a zellij {shown} process is connected to the session; "
         "cannot tell which window shows the pane"
@@ -219,7 +223,7 @@ def _attached_client(server):
     for pid in sorted({pid for pids in owners.values() for pid in pids}):
         process = _process(pid)
         if process is None:
-            continue
+            raise LookupError(MISMATCH)
         command = _subcommand(process.argv)
         if command in TRANSIENT_COMMANDS:
             continue

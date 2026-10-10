@@ -1161,3 +1161,19 @@ def test_raise_request_is_marked_when_parent_activated(
     api.focus_result(101, dict(ZELLIJ_ENV))
 
     assert api.raise_requested is requested
+
+
+def test_unreadable_peer_process_refuses_activation(attached):
+    attached.owners[2999] = frozenset({999})
+
+    with pytest.raises(LookupError) as raised:
+        zellij._attached_client(attached.server)
+
+    assert str(raised.value) == zellij.MISMATCH
+
+
+def test_refused_peer_detail_collapses_whitespace():
+    detail = zellij._refused_peer("we\nb  x")
+
+    assert "\n" not in detail
+    assert "`we b x`" in detail
