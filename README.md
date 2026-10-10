@@ -163,6 +163,10 @@ inherited an outer `KITTY_LISTEN_ON`, from selecting a same-numbered window
 in the wrong kitty. Sessions recorded earlier have no `KITTY_PID` and report
 "restart the agent session to enable kitty focus" without selecting.
 
+**Upgrade note:** kitty sessions recorded before this release lose selection
+until the agent session is restarted, and kitty versions that do not export
+`KITTY_PID` lose selection.
+
 **Security warning:** with `allow_remote_control` enabled, any local process
 that can reach the socket can control kitty, including sending text to its
 windows and running commands. Prefer `socket-only` over `yes`, keep the socket

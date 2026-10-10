@@ -53,7 +53,8 @@ OWNED = (
     "validation/kitty.py",
 )
 real_which = kitty_module.shutil.which
-SETTLE_SECONDS = 2.0
+SETTLE_QUIET_SECONDS = 0.5
+SETTLE_LIMIT_SECONDS = 5.0
 DEFAULT_OUT = ROOT / "validation" / "evidence" / "kitty-fedora44.json"
 CAPTURE = (
     "import json, sys\n"
@@ -150,6 +151,21 @@ class KWinGuard:
             if plugin is None or _qdbus.qdbus_text(executable, [
                 "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.isScriptLoaded",
                 plugin]) != "false")
+
+
+def wait_for_stable_focus(read):
+    """Return True once read() stays unchanged for SETTLE_QUIET_SECONDS."""
+    deadline = time.monotonic() + SETTLE_LIMIT_SECONDS
+    last = read()
+    since = time.monotonic()
+    while time.monotonic() < deadline:
+        time.sleep(0.1)
+        current = read()
+        if current != last:
+            last, since = current, time.monotonic()
+        elif time.monotonic() - since >= SETTLE_QUIET_SECONDS:
+            return True
+    return False
 
 
 def os_focus(listing, window_id):
@@ -367,8 +383,6 @@ def validate(work, token, redact):
         if not wait_until(lambda: tree(b_address) and read_capture(b_dir, "1"), 20):
             raise RuntimeError("second kitty instance did not become ready")
         b_capture, b_shell = probe(b_dir, b_process)
-        # Newly mapped probe windows can still take focus shortly after startup.
-        time.sleep(SETTLE_SECONDS)
         instances = {
             "A": (shells["1"], captures["1"]["env"], address),
             "B": (b_shell, b_capture["env"], b_address),
@@ -378,6 +392,13 @@ def validate(work, token, redact):
             return {name: os_focus(listing(to), int(target_env["KITTY_WINDOW_ID"]))
                     for name, (_, target_env, to) in instances.items()}
 
+        # A just-started probe can still be mapped or minimized and take focus,
+        # so wait until the probes' focus state stops changing.
+        settle_started = time.monotonic()
+        evidence["probe_focus_settled"] = {
+            "settled": wait_for_stable_focus(focus_state),
+            "seconds": round(time.monotonic() - settle_started, 1),
+        }
         alternations = []
         for name in ("A", "B", "A", "B", "A", "B"):
             shell, target_env, _ = instances[name]
@@ -488,7 +509,7 @@ def validate(work, token, redact):
             == kitty_module.KITTY_PID_MISSING
             and pre["kitty_pid_missing"]["activation"]["detail"]
             == kitty_module.KITTY_PID_MISSING
-            and "does not belong" in pre["kitty_pid_not_an_ancestor"]["selection"]["detail"]
+            and "not an ancestor" in pre["kitty_pid_not_an_ancestor"]["selection"]["detail"]
             and "not an ancestor" in pre["kitty_pid_not_an_ancestor"]["activation"]["detail"]
             and "does not belong" in pre["inherited_outer_socket"]["selection"]["detail"]
             and "does not belong" in pre["inherited_outer_socket"]["activation"]["detail"]

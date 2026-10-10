@@ -383,10 +383,12 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
   and without the normal-window filter, so its script and standalone
   `focus_result` behave as before (its tests are unchanged).
 - KWin scripts have no return channel. A reporting script calls
-  `unloadScript` on its own plugin after activating; the caller polls
-  `isScriptLoaded` for up to 0.5 s before its own unload. False means KWin
-  found no single window (or could not report it), and activation is not
-  claimed.
+  `unloadScript` on its own plugin only when `workspace.activeWindow` is the
+  matched window right after the assignment (KWin accepted it); the caller
+  polls `isScriptLoaded` for up to 0.5 s before its own unload. False means
+  KWin found no single window, refused it, or could not report it, and
+  activation is not claimed. Konsole does not use report mode, so its script
+  is unchanged.
 - Kitty captures `KITTY_PID` at hook time. At focus time activation is
   unavailable, with the reason, unless `KITTY_PID` is captured, is a `kitty`
   ancestor of the session pid (bounded, cycle-safe walk), qdbus and KWin are
@@ -398,17 +400,19 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
   This also fixes the same exposure in Konsole's caption script.
 - Verified on Plasma Wayland only; Plasma X11 and XWayland kitty are not
   verified.
-- Selection uses the same ownership rule: `find_tab` and `switch_tab` list
-  the socket first and refuse, before any `focus-window`, unless `KITTY_PID`
-  is captured, owns the listed window's child process and is an ancestor of
-  the session. Records without `KITTY_PID` are refused with "restart the
+- Selection uses the same ownership rule and refuses, before any
+  `focus-window`, unless `KITTY_PID` is captured, is an ancestor of the
+  session (checked first, so leaked variables never send `ls` to a foreign
+  kitty) and owns the child process of the window the socket lists. Records without `KITTY_PID` are refused with "restart the
   agent session to enable kitty focus" rather than trusted, because without
   it an inherited outer socket could select a same-numbered window in the
   wrong kitty.
 - Order: selection (`focus-window` plus `is_active` readback) then
   activation. Activation re-checks the single OS window, runs the reporting
   script, sets `raise_requested`, and succeeds only if the script confirmed
-  and kitty reports the OS window `is_focused` within 1 s. Requiring the KWin
+  and kitty reports the OS window `is_focused` within 1 s and again 0.2 s
+  later; a focus that drops is polled until the deadline and otherwise fails
+  with "kitty OS window lost focus after activation". Requiring the KWin
   confirmation covers the hidden-window case where `is_focused` is already
   true.
 - Kitty stays an unsupported nested parent (`parent_activation_supported =
@@ -417,6 +421,16 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
 - Live: `validation/kitty.py` activates two probe instances alternately and
   records refusals and the hidden case
   ([JSON](../../validation/evidence/kitty-fedora44.json)).
+- Failed live run, not committed as evidence: on `80f0ca8` the first
+  alternation reported A activated (kitty read `is_focused` true), but the
+  validator's own readback about 0.1 s later showed neither probe focused.
+  Suspected cause: a late map or minimize of probe B, started just before,
+  took focus after the raise. The validator now waits until the probes'
+  focus state is unchanged for 0.5 s (at most 5 s) before alternating, and
+  activation requires a stable second readback; later runs passed.
+- Upgrade note: sessions recorded before this change have no `KITTY_PID` and
+  lose kitty selection (and activation) until the agent session is
+  restarted; kitty versions that do not export `KITTY_PID` lose selection.
 
 ### R9 combined local acceptance
 
