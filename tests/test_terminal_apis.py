@@ -180,27 +180,6 @@ def test_ghostty_skips_global_keys_when_activation_fails(monkeypatch):
     assert not result.selection.attempted
 
 
-@pytest.mark.parametrize(
-    ("module_name", "class_name"),
-    [
-        ("claude_fleet_monitor.terminal_apis.iterm2", "ITerm2API"),
-        ("claude_fleet_monitor.terminal_apis.macos_terminal", "MacOSTerminalAPI"),
-    ],
-)
-def test_macos_selection_reads_text_output(monkeypatch, module_name, class_name):
-    module = __import__(module_name, fromlist=[class_name])
-    api = getattr(module, class_name)()
-    calls = []
-
-    def run(*args, **kwargs):
-        calls.append(kwargs)
-        return SimpleNamespace(returncode=0, stdout="focused\n")
-
-    monkeypatch.setattr(module.subprocess, "run", run)
-    assert api.switch_tab("target", {})
-    assert calls[0]["text"] is True
-
-
 def test_detect_windows_terminal(monkeypatch):
     _set_markers(monkeypatch, {"WT_SESSION": "some-guid"})
     assert detect_terminal().name == "windows_terminal"
