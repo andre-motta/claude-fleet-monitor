@@ -445,3 +445,46 @@ target), only the validator's most-recent-input expectation failed. The host's
 own zellij 0.45.1 is byte-identical to the upstream build and passed as a
 control. The adapter was not changed: it gates on behavior and no version gave
 a false success.
+
+## macOS AppleScript hardening (#55)
+
+Andre approved hardening the iTerm2 and Terminal.app adapters on
+2026-10-10 without a Mac: all evidence is mocked or inspected, and the README
+keeps both rows unvalidated on macOS.
+
+- Injection: both adapters interpolated the captured session ID into
+  AppleScript source, and fleet records are writable by any same-user process.
+  Identifiers are now validated at capture and again before use, and are
+  passed to `osascript` only as `on run argv` arguments
+  (`terminal_apis/_applescript.py`), so data is never compiled as code.
+- iTerm2 target: `ITERM_SESSION_ID` is `w<N>t<N>p<N>:<guid>` and the guid is
+  the session's AppleScript `unique ID` (inspected in iTerm2's
+  `PTYSession.sessionId`, `iTerm2.sdef` and `revealSessionID:`). The old code
+  compared the whole value against `unique ID` and could never match.
+- iTerm2 leaked markers: `ITERM_SESSION_ID` is inherited by anything started
+  from an iTerm2 shell (VS Code, screen), so a session matches only when its
+  `unique ID` and its `tty` both equal the agent's; the tty comes from `ps` at
+  focus time and an unreadable tty refuses the target. A record without the
+  variable (the tmux parent lookup) matches by tty alone and requires exactly
+  one such session, which makes iTerm2 reachable as a tmux parent.
+- Terminal.app target: `TERM_SESSION_ID` is a restoration UUID with no
+  AppleScript counterpart, and the old fallback matched the agent pid against
+  `tty of t`. The target is now the agent's controlling tty, read with
+  `ps -o tty= -p <pid>` at focus time (the hook stays env-only), compared
+  exactly with `tty of t`. No tty means no target. The same lookup lets
+  Terminal.app act as a tmux parent through the tmux client's tty.
+- Readback: selection never reorders windows and is claimed only when a
+  separate query reports the target as the current session (iTerm2) or
+  selected tab (Terminal) of the app's front window; for a background window
+  that is confirmed after activation (`deferred_selection_readback`, which
+  also routes tmux parents through `focus_result`). Activation un-minimizes
+  and fronts the target's window, and is claimed only when the app is
+  frontmost and its front window, not minimized, holds the target (bounded
+  polling). A raise request that was sent, or timed out, marks
+  `raise_requested` for nested routing.
+- Not verified: the AppleScript itself has never run. Known unknowns are how
+  `contents of` loop references behave as `select` targets, whether iTerm2's
+  `tty of s` uses the `/dev/ttysNNN` form compared here, the exact
+  `ps -o tty=` spelling on macOS (`ttys003`, `s003` and `/dev/ttys003` are
+  accepted) and Automation permission prompts (error -1743 is reported as a
+  denied permission).
