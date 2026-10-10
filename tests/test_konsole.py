@@ -582,7 +582,7 @@ def test_captured_service_skips_bus_listing(monkeypatch):
 @pytest.mark.parametrize(
     ("owners", "tree"),
     [
-        ({"org.kde.konsole-1000": 1000, "org.kde.konsole-2000": 1000}, None),
+        ({"org.kde.konsole-1000": 2000, "org.kde.konsole-2000": 2000}, None),
         ({"org.kde.konsole-1000": 1000}, None),
         ({}, None),
         (None, {200: _process(200, 150), 150: _process(150, 200)}),
