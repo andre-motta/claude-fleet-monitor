@@ -184,8 +184,9 @@ requirements above:
   cannot tell them apart, so focus then selects the tab but reports activation
   unavailable.
 - qdbus and KWin on the session bus. KWin activates the single normal window
-  owned by `KITTY_PID`; success needs the script to confirm it found that
-  window and kitty to report the OS window focused within one second.
+  owned by `KITTY_PID`; success needs the script to confirm KWin accepted
+  that window as active and kitty to report the OS window focused within one
+  second and still focused 0.2 s later.
 
 ### Terminal detection limits
 

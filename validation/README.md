@@ -172,7 +172,7 @@ to 0.43.1 a scratch wrapper substituted the fixture listing that needs
 `list-panes` (0.44.0+) so the adapter steps could run; that wrapper is not
 committed.
 
-## Kitty remote-control selection on Linux
+## Kitty remote-control selection and KWin activation on Linux
 
 ```console
 python validation/kitty.py --out /tmp/kitty-validation.json
@@ -193,8 +193,9 @@ through `KittyAPI.focus_result` (each probe window briefly takes focus) and
 confirms each raise with OS window `is_focused` on both instances; it records
 that two OS windows in one process, a missing `KITTY_PID`, a leaked
 `KITTY_PID` and an inherited outer socket are refused before any KWin call
-(and, except for two OS windows, before any `focus-window`), and that a hidden kitty
-reporting `is_focused` is not claimed. An interlock lets KWin scripts run only
+(and, except for two OS windows, before any `focus-window`), and that a
+hidden kitty reporting `is_focused` is not claimed. Before alternating it
+waits until the probes' focus state is unchanged for 0.5 s (at most 5 s). An interlock lets KWin scripts run only
 for probe kitty pids and the run fails if any script stays loaded. The
 committed [evidence](evidence/kitty-fedora44.json) covers kitty 0.47.1 on
 Plasma Wayland.
