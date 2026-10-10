@@ -165,7 +165,7 @@
   "stale_target": {
     "state": "failed",
     "selection_attempted": false,
-    "selection_detail": "kitty ls readback: target window no longer exists",
+    "selection_detail": "agent session process no longer exists",
     "active_unchanged": true
   },
   "missing_socket": {
@@ -190,6 +190,10 @@
   "remote_control_disabled_reply": {
     "text": "Remote control is disabled. Add allow_remote_control to your kitty.conf",
     "provenance": "inspected: kitty 0.47.1 boss.py reply for tty or password routes; not reachable through an unconfigured socket because kitty then does not listen, which the remote_control_off case observes live"
+  },
+  "probe_focus_settled": {
+    "settled": true,
+    "seconds": 0.6
   },
   "two_os_windows_one_process": {
     "os_windows": 2,
@@ -218,7 +222,7 @@
       "selection": {
         "attempted": false,
         "succeeded": false,
-        "detail": "kitty remote control socket does not belong to the captured kitty process (KITTY_LISTEN_ON may be inherited from an outer kitty)"
+        "detail": "captured kitty process is not an ancestor of the session (kitty variables may have leaked from another terminal)"
       },
       "activation": {
         "attempted": false,
@@ -274,7 +278,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.11,
+      "seconds": 0.33,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -298,7 +302,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.1,
+      "seconds": 0.34,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -322,7 +326,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.1,
+      "seconds": 0.33,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -346,7 +350,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.1,
+      "seconds": 0.33,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -370,7 +374,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.1,
+      "seconds": 0.33,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -394,7 +398,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.1,
+      "seconds": 0.34,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -436,12 +440,12 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "3a3d020a5505236f9202590734621f817c7f0e89",
+  "tested_commit": "8ed4ffc11b71bdd5a23e791184f1103c081b401f",
   "tested_files_modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/kitty.py": "9a3f2cfd474562168767fcb3e47881cd581ed260e1f0b8ce1738a4e5e42d1882",
-    "src/claude_fleet_monitor/terminal_apis/_kwin.py": "af4d4c99ff02a9f7712ed42ec96c6be5fe2400c7068a4f43be0f0b0626e18d58",
+    "src/claude_fleet_monitor/terminal_apis/kitty.py": "212315f6355bc807b62bd66f212b62dfe02dff6ad2e6cc627759596d57065fa7",
+    "src/claude_fleet_monitor/terminal_apis/_kwin.py": "48bc6912ec1996fea72d952a273bba1e56eafdfb0a59c4992b373fad208f8e45",
     "src/claude_fleet_monitor/terminal_apis/_qdbus.py": "49ca04326fefd6182957d119827a18130a4129996de25c9d98207df97de5ea45",
-    "validation/kitty.py": "a24d597138f1ec10e72201f18954c447bc8a8596be9dd2a9d6fe12300860af22"
+    "validation/kitty.py": "c6f2e45b37ea6024beaab624706f4dd054c61eb01c598cca710c1824854cb556"
   }
 }
