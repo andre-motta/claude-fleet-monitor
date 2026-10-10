@@ -349,10 +349,7 @@ NODE = shutil.which("node")
 
 
 def _run_kwin_script(titles, windows):
-    script = konsole._KWIN_ACTIVATE_SCRIPT % {
-        "titles": json.dumps(titles),
-        "pid": json.dumps(7),
-    }
+    script = konsole._kwin_activation_script(titles, 7)
     harness = (
         "const fakeWindows = " + json.dumps(windows) + ";\n"
         "const workspace = {activeWindow: null, windowList: () => fakeWindows};\n"
@@ -391,3 +388,52 @@ def test_kwin_script_activates_only_one_exact_caption(
     windows.append({"pid": 8, "caption": titles[0], "minimized": False})
 
     assert _run_kwin_script(titles, windows) == activated
+
+
+def test_other_active_window_with_same_title_is_not_activation(monkeypatch):
+    fake = _fake_konsole(monkeypatch)
+    fake.focused = "2"
+    fake.activates = False
+    original = fake.run
+
+    def run(command, **kwargs):
+        args = command[1:]
+        if args == ["svc"]:
+            return _result(0, "/konsole/MainWindow_1\n/konsole/MainWindow_2\n")
+        if args[2:] == ["org.qtproject.Qt.QWidget.windowTitle"]:
+            return _result(0, "title 2\n")
+        if args[2:] == ["org.qtproject.Qt.QWidget.isActiveWindow"]:
+            active = args[1] == "/konsole/MainWindow_2"
+            return _result(0, "true\n" if active else "false\n")
+        return original(command, **kwargs)
+
+    monkeypatch.setattr(konsole.subprocess, "run", run)
+
+    result = konsole.KonsoleAPI().focus_result(42, {})
+
+    assert result.state == "partial"
+    assert result.selection.succeeded
+    assert not result.activation.succeeded
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_kwin_script_runs_malicious_title_as_data():
+    title = "x\\'); workspace.activeWindow = fakeWindows[0]; //"
+    windows = [{"pid": 7, "caption": "other — Konsole", "minimized": True}]
+
+    assert _run_kwin_script([title], windows) is None
+
+
+def test_failed_kwin_load_cleans_up(monkeypatch):
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        return _result(0, "-1\n")
+
+    monkeypatch.setattr(konsole.subprocess, "run", run)
+
+    assert not konsole._activate_by_kwin_caption(["t"], 7, "/usr/bin/qdbus-qt6")
+    path = calls[0][4]
+    assert calls[-1][3:] == ["org.kde.kwin.Scripting.unloadScript", calls[0][5]]
+    assert not os.path.exists(path)

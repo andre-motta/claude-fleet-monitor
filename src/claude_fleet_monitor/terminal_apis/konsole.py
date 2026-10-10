@@ -1,5 +1,6 @@
 """KDE Konsole terminal API via qdbus + KWin."""
 
+import contextlib
 import json
 import os
 import re
@@ -15,8 +16,8 @@ _QDBUS_CANDIDATES = ("qdbus", "qdbus6", "qdbus-qt6")
 _ACTIVATION_SETTLE_SECONDS = 1.0
 _ACTIVATION_POLL_SECONDS = 0.05
 _KWIN_ACTIVATE_SCRIPT = """
-var titles = %(titles)s;
-var owner = %(pid)s;
+var titles = __TITLES__;
+var owner = __OWNER__;
 var matches = [];
 var windows = workspace.windowList();
 for (var i = 0; i < windows.length; i++) {
@@ -155,13 +156,13 @@ class KonsoleAPI(TerminalAPI):
         return None
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
-        parts = tab_id.split("|")
-        if len(parts) != 3 or not all(parts):
+        target = _parse_tab_id(tab_id)
+        if target is None:
             return False
         executable = _resolve_qdbus()
         if not executable:
             return False
-        svc, win_id, sess_id = parts
+        svc, win_id, sess_id = target
         selected = _run_qdbus(
             executable,
             [
@@ -215,7 +216,7 @@ class KonsoleAPI(TerminalAPI):
                 svc,
             ],
         )
-        if not owner or not owner.isdigit():
+        if not _is_number(owner):
             return False
         if not _activate_by_kwin_caption(titles, int(owner), executable):
             return False
@@ -238,9 +239,13 @@ def _parse_tab_id(tab_id: str) -> tuple[str, str, str] | None:
     parts = tab_id.split("|")
     if len(parts) != 3 or not all(parts):
         return None
-    if not parts[1].isdigit() or not parts[2].isdigit():
+    if not _is_number(parts[1]) or not _is_number(parts[2]):
         return None
     return parts[0], parts[1], parts[2]
+
+
+def _is_number(value: str | None) -> bool:
+    return bool(value) and value.isascii() and value.isdigit()
 
 
 def _qdbus_text(executable: str, arguments: list[str]) -> str | None:
@@ -255,7 +260,7 @@ def _current_session(executable: str, svc: str, win_id: str) -> str | None:
         executable,
         [svc, f"/Windows/{win_id}", "org.kde.konsole.Window.currentSession"],
     )
-    return value if value and value.isdigit() else None
+    return value if _is_number(value) else None
 
 
 def _session_title(executable: str, svc: str, sess_id: str) -> str | None:
@@ -265,19 +270,27 @@ def _session_title(executable: str, svc: str, sess_id: str) -> str | None:
     ) or None
 
 
-def _active_window_title(executable: str, svc: str) -> str | None:
+def _titled_window_is_active(executable: str, svc: str, title: str) -> bool:
+    """Require exactly one window of svc titled title, and that it is active.
+
+    Konsole exposes no mapping from /Windows/N to its MainWindow object, so a
+    second window with the same title makes activation unverifiable.
+    """
     listing = _qdbus_text(executable, [svc])
     if not listing:
-        return None
-    for path in re.findall(r"^/konsole/MainWindow_\d+$", listing, re.MULTILINE):
-        active = _qdbus_text(
-            executable, [svc, path, "org.qtproject.Qt.QWidget.isActiveWindow"]
-        )
-        if active == "true":
-            return _qdbus_text(
-                executable, [svc, path, "org.qtproject.Qt.QWidget.windowTitle"]
-            )
-    return None
+        return False
+    titled = [
+        path
+        for path in re.findall(r"^/konsole/MainWindow_\d+$", listing, re.MULTILINE)
+        if _qdbus_text(
+            executable, [svc, path, "org.qtproject.Qt.QWidget.windowTitle"]
+        ) == title
+    ]
+    if len(titled) != 1:
+        return False
+    return _qdbus_text(
+        executable, [svc, titled[0], "org.qtproject.Qt.QWidget.isActiveWindow"]
+    ) == "true"
 
 
 def _wait_for_active_target(
@@ -287,7 +300,7 @@ def _wait_for_active_target(
     while True:
         if (
             _current_session(executable, svc, win_id) == sess_id
-            and _active_window_title(executable, svc) == title
+            and _titled_window_is_active(executable, svc, title)
         ):
             return True
         if time.monotonic() >= deadline:
@@ -295,53 +308,56 @@ def _wait_for_active_target(
         time.sleep(_ACTIVATION_POLL_SECONDS)
 
 
+def _kwin_activation_script(titles: list[str], owner_pid: int) -> str:
+    return _KWIN_ACTIVATE_SCRIPT.replace(
+        "__TITLES__", json.dumps(titles)
+    ).replace("__OWNER__", json.dumps(owner_pid))
+
+
 def _activate_by_kwin_caption(
     titles: list[str], owner_pid: int, executable: str
 ) -> bool:
     """Activate the single Konsole window of owner_pid showing one of titles."""
-    script = _KWIN_ACTIVATE_SCRIPT % {
-        "titles": json.dumps(titles),
-        "pid": json.dumps(owner_pid),
-    }
+    script = _kwin_activation_script(titles, owner_pid)
     plugin = f"claude-fleet-focus-{uuid.uuid4().hex}"
-    with tempfile.NamedTemporaryFile(suffix=".js", mode="w", delete=False) as f:
-        f.write(script)
+    descriptor, path = tempfile.mkstemp(suffix=".js")
     try:
+        with os.fdopen(descriptor, "w") as script_file:
+            script_file.write(script)
         loaded = _qdbus_text(
             executable,
             [
                 "org.kde.KWin",
                 "/Scripting",
                 "org.kde.kwin.Scripting.loadScript",
-                f.name,
+                path,
                 plugin,
             ],
         )
-        if not loaded or not loaded.isdigit():
+        if not _is_number(loaded):
             return False
-        try:
-            ran = _run_qdbus(
-                executable,
-                [
-                    "org.kde.KWin",
-                    f"/Scripting/Script{loaded}",
-                    "org.kde.kwin.Script.run",
-                ],
-                timeout=5,
-                text=False,
-            )
-        finally:
-            _run_qdbus(
-                executable,
-                [
-                    "org.kde.KWin",
-                    "/Scripting",
-                    "org.kde.kwin.Scripting.unloadScript",
-                    plugin,
-                ],
-                timeout=5,
-                text=False,
-            )
+        ran = _run_qdbus(
+            executable,
+            [
+                "org.kde.KWin",
+                f"/Scripting/Script{loaded}",
+                "org.kde.kwin.Script.run",
+            ],
+            timeout=5,
+            text=False,
+        )
         return ran is not None
     finally:
-        os.unlink(f.name)
+        _run_qdbus(
+            executable,
+            [
+                "org.kde.KWin",
+                "/Scripting",
+                "org.kde.kwin.Scripting.unloadScript",
+                plugin,
+            ],
+            timeout=5,
+            text=False,
+        )
+        with contextlib.suppress(OSError):
+            os.unlink(path)
