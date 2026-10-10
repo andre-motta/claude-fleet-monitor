@@ -66,10 +66,15 @@ def managed_window(pid: int, owner: str, deadline: float) -> str:
     return managed[0]
 
 
-def activate(window: str) -> bool:
-    """Activate window and succeed only when X11 reads it back as active."""
+def activate(window: str, on_request=None) -> bool:
+    """Activate window and succeed only when X11 reads it back as active.
+
+    on_request is called just before windowactivate is issued.
+    """
     if not is_decimal_id(window):
         raise RuntimeError("invalid X11 window id")
+    if on_request:
+        on_request()
     activated = xdotool(["windowactivate", "--sync", window])
     if activated.returncode != 0:
         raise RuntimeError(f"xdotool windowactivate exited {activated.returncode}")

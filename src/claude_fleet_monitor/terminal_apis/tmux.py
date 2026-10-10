@@ -249,17 +249,12 @@ class TmuxAPI(TerminalAPI):
             raise RuntimeError("no attached tmux client shows the pane")
         failures = []
         for client_pid in sorted(set(client_pids)):
-            parent = _detect_parent_terminal(client_pid)
-            if activate_parent(parent, client_pid):
+            outcome = activate_parent(
+                _detect_parent_terminal(client_pid), client_pid
+            )
+            if outcome.confirmed:
                 return True
-            failures.append(_parent_failure(parent))
+            if outcome.activated:
+                raise RuntimeError(outcome.detail)
+            failures.append(outcome.detail)
         raise RuntimeError("; ".join(dict.fromkeys(failures)))
-
-
-def _parent_failure(parent) -> str:
-    if parent is None:
-        return "no parent terminal emulator found"
-    name = getattr(parent, "name", "unknown")
-    if not getattr(parent, "activation_supported", True):
-        return f"parent terminal {name} does not support window activation"
-    return f"parent terminal {name} did not activate"

@@ -13,6 +13,9 @@ class TerminalAPI(ABC):
     # switch_tab readback may stay stale until the window is active;
     # verify_selection is authoritative after activation.
     deferred_selection_readback: bool = False
+    # Set when raise_window issued a raise request, even if activation was not
+    # confirmed, so nested routing never raises a second window.
+    raise_requested: bool = False
 
     @staticmethod
     @abstractmethod
@@ -41,6 +44,9 @@ class TerminalAPI(ABC):
     ) -> str | None:
         """Return a window activation target independently of tab selection."""
         return tab_id
+
+    def _mark_raise_requested(self) -> None:
+        self.raise_requested = True
 
     def prepare_selection_after_activation(self) -> None:
         """Wait for an activated window when a backend requires settling."""
