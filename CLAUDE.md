@@ -56,8 +56,8 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `terminator.py`: Terminator, detection only (#47). Captures `TERMINATOR_UUID`, `TERMINATOR_DBUS_NAME` and `TERMINATOR_DBUS_PATH`; claims no selection or activation because Terminator's D-Bus API cannot select or raise.
 - `iterm2.py`: iTerm2 via osascript
 - `macos_terminal.py`: macOS Terminal.app via osascript
-- `windows_terminal.py`: Windows Terminal via pywinctl (window raise only)
-- `generic.py`: Fallback using pywinctl/xdotool/osascript
+- `windows_terminal.py`: Windows Terminal, detection only (owner window not identifiable without validated Win32 enumeration)
+- `generic.py`: Fallback that identifies no target and never selects or activates
 - `_env.py`: Env-only, never-raising capture helpers for adapters (`bounded_env`, `is_decimal_id`)
 - `__init__.py`: `detect_terminal()`, `capture_terminal_info()`, `get_terminal_api()`
 

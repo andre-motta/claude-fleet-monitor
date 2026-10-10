@@ -1,30 +1,21 @@
-"""Windows Terminal API. No tab selection; unique window activation only."""
+"""Windows Terminal API.
+
+Detection only. A window titled "Windows Terminal" can belong to another
+session because titles follow the active tab, and all windows usually share
+one WindowsTerminal.exe process, so the session's own window cannot be
+identified without Win32 owner and top-level window enumeration that has not
+been validated on a Windows host. Selection and activation stay unsupported.
+"""
 
 import os
 
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
-WINDOW_TITLE = "Windows Terminal"
-
-
-def _unique_window():
-    try:
-        import pywinctl
-    except ImportError:
-        raise LookupError("pywinctl is not installed") from None
-    windows = list(pywinctl.getWindowsWithTitle(WINDOW_TITLE) or ())
-    if not windows:
-        raise LookupError("no Windows Terminal window found")
-    if len(windows) > 1:
-        raise LookupError(
-            f"{len(windows)} Windows Terminal windows; exact window unknown"
-        )
-    return windows[0]
-
 
 class WindowsTerminalAPI(TerminalAPI):
     name = "windows_terminal"
     selection_supported = False
+    activation_supported = False
 
     @staticmethod
     def detect() -> bool:
@@ -40,19 +31,10 @@ class WindowsTerminalAPI(TerminalAPI):
     def find_activation_target(
         self, pid: int, terminal_env: dict, tab_id: str | None
     ) -> str | None:
-        return str(_unique_window().getHandle())
+        return None
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         return False
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
-        try:
-            window = _unique_window()
-        except LookupError as error:
-            raise RuntimeError(str(error)) from None
-        if str(window.getHandle()) != tab_id:
-            raise RuntimeError("Windows Terminal window changed before activation")
-        window.activate()
-        if not window.isActive:
-            raise RuntimeError("Windows Terminal window did not become active")
-        return True
+        return False
