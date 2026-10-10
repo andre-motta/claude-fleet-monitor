@@ -41,6 +41,10 @@ if (matches.length === 1) {
 """
 
 
+class KonsoleFocusError(RuntimeError):
+    """A failed Konsole focus step; the message is the user-facing detail."""
+
+
 def _resolve_qdbus() -> str | None:
     for candidate in _QDBUS_CANDIDATES:
         try:
@@ -77,6 +81,7 @@ def _run_qdbus(
 
 class KonsoleAPI(TerminalAPI):
     name = "konsole"
+    deferred_selection_readback = True
 
     @staticmethod
     def detect() -> bool:
@@ -159,9 +164,7 @@ class KonsoleAPI(TerminalAPI):
         target = _parse_tab_id(tab_id)
         if target is None:
             return False
-        executable = _resolve_qdbus()
-        if not executable:
-            return False
+        executable = _require_qdbus()
         svc, win_id, sess_id = target
         selected = _run_qdbus(
             executable,
@@ -175,7 +178,7 @@ class KonsoleAPI(TerminalAPI):
             text=False,
         )
         if selected is None:
-            return False
+            raise KonsoleFocusError(f"Konsole could not select tab {sess_id}")
         current = _run_qdbus(
             executable,
             [
@@ -186,19 +189,24 @@ class KonsoleAPI(TerminalAPI):
             timeout=2,
             text=True,
         )
-        return current is not None and (current.stdout or "").strip() == sess_id
+        if current is None:
+            raise KonsoleFocusError("Konsole current tab could not be read")
+        current_id = (current.stdout or "").strip()
+        if current_id != sess_id:
+            raise KonsoleFocusError(_current_tab_detail(current_id, sess_id))
+        return True
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
         target = _parse_tab_id(tab_id)
         if target is None:
             return False
-        executable = _resolve_qdbus()
-        if not executable:
-            return False
+        executable = _require_qdbus()
         svc, win_id, sess_id = target
         target_title = _session_title(executable, svc, sess_id)
         if not target_title:
-            return False
+            raise KonsoleFocusError(
+                f"Konsole tab {sess_id} title could not be read"
+            )
         # The window caption follows the last keyboard-focused session, which
         # stays stale while the window is inactive, so match either title.
         titles = [target_title]
@@ -217,11 +225,16 @@ class KonsoleAPI(TerminalAPI):
             ],
         )
         if not _is_number(owner):
-            return False
-        if not _activate_by_kwin_caption(titles, int(owner), executable):
-            return False
-        return _wait_for_active_target(
+            raise KonsoleFocusError(
+                "Konsole D-Bus owner process could not be read"
+            )
+        _activate_by_kwin_caption(titles, int(owner), executable)
+        if _wait_for_active_target(
             executable, svc, win_id, sess_id, target_title
+        ):
+            return True
+        raise KonsoleFocusError(
+            _activation_failure(executable, svc, win_id, sess_id, target_title)
         )
 
     def verify_selection(self, tab_id: str, terminal_env: dict) -> bool:
@@ -231,6 +244,19 @@ class KonsoleAPI(TerminalAPI):
             return False
         svc, win_id, sess_id = target
         return _current_session(executable, svc, win_id) == sess_id
+
+
+def _require_qdbus() -> str:
+    executable = _resolve_qdbus()
+    if not executable:
+        raise KonsoleFocusError("qdbus is not available")
+    return executable
+
+
+def _current_tab_detail(current: str | None, expected: str) -> str:
+    if not _is_number(current):
+        return f"Konsole did not report tab {expected} as current"
+    return f"Konsole reports tab {current} current, not {expected}"
 
 
 def _parse_tab_id(tab_id: str) -> tuple[str, str, str] | None:
@@ -270,27 +296,33 @@ def _session_title(executable: str, svc: str, sess_id: str) -> str | None:
     ) or None
 
 
-def _titled_window_is_active(executable: str, svc: str, title: str) -> bool:
-    """Require exactly one window of svc titled title, and that it is active.
-
-    Konsole exposes no mapping from /Windows/N to its MainWindow object, so a
-    second window with the same title makes activation unverifiable.
-    """
+def _titled_windows(executable: str, svc: str, title: str) -> list[str]:
     listing = _qdbus_text(executable, [svc])
     if not listing:
-        return False
-    titled = [
+        return []
+    return [
         path
         for path in re.findall(r"^/konsole/MainWindow_\d+$", listing, re.MULTILINE)
         if _qdbus_text(
             executable, [svc, path, "org.qtproject.Qt.QWidget.windowTitle"]
         ) == title
     ]
-    if len(titled) != 1:
-        return False
+
+
+def _window_is_active(executable: str, svc: str, path: str) -> bool:
     return _qdbus_text(
-        executable, [svc, titled[0], "org.qtproject.Qt.QWidget.isActiveWindow"]
+        executable, [svc, path, "org.qtproject.Qt.QWidget.isActiveWindow"]
     ) == "true"
+
+
+def _titled_window_is_active(executable: str, svc: str, title: str) -> bool:
+    """Require exactly one window of svc titled title, and that it is active.
+
+    Konsole exposes no mapping from /Windows/N to its MainWindow object, so a
+    second window with the same title makes activation unverifiable.
+    """
+    titled = _titled_windows(executable, svc, title)
+    return len(titled) == 1 and _window_is_active(executable, svc, titled[0])
 
 
 def _wait_for_active_target(
@@ -306,6 +338,24 @@ def _wait_for_active_target(
         if time.monotonic() >= deadline:
             return False
         time.sleep(_ACTIVATION_POLL_SECONDS)
+
+
+def _activation_failure(
+    executable: str, svc: str, win_id: str, sess_id: str, title: str
+) -> str:
+    settle = f"{_ACTIVATION_SETTLE_SECONDS:g}s"
+    titled = _titled_windows(executable, svc, title)
+    if len(titled) != 1:
+        return (
+            "no unique Konsole window matched the tab title "
+            f"({len(titled)} found)"
+        )
+    if not _window_is_active(executable, svc, titled[0]):
+        return f"window did not become active within {settle}"
+    current = _current_session(executable, svc, win_id)
+    if current != sess_id:
+        return _current_tab_detail(current, sess_id)
+    return f"window activation was not confirmed within {settle}"
 
 
 def _kwin_activation_script(titles: list[str], owner_pid: int) -> str:
@@ -335,7 +385,7 @@ def _activate_by_kwin_caption(
             ],
         )
         if not _is_number(loaded):
-            return False
+            raise KonsoleFocusError("KWin script could not be loaded")
         ran = _run_qdbus(
             executable,
             [
@@ -346,7 +396,9 @@ def _activate_by_kwin_caption(
             timeout=5,
             text=False,
         )
-        return ran is not None
+        if ran is None:
+            raise KonsoleFocusError("KWin script could not be run")
+        return True
     finally:
         _run_qdbus(
             executable,
