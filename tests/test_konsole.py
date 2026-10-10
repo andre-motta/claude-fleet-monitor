@@ -419,7 +419,7 @@ def test_other_active_window_with_same_title_is_not_activation(monkeypatch):
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_kwin_script_runs_malicious_title_as_data():
     title = "x\\'); workspace.activeWindow = fakeWindows[0]; //"
-    windows = [{"pid": 7, "caption": "other — Konsole", "minimized": True}]
+    windows = [{"pid": 7, "caption": "other \u2014 Konsole", "minimized": True}]
 
     assert _run_kwin_script([title], windows) is None
 
