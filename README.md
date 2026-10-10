@@ -99,8 +99,10 @@ first parent that sent a raise request (a KWin activation script that ran, an
 or tab could not be confirmed afterwards. Focus then reports why, for example
 `parent terminal konsole may have raised its window but could not confirm it
 (...)`, instead of trying another window. A parent that fails before sending
-any request (no unique window, D-Bus owner unreadable) lets the next client be
-tried. One rare case can still raise two windows: a KWin script run call that
+any request (no unique GNOME or Ghostty X11 window, Konsole D-Bus owner
+unreadable, qdbus missing) lets the next client be tried. For Konsole, window
+matching happens inside the KWin script, so a script that ran but matched no
+unique window also stops routing. One rare case can still raise two windows: a KWin script run call that
 fails or times out is treated as no request, although KWin may have run it.
 See the [isolated tmux validation](validation/README.md#stable-tmux-selection-and-client-routing-on-linux)
 for the tested routing behavior and its GUI evidence limits.
