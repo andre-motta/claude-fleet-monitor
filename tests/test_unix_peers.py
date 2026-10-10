@@ -115,7 +115,7 @@ def test_unix_sockets_dumps_every_state_with_name_and_peer(monkeypatch, linux):
     assert request[0] == _unix_peers.socket.AF_UNIX
     assert request[3] == _unix_peers.ALL_STATES
     assert request[5] == _unix_peers.UDIAG_SHOW_NAME | _unix_peers.UDIAG_SHOW_PEER
-    assert 0 < fake.timeout <= 1
+    assert 0 < fake.timeout <= _unix_peers.DUMP_TIMEOUT
 
 
 @pytest.mark.parametrize(
@@ -141,6 +141,32 @@ def test_unix_sockets_is_bounded_without_done(monkeypatch, linux):
 
     assert _unix_peers.unix_sockets() is None
     assert len(fake.datagrams) == 7
+
+
+def test_parse_keeps_only_requested_inodes():
+    table = {}
+    data = _message(12, 1, b"/s", 21) + _message(21, 1, peer=12)
+
+    _unix_peers._parse(data, table, keep={12})
+
+    assert table == {12: (1, b"/s", 21)}
+
+
+def test_unix_sockets_keep_filters_the_dump(monkeypatch, linux):
+    fake = FakeNetlink([_message(12, 1, b"/s", 21) + _message(21, 1) + _done()])
+    monkeypatch.setattr(_unix_peers.socket, "socket", fake)
+
+    assert _unix_peers.unix_sockets(frozenset({21})) == {21: (1, None, None)}
+
+
+def test_unix_sockets_has_a_total_deadline(monkeypatch, linux):
+    fake = FakeNetlink([_message(12, 1)] * 10)
+    monkeypatch.setattr(_unix_peers.socket, "socket", fake)
+    clock = iter([0.0, 0.5, 1.5, 2.5, 3.5])
+    monkeypatch.setattr(_unix_peers.time, "monotonic", lambda: next(clock))
+
+    assert _unix_peers.unix_sockets() is None
+    assert len(fake.datagrams) == 8
 
 
 def test_socket_creation_failure_returns_none(monkeypatch, linux):
@@ -205,7 +231,7 @@ def test_peer_owners_maps_server_peers_to_same_uid_zellij_processes(
         104: (1, b"/other", 204),
         105: (7, name, 205),
     }
-    monkeypatch.setattr(_unix_peers, "unix_sockets", lambda: table)
+    monkeypatch.setattr(_unix_peers, "unix_sockets", lambda keep: kept.append(keep) or table)
     _proc(proc, 50, "zellij", [100, 101, 102, 103, 104, 105])
     _proc(proc, 300, "zellij", [201])
     _proc(proc, 301, "zellij", [202, 201])
@@ -213,21 +239,23 @@ def test_peer_owners_maps_server_peers_to_same_uid_zellij_processes(
     _proc(proc, 303, "zellij", [204, 205])
     (proc / "self").mkdir()
 
+    kept = []
     owners = _unix_peers.peer_owners(50, SOCKET_PATH, "zellij")
 
     assert owners == {201: {300, 301}, 202: {301}, 203: frozenset()}
+    assert kept == [{100, 101, 102, 103, 104, 105}]
 
 
 def test_peer_owners_without_server_fds_is_none(proc, monkeypatch):
     monkeypatch.setattr(
-        _unix_peers, "unix_sockets", lambda: pytest.fail("no dump without server")
+        _unix_peers, "unix_sockets", lambda *args: pytest.fail("no dump without server")
     )
 
     assert _unix_peers.peer_owners(50, SOCKET_PATH, "zellij") is None
 
 
 def test_peer_owners_without_peers_skips_process_scan(proc, monkeypatch):
-    monkeypatch.setattr(_unix_peers, "unix_sockets", lambda: {})
+    monkeypatch.setattr(_unix_peers, "unix_sockets", lambda keep: {})
     monkeypatch.setattr(
         _unix_peers, "_own_processes", lambda *args: pytest.fail("no scan needed")
     )
@@ -239,7 +267,7 @@ def test_peer_owners_without_peers_skips_process_scan(proc, monkeypatch):
 def test_peer_owners_never_raises(proc, monkeypatch):
     _proc(proc, 50, "zellij", [101])
     monkeypatch.setattr(
-        _unix_peers, "unix_sockets", lambda: {101: (1, SOCKET_PATH.encode(), 201)}
+        _unix_peers, "unix_sockets", lambda keep: {101: (1, SOCKET_PATH.encode(), 201)}
     )
 
     def broken(*args):

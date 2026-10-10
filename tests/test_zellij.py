@@ -822,7 +822,7 @@ def test_client_replaced_during_activation_is_not_success(monkeypatch, fake, att
 
     assert result.activation.attempted
     assert not result.activation.succeeded
-    assert result.activation.detail == zellij.CLIENT_GONE
+    assert result.activation.detail == zellij.CLIENT_GONE_DURING
     assert parent.calls == [("target", CLIENT_PID), ("raise", "window")]
 
 
@@ -1025,3 +1025,139 @@ def test_find_server_is_linux_only(monkeypatch):
     monkeypatch.setattr(zellij.sys, "platform", "darwin")
 
     assert FIND_SERVER(101) is None
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ("web",),
+        ("--config-dir", "/c", "web", "--start"),
+        ("w", "session"),
+        ("watch", "session"),
+        ("pipe", "--name", "x"),
+        ("subscribe", "--pane-id", "terminal_1"),
+        ("run", "--", "sh"),
+        ("r", "--", "sh"),
+        ("edit", "file"),
+        ("e", "file"),
+        ("plugin", "--", "zellij:strider"),
+        ("p", "zellij:strider"),
+        ("--unknown-flag", "attach"),
+        ("-s",),
+    ],
+)
+def test_single_non_interactive_peer_is_refused(monkeypatch, fake, host, argv):
+    host.client(CLIENT_PID, *argv)
+
+    parent, result = _activation(monkeypatch)
+
+    assert not result.activation.attempted
+    assert "cannot tell which window shows the pane" in result.activation.detail
+    assert parent.calls == []
+
+
+def test_single_web_server_peer_names_the_subcommand(monkeypatch, fake, host):
+    host.client(CLIENT_PID, "web")
+
+    parent, result = _activation(monkeypatch)
+
+    assert result.activation.detail == (
+        "a zellij `web` process is connected to the session; "
+        "cannot tell which window shows the pane"
+    )
+    assert parent.calls == []
+
+
+def test_watch_alias_is_refused_as_watcher(monkeypatch, fake, attached):
+    attached.client(400, "w", "session")
+
+    parent, result = _activation(monkeypatch)
+
+    _unavailable(result, zellij.WATCHER)
+
+
+def test_action_alias_is_transient(monkeypatch, fake, attached):
+    attached.client(400, "ac", "list-clients")
+
+    parent, result = _activation(monkeypatch)
+
+    assert result.activation.succeeded
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        (),
+        ("attach", "watch"),
+        ("a", "action"),
+        ("-s", "watch"),
+        ("--session", "action"),
+        ("--session=watch",),
+        ("-swatch",),
+        ("--config-dir", "/c", "-d", "-l", "web", "--session", "w"),
+        ("-n", "/layouts/run.kdl"),
+        ("attach", "--create", "web"),
+    ],
+)
+def test_interactive_client_shapes_are_accepted(monkeypatch, fake, host, argv):
+    if argv:
+        host.client(CLIENT_PID, *argv)
+    else:
+        host.client()
+        host.processes[CLIENT_PID] = _info(
+            CLIENT_PID, ("/usr/bin/zellij",), start=CLIENT_START
+        )
+
+    parent, result = _activation(monkeypatch)
+
+    assert result.activation.succeeded
+    assert parent.calls == [("target", CLIENT_PID), ("raise", "window")]
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (("zellij",), None),
+        (("zellij", "-s", "watch", "attach"), "attach"),
+        (("zellij", "--max-panes", "3", "action", "x"), "action"),
+        (("zellij", "--data-dir=/d", "web"), "web"),
+        (("zellij", "--bogus=1"), zellij.UNKNOWN_SHAPE),
+        (("zellij", "-x"), zellij.UNKNOWN_SHAPE),
+        (("zellij", "--config"), zellij.UNKNOWN_SHAPE),
+    ],
+)
+def test_subcommand_skips_global_options(argv, expected):
+    assert zellij._subcommand(argv) == expected
+
+
+def test_renamed_session_is_unavailable(monkeypatch, fake, attached):
+    attached.server = _info(
+        50, ("zellij", "--server", f"{SOCKET_DIR}/contract_version_1/old")
+    )
+
+    parent, result = _activation(monkeypatch)
+
+    _unavailable(result, zellij.RENAMED)
+    assert attached.peer_calls == []
+
+
+class RequestedParent(WindowParent):
+    def raise_window(self, tab_id, env):
+        self._mark_raise_requested()
+        raise RuntimeError("raise sent, not confirmed")
+
+
+@pytest.mark.parametrize(
+    ("parent", "requested"),
+    [(WindowParent(), True), (RequestedParent(), True), (WindowParent(False), False)],
+    ids=["confirmed", "unconfirmed", "not-activated"],
+)
+def test_raise_request_is_marked_when_parent_activated(
+    monkeypatch, fake, attached, parent, requested
+):
+    monkeypatch.setattr(DETECT_PARENT, lambda pid: parent)
+    api = ZellijAPI()
+
+    api.focus_result(101, dict(ZELLIJ_ENV))
+
+    assert api.raise_requested is requested

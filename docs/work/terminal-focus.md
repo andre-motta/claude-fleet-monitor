@@ -344,11 +344,18 @@ live probe on zellij 0.45.1 (Linux):
   found through sockets instead: a `sock_diag` netlink dump maps the server's
   accepted sockets to peer inodes, and `/proc/<pid>/fd` links of same-UID
   `zellij` processes map them to PIDs (`terminal_apis/_unix_peers.py`, stdlib
-  only, never raising, Linux only, about 5-10 ms).
-- Activation is claimed only when `list-clients` shows one client and exactly
-  one interactive peer (not `action`, not `watch`, with a controlling tty).
-  Several clients, any `zellij watch` client or a mismatch is reported
-  unavailable; the parent is then never called. The client's emulator comes
+  only, never raising, Linux only, about 5-10 ms, one 2 s total deadline,
+  keeping only the server's own inodes). The dump is not an atomic snapshot:
+  under heavy socket churn it can miss entries, which only lowers the peer
+  count, so the result is a refusal or the one real client, never a wrong one.
+- Activation is claimed only when `list-clients` shows one client, the
+  server's socket name matches the captured session (not renamed) and exactly
+  one interactive peer is connected: argv parsed past global options to a
+  plain `zellij` or `attach`/`a` subcommand, with a controlling tty.
+  `action`/`ac` peers are transient and ignored; any other peer (`web`,
+  `watch`/`w`, `pipe`, `subscribe`, `run`, `edit`, `plugin`, unknown shapes)
+  is refused, as are several clients or a mismatch. The parent is then never
+  called. The client's emulator comes
   from its own ancestry and is raised through `parent.activate_parent`; its
   start time is checked before and after so a reused PID is never trusted.
 - Live: `validation/zellij.py` maps the PTY client, routes to an instrumented

@@ -12,6 +12,7 @@ import re
 import socket
 import struct
 import sys
+import time
 
 NETLINK_SOCK_DIAG = 4
 SOCK_DIAG_BY_FAMILY = 20
@@ -27,7 +28,7 @@ ESTABLISHED = 1
 ALL_STATES = 0xFFFFFFFF
 RECV_BUFFER = 1 << 16
 MAX_RECEIVES = 4096
-RECV_TIMEOUT = 1.0
+DUMP_TIMEOUT = 2.0
 MAX_FDS = 65536
 MAX_PROCESSES = 1 << 20
 PROC = Path("/proc")
@@ -42,8 +43,11 @@ def _align(length: int) -> int:
     return (length + 3) & ~3
 
 
-def _parse(data: bytes, table: dict) -> bool:
-    """Add one netlink datagram's sockets to table; return True at NLMSG_DONE."""
+def _parse(data: bytes, table: dict, keep=None) -> bool:
+    """Add one datagram's sockets (only inodes in keep, if given) to table.
+
+    Return True at NLMSG_DONE.
+    """
     offset = 0
     while offset + _HEADER.size <= len(data):
         length, kind, _, _, _ = _HEADER.unpack_from(data, offset)
@@ -70,12 +74,13 @@ def _parse(data: bytes, table: dict) -> bool:
             elif kind == UNIX_DIAG_PEER and len(payload) >= 4:
                 peer = struct.unpack_from("=I", payload)[0]
             attribute += _align(size)
-        table[inode] = (state, name, peer)
+        if keep is None or inode in keep:
+            table[inode] = (state, name, peer)
         offset += _align(length)
     return False
 
 
-def _dump() -> dict[int, tuple[int, bytes | None, int | None]]:
+def _dump(keep=None) -> dict[int, tuple[int, bytes | None, int | None]]:
     request = _REQUEST.pack(
         socket.AF_UNIX, 0, 0, ALL_STATES, 0,
         UDIAG_SHOW_NAME | UDIAG_SHOW_PEER, 0xFFFFFFFF, 0xFFFFFFFF,
@@ -85,24 +90,34 @@ def _dump() -> dict[int, tuple[int, bytes | None, int | None]]:
         NLM_F_REQUEST | NLM_F_DUMP, 1, 0,
     )
     table = {}
+    deadline = time.monotonic() + DUMP_TIMEOUT
     with socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, NETLINK_SOCK_DIAG) as sock:
-        sock.settimeout(RECV_TIMEOUT)
+        sock.settimeout(DUMP_TIMEOUT)
         sock.sendto(header + request, (0, 0))
         for _ in range(MAX_RECEIVES):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            sock.settimeout(remaining)
             data = sock.recv(RECV_BUFFER)
             if not data:
                 break
-            if _parse(data, table):
+            if _parse(data, table, keep):
                 return table
     raise ValueError("sock_diag dump did not finish")
 
 
-def unix_sockets() -> dict[int, tuple[int, bytes | None, int | None]] | None:
-    """Return inode -> (state, bound name, peer inode) for every unix socket."""
+def unix_sockets(
+    keep: frozenset[int] | None = None,
+) -> dict[int, tuple[int, bytes | None, int | None]] | None:
+    """Return inode -> (state, bound name, peer inode) for unix sockets.
+
+    With keep, only those inodes are retained, bounding memory to them.
+    """
     if sys.platform != "linux":
         return None
     try:
-        return _dump()
+        return _dump(keep)
     except Exception:
         return None
 
@@ -159,7 +174,7 @@ def peer_owners(
         held = socket_inodes(server_pid)
         if held is None:
             return None
-        table = unix_sockets()
+        table = unix_sockets(held)
         if table is None:
             return None
         name = os.fsencode(socket_path)

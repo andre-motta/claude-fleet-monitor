@@ -71,10 +71,12 @@ GUI_ACTIVATION = (
     "emulator. Validated against an instrumented parent; no KWin, qdbus or xdotool calls "
     "were made")
 PARENT_RULE = (
-    "activation is claimed only when list-clients shows one client and exactly one "
-    "interactive peer process (not `action`, not `watch`, with a controlling tty) is "
-    "connected; several clients, a watcher or any mismatch is refused, and the client's "
-    "start time must be unchanged before and after parent activation")
+    "activation is claimed only when list-clients shows one client, the server socket "
+    "name matches the session, and exactly one interactive peer (plain zellij or attach "
+    "after global options, with a controlling tty) is connected; action peers are ignored, "
+    "any other peer (web, watch, pipe, subscribe, run, edit, plugin, unknown), several "
+    "clients or a mismatch is refused, and the client's start time must be unchanged "
+    "before and after parent activation")
 
 
 class Check(Exception):

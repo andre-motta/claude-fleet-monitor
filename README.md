@@ -104,9 +104,14 @@ climbing to whatever launched them. A zellij server is daemonized, so its
 ancestry never reaches a GUI. On Linux, Fleet instead finds the server in the
 agent's ancestry, maps its accepted sockets to client PIDs (a `sock_diag`
 netlink dump plus `/proc/<pid>/fd` links of your own `zellij` processes) and
-routes activation to the emulator hosting the one attached client. It refuses
-when several clients or a `zellij watch` client are attached, when the client
-processes do not match `list-clients`, or when the client exited meanwhile.
+routes activation to the emulator hosting the one attached client. Only a
+plain `zellij` client or `zellij attach` counts as interactive and transient
+`zellij action` calls are ignored. Any other connected zellij process (`web`,
+`watch`, `pipe`, `subscribe`, `run`, `edit`, `plugin` or an unrecognized
+command line) is refused, because it may show the session somewhere else. It
+also refuses when several clients are attached, when the client processes do
+not match `list-clients`, when the session was renamed, or when the client
+exited meanwhile.
 
 tmux selection uses stable session, window and pane IDs with selection readback.
 Parent-window routing considers only clients attached to the target session;
@@ -397,7 +402,7 @@ src/claude_fleet_monitor/
 - **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
 - **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
 - **Kitty and GNU screen windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback and a screen session owns no window.
-- **zellij windows:** Window activation is Linux only and needs exactly one attached client; with several clients, or a `zellij watch` client, Fleet cannot tell which window shows the pane and reports activation unavailable. Elsewhere zellij activation is unavailable.
+- **zellij windows:** Window activation is Linux only and needs exactly one attached interactive client; with several clients, or a `zellij watch`, `zellij web` or other non-interactive zellij process connected, Fleet cannot tell which window shows the pane and reports activation unavailable. Elsewhere zellij activation is unavailable. Real GUI activation through the client's emulator is not live-validated yet: the live validator routes to an instrumented parent only.
 - **GNU screen and zellij with several displays or clients:** GNU screen switches only the most recently attached display, and zellij moves only the client that most recently received input; other displays and clients keep their own window or pane. Both need an attached display or client: a detached session reports a failed selection.
 - **zellij socket directory:** Every zellij call targets the session's socket directory: on Linux it is derived from the zellij server's command line, otherwise the `ZELLIJ_SOCKET_DIR` captured at hook time is used, and without either zellij's default applies. A session that cannot be found reports which socket directory was searched.
 - **zellij selection proof:** Selection succeeds only when a client that was elsewhere moves to the pane, or when every attached client already showed it ("pane already focused"). An idle client that already showed the pane while the active client did not move is a failure.

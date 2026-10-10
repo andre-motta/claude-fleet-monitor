@@ -15,7 +15,8 @@ daemonized server's `--server <dir>/contract_version_N/<session>` argv found in
 the agent's ancestry, else the captured ZELLIJ_SOCKET_DIR, else zellij's own
 default. The server's ancestry never reaches a GUI, so on Linux the emulator is
 found from the one attached client process, identified by its socket peer.
-Several clients, a watcher or any mismatch with list-clients is refused.
+Several clients, any connected zellij process other than `attach`, a bare
+client or a transient `action`, or any mismatch with list-clients is refused.
 """
 
 import dataclasses
@@ -44,8 +45,16 @@ SERVER_FLAG = "--server"
 CONTRACT_PREFIX = "contract_version_"
 MAX_ANCESTORS = 128
 NO_SESSION = "no active session"
-TRANSIENT_ARG = "action"
-WATCH_ARG = "watch"
+VALUE_OPTIONS = frozenset({
+    "-s", "--session", "-l", "--layout", "--layout-string", "-n",
+    "--new-session-with-layout", "-c", "--config", "--config-dir", "--data-dir",
+    "--max-panes",
+})
+FLAG_OPTIONS = frozenset({"-d", "--debug"})
+INTERACTIVE_COMMANDS = frozenset({None, "attach", "a"})
+TRANSIENT_COMMANDS = frozenset({"action", "ac"})
+WATCH_COMMANDS = frozenset({"watch", "w"})
+UNKNOWN_SHAPE = object()
 NOT_LINUX = "zellij client discovery is only implemented on Linux"
 NO_SERVER = "no zellij server found in the agent process ancestry"
 NO_SESSION_NAME = "zellij session name was not captured"
@@ -59,6 +68,11 @@ WATCHER = (
 MISMATCH = "zellij client processes do not match list-clients"
 NO_TTY = "zellij client has no controlling terminal"
 CLIENT_GONE = "zellij client exited before its window was activated"
+CLIENT_GONE_DURING = "zellij client exited during window activation"
+RENAMED = (
+    "zellij session name does not match its server socket (renamed session?); "
+    "cannot identify the client"
+)
 NO_PARENT = "no parent terminal emulator found for zellij"
 
 
@@ -159,6 +173,41 @@ def _cli_env(socket_dir: str | None) -> dict | None:
     return {**os.environ, SOCKET_DIR_KEY: socket_dir}
 
 
+def _subcommand(argv):
+    """Return the zellij subcommand (None for none) or UNKNOWN_SHAPE.
+
+    Global options and their values are skipped, so a session named like a
+    subcommand is never mistaken for one.
+    """
+    arguments = iter(argv[1:])
+    for argument in arguments:
+        if argument in VALUE_OPTIONS:
+            if next(arguments, None) is None:
+                return UNKNOWN_SHAPE
+        elif argument in FLAG_OPTIONS:
+            continue
+        elif argument.startswith("--") and "=" in argument:
+            if argument.split("=", 1)[0] not in VALUE_OPTIONS:
+                return UNKNOWN_SHAPE
+        elif argument.startswith("-"):
+            if len(argument) > 2 and argument[:2] in VALUE_OPTIONS:
+                continue
+            return UNKNOWN_SHAPE
+        else:
+            return argument
+    return None
+
+
+def _refused_peer(command) -> str:
+    if command in WATCH_COMMANDS:
+        return WATCHER
+    shown = "unrecognized" if command is UNKNOWN_SHAPE else f"`{command}`"
+    return (
+        f"a zellij {shown} process is connected to the session; "
+        "cannot tell which window shows the pane"
+    )[:160]
+
+
 def _attached_client(server):
     """Return the one interactive client process connected to the server."""
     owners = _unix_peers.peer_owners(server.pid, server.argv[2], "zellij")
@@ -171,10 +220,12 @@ def _attached_client(server):
         process = _process(pid)
         if process is None:
             continue
-        if WATCH_ARG in process.argv:
-            raise LookupError(WATCHER)
-        if TRANSIENT_ARG not in process.argv:
-            candidates.append(process)
+        command = _subcommand(process.argv)
+        if command in TRANSIENT_COMMANDS:
+            continue
+        if command not in INTERACTIVE_COMMANDS:
+            raise LookupError(_refused_peer(command))
+        candidates.append(process)
     if len(candidates) > 1:
         raise LookupError(SEVERAL_CLIENTS)
     if not candidates:
@@ -304,6 +355,8 @@ class ZellijAPI(TerminalAPI):
         session = _safe_session(terminal_env.get("ZELLIJ_SESSION_NAME"))
         if session is None:
             raise LookupError(NO_SESSION_NAME)
+        if os.path.basename(server.argv[2]) != session:
+            raise LookupError(RENAMED)
         clients = _list_clients(
             ["zellij", "--session", session, "action"],
             "zellij list-clients failed: CLI missing, timed out, unknown session "
@@ -380,8 +433,10 @@ class ZellijAPI(TerminalAPI):
                 f"parent terminal {parent.name} does not support window activation"
             )
         outcome = activate_parent(parent, client_pid)
+        if outcome.activated:
+            self._mark_raise_requested()
         if not _same_process(client_pid, start):
-            raise RuntimeError(CLIENT_GONE)
+            raise RuntimeError(CLIENT_GONE_DURING)
         if not outcome:
             raise RuntimeError(outcome.detail)
         return True
