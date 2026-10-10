@@ -142,6 +142,6 @@ def test_committed_evidence_is_public_safe():
     text = EVIDENCE.read_text()
 
     assert "/home/" not in text and "/tmp/" not in text and "/run/user/" not in text
-    assert "—" not in text
+    assert "\u2014" not in text
     assert "fleet-z5-" not in text
     assert "<session>" in text
