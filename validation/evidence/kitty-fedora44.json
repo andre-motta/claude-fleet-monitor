@@ -164,14 +164,14 @@
   },
   "stale_target": {
     "state": "failed",
-    "selection_attempted": true,
-    "selection_detail": "kitty focus-window: target window no longer exists",
+    "selection_attempted": false,
+    "selection_detail": "kitty ls readback: target window no longer exists",
     "active_unchanged": true
   },
   "missing_socket": {
     "state": "failed",
-    "selection_attempted": true,
-    "selection_detail": "kitty focus-window: remote control socket refused or missing (kitty closed or remote control off)"
+    "selection_attempted": false,
+    "selection_detail": "kitty ls: remote control socket refused or missing (kitty closed or remote control off)"
   },
   "remote_control_off": {
     "detect": true,
@@ -203,15 +203,45 @@
   },
   "preconditions": {
     "kitty_pid_missing": {
-      "attempted": false,
-      "succeeded": false,
-      "detail": "kitty process id was not captured; restart the agent session to enable kitty window activation"
+      "selection": {
+        "attempted": false,
+        "succeeded": false,
+        "detail": "kitty process id was not captured; restart the agent session to enable kitty focus"
+      },
+      "activation": {
+        "attempted": false,
+        "succeeded": false,
+        "detail": "kitty process id was not captured; restart the agent session to enable kitty focus"
+      }
     },
     "kitty_pid_not_an_ancestor": {
-      "attempted": false,
-      "succeeded": false,
-      "detail": "captured kitty process is not an ancestor of the session (kitty variables may have leaked from another terminal)"
+      "selection": {
+        "attempted": false,
+        "succeeded": false,
+        "detail": "kitty remote control socket does not belong to the captured kitty process (KITTY_LISTEN_ON may be inherited from an outer kitty)"
+      },
+      "activation": {
+        "attempted": false,
+        "succeeded": false,
+        "detail": "captured kitty process is not an ancestor of the session (kitty variables may have leaked from another terminal)"
+      }
     },
+    "inherited_outer_socket": {
+      "selection": {
+        "attempted": false,
+        "succeeded": false,
+        "detail": "kitty remote control socket does not belong to the captured kitty process (KITTY_LISTEN_ON may be inherited from an outer kitty)"
+      },
+      "activation": {
+        "attempted": false,
+        "succeeded": false,
+        "detail": "kitty remote control socket does not belong to the captured kitty process (KITTY_LISTEN_ON may be inherited from an outer kitty)"
+      },
+      "outer_active_unchanged": true
+    },
+    "remote_control_commands": [
+      "ls"
+    ],
     "kwin_scripts": 0
   },
   "hidden_os_window": {
@@ -244,7 +274,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.08,
+      "seconds": 0.11,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -268,7 +298,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.08,
+      "seconds": 0.1,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -292,7 +322,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.08,
+      "seconds": 0.1,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -316,7 +346,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.08,
+      "seconds": 0.1,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -340,7 +370,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.08,
+      "seconds": 0.1,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -364,7 +394,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.08,
+      "seconds": 0.1,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -406,12 +436,12 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "4a5d74542d6076a8761315933e8221ed6484c58e",
+  "tested_commit": "3a3d020a5505236f9202590734621f817c7f0e89",
   "tested_files_modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/kitty.py": "8b72336a69db3c563e2b3d39247561c49869b9b7c71a61b7994ab1aef1ad73cc",
+    "src/claude_fleet_monitor/terminal_apis/kitty.py": "9a3f2cfd474562168767fcb3e47881cd581ed260e1f0b8ce1738a4e5e42d1882",
     "src/claude_fleet_monitor/terminal_apis/_kwin.py": "af4d4c99ff02a9f7712ed42ec96c6be5fe2400c7068a4f43be0f0b0626e18d58",
     "src/claude_fleet_monitor/terminal_apis/_qdbus.py": "49ca04326fefd6182957d119827a18130a4129996de25c9d98207df97de5ea45",
-    "validation/kitty.py": "e9d5ac524df1dd5196410e4c1bb43aafc5f8d7e494a0c7528591803bea7a3f3a"
+    "validation/kitty.py": "a24d597138f1ec10e72201f18954c447bc8a8596be9dd2a9d6fe12300860af22"
   }
 }
