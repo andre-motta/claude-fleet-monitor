@@ -380,6 +380,152 @@ def test_raise_window_stops_at_first_activated_client(monkeypatch):
     assert routed == [200]
 
 
+class DeferredWindowParent(TerminalAPI):
+    """Records window raises; selection is confirmed only after activation."""
+
+    deferred_selection_readback = True
+
+    def __init__(self, name, raised, activate=True, verify=True):
+        self.name = name
+        self.raised = raised
+        self.activate = activate
+        self.verify = verify
+
+    @staticmethod
+    def detect():
+        return False
+
+    @staticmethod
+    def capture_env():
+        return {}
+
+    def find_tab(self, pid, env):
+        return f"tab-{pid}"
+
+    def find_activation_target(self, pid, env, tab_id):
+        return f"window-{pid}"
+
+    def switch_tab(self, target, env):
+        return False
+
+    def raise_window(self, target, env):
+        if self.activate:
+            self.raised.append((self.name, target))
+        return self.activate
+
+    def verify_selection(self, target, env):
+        return self.verify
+
+
+def _two_clients_in_different_parents(monkeypatch, parents):
+    monkeypatch.setattr(
+        tmux.subprocess,
+        "run",
+        lambda *args, **kwargs: completed(
+            "300\t$7\t@12\t%34\t0\n200\t$7\t@12\t%34\t0\n"
+        ),
+    )
+    routed = []
+    monkeypatch.setattr(
+        tmux,
+        "_detect_parent_terminal",
+        lambda pid: routed.append(pid) or parents[pid],
+    )
+    return routed
+
+
+def test_raise_window_raises_one_window_when_tab_is_unconfirmed(monkeypatch):
+    raised = []
+    routed = _two_clients_in_different_parents(
+        monkeypatch,
+        {
+            200: DeferredWindowParent("first", raised, verify=False),
+            300: DeferredWindowParent("second", raised),
+        },
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal first raised its window but could not "
+        "confirm the tab$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert routed == [200]
+    assert raised == [("first", "window-200")]
+
+
+def test_raise_window_unconfirmed_tab_is_not_success_in_focus_result(
+    monkeypatch,
+):
+    raised = []
+    _two_clients_in_different_parents(
+        monkeypatch,
+        {
+            200: DeferredWindowParent("first", raised, verify=False),
+            300: DeferredWindowParent("second", raised),
+        },
+    )
+    monkeypatch.setattr(TmuxAPI, "find_tab", lambda self, pid, env: "$7:@12.%34")
+    monkeypatch.setattr(TmuxAPI, "switch_tab", lambda self, tab_id, env: True)
+
+    result = TmuxAPI().focus_result(101, TMUX_ENV)
+
+    assert result.state == "partial"
+    assert result.activation.attempted
+    assert not result.activation.succeeded
+    assert result.activation.detail == (
+        "parent terminal first raised its window but could not confirm the tab"
+    )
+    assert raised == [("first", "window-200")]
+
+
+def test_raise_window_tries_second_parent_when_first_does_not_activate(
+    monkeypatch,
+):
+    raised = []
+    routed = _two_clients_in_different_parents(
+        monkeypatch,
+        {
+            200: DeferredWindowParent("first", raised, activate=False),
+            300: DeferredWindowParent("second", raised),
+        },
+    )
+
+    assert TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert routed == [200, 300]
+    assert raised == [("second", "window-300")]
+
+
+def test_raise_window_reports_every_parent_failure(monkeypatch):
+    raised = []
+    routed = _two_clients_in_different_parents(
+        monkeypatch,
+        {200: DeferredWindowParent("first", raised, activate=False), 300: None},
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal first did not activate; "
+        "no parent terminal emulator found$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert routed == [200, 300]
+    assert raised == []
+
+
+def test_raise_window_reports_unsupported_parent_activation(monkeypatch):
+    unsupported = SimpleNamespace(name="terminator", activation_supported=False)
+    _two_clients_in_different_parents(
+        monkeypatch, {200: unsupported, 300: unsupported}
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal terminator does not support window activation$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+
+
 def test_raise_window_never_constructs_generic_api(monkeypatch):
     monkeypatch.setattr(
         tmux.subprocess,

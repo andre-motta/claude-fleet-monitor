@@ -183,6 +183,7 @@ class ZellijAPI(TerminalAPI):
             raise RuntimeError(
                 f"parent terminal {parent.name} does not support window activation"
             )
-        if not activate_parent(parent, pid):
-            raise RuntimeError(f"parent terminal {parent.name} did not activate")
+        outcome = activate_parent(parent, pid)
+        if not outcome.confirmed:
+            raise RuntimeError(outcome.detail)
         return True

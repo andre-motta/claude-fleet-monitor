@@ -302,15 +302,17 @@ hands-on, manual observation; no JSON was recorded for it.
 ### Multi-client tmux routing note
 
 With several attached tmux clients showing the target pane in different
-emulator windows, tmux tries each client's parent in turn and stops at the
-first success. A delegated parent can activate its window and still report
-failure: Konsole or Ghostty when the tab selection is not confirmed
-afterwards, GNOME Terminal when the activation readback disagrees. More than
-one window can therefore be raised before one succeeds. R9 kept
-this behavior: stopping after the first activation would leave a window
-showing the wrong tab and report failure, while trying the next client can
-still reach a complete result. Stopping early would also need the activation
-outcome from `parent.py`, which tmux does not own. Documented in the README.
+emulator windows, tmux tries each client's parent in turn. R9 kept trying the
+next client after a delegated parent (Konsole, Ghostty) raised its window but
+could not confirm the tab, so more than one window could be raised.
+[#51](https://github.com/andre-motta/claude-fleet-monitor/issues/51) fixed
+this: `parent.activate_parent` now returns a `ParentActivation` with
+`activated` (a parent window was raised) and `confirmed` (the parent's full
+protocol succeeded). tmux and zellij stop at the first activated parent and
+report `parent terminal <name> raised its window but could not confirm the
+tab` instead of success when it is not confirmed. A parent whose activation
+readback disagrees (GNOME Terminal, Ghostty, Konsole) reports no activation,
+so the next client is still tried; that window was not confirmed raised.
 
 ### R9 combined local acceptance
 

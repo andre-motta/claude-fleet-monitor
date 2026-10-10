@@ -93,10 +93,11 @@ tmux selection uses stable session, window and pane IDs with selection readback.
 Parent-window routing considers only clients attached to the target session;
 detached sessions can still select their pane without activating a GUI window.
 When several attached clients show the target pane in different emulator
-windows, each client's parent is tried in turn until one reports success.
-Konsole, Ghostty and GNOME Terminal parents can raise their window and still
-report failure (selection or activation not confirmed), so that rare case can
-raise more than one window.
+windows, each client's parent is tried in turn and routing stops at the
+first parent that raises its window. If that parent (Konsole or Ghostty)
+cannot confirm the tab afterwards, focus reports `parent terminal <name>
+raised its window but could not confirm the tab` instead of raising a second
+window.
 See the [isolated tmux validation](validation/README.md#stable-tmux-selection-and-client-routing-on-linux)
 for the tested routing behavior and its GUI evidence limits.
 

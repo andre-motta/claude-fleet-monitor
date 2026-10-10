@@ -485,6 +485,36 @@ def test_zellij_failed_parent_activation_is_not_success(monkeypatch):
     )
 
 
+class UnconfirmedTabParent(WindowParent):
+    name = "deferred"
+    selection_supported = True
+    deferred_selection_readback = True
+
+    def find_tab(self, pid, env):
+        return "tab"
+
+    def switch_tab(self, tab_id, env):
+        return False
+
+    def verify_selection(self, tab_id, env):
+        return False
+
+
+def test_zellij_parent_with_unconfirmed_tab_is_not_success(monkeypatch):
+    parent = UnconfirmedTabParent()
+    monkeypatch.setattr(DETECT_PARENT, lambda pid: parent)
+
+    result = ZellijAPI().focus_result(101, dict(ZELLIJ_ENV))
+
+    assert result.state == "failed"
+    assert result.activation.attempted
+    assert not result.activation.succeeded
+    assert result.activation.detail == (
+        "parent terminal deferred raised its window but could not confirm the tab"
+    )
+    assert parent.calls == [("target", 101), ("raise", "window")]
+
+
 def test_zellij_without_parent_reports_activation_detail(monkeypatch):
     monkeypatch.setattr(DETECT_PARENT, lambda pid: None)
 
