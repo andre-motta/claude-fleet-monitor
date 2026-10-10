@@ -1,6 +1,7 @@
 # ChatGPT Linux conversation-focus evidence
 
-Status: **bounded C1 investigation complete; live exact-focus matrix unmet**.
+Status: **closed as not supported** (Andre, 2026-10-10). See
+[decision](#decision-2026-10-10) at the end; the original investigation follows.
 Issue: [#28](https://github.com/andre-motta/claude-fleet-monitor/issues/28),
 under [#22](https://github.com/andre-motta/claude-fleet-monitor/issues/22).
 Investigation date: 2026-09-07. Repository base:
@@ -153,3 +154,26 @@ gap does not block the initiative checks. This evidence-only change requires
 documentation checks, including relative links, public-safe content and
 `git diff --check`. No production code or shared initiative tracking was
 changed.
+
+## Decision 2026-10-10
+
+Fleet does not support focusing ChatGPT desktop conversations or Codex tasks
+in the ChatGPT Linux app. Andre's rule: without a native, supported
+integration, Fleet reports the capability as unsupported instead of working
+around the app. #28, #29 and #22 are closed on that basis; a documented
+OpenAI interface would reopen the question.
+
+A live re-check on the same host (KDE Plasma Wayland, app on XWayland)
+confirmed the earlier recommendation:
+
+| Check | Result |
+| --- | --- |
+| App version | `chatgpt-26.928.21956-1`; `codex://threads/<id>` still parsed as a local conversation route |
+| Fleet ID mapping | Two disposable `codex exec` threads: Fleet's Codex hook `session_id` equalled each thread ID |
+| Cold start with the link | Andre saw the app open on the probe task (manual) |
+| Link sent to a running app | No raise, no restore from minimized and no visible navigation in two runs (KWin readback plus manual observation); Chromium's singleton accepted the hand-off |
+| Selection readback | None without instrumenting the app: the main window caption is fixed, the page URL does not carry the route, and the app is not on the accessibility bus by default |
+| Unknown ID | No visible change |
+
+The probe used only the two disposable tasks, read no conversation content,
+and changed no system settings. The probe app instance was stopped afterwards.
