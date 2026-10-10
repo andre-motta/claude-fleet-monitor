@@ -1,0 +1,598 @@
+{
+  "schema": "zellij-version-floor/1",
+  "date": "2026-10-10",
+  "issue": 52,
+  "minimum_validated_version": "0.44.2",
+  "summary": "Full isolated validator passes on zellij 0.44.2, 0.44.3, 0.45.0 and 0.45.1. 0.44.1 introduced focus-pane-id and confirmed every single-client selection but failed the two-client step. 0.44.0 and older lack focus-pane-id; the adapter reported an honest selection failure wherever it ran. No version produced a false success.",
+  "provenance": "live",
+  "method": "Upstream GitHub release tarballs for x86_64-unknown-linux-musl (the no-web build where published), each extracted into its own new scratch directory and run only through a temporary PATH prefix, never installed. Tarballs were checked against the GitHub asset digest where the API publishes one, and each binary against the release .sha256sum. validation/zellij.py ran per version with private sockets, config, cache, data and PTYs; Andre's default zellij socket directory was never used.",
+  "host_binary_note": "The host's own zellij 0.45.1 binary has the same sha256 as the upstream 0.45.1 no-web musl binary and passed the same validator as a control run.",
+  "platform": {
+    "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
+    "kernel_release": "7.2.7-200.fc44.x86_64",
+    "desktop": "KDE",
+    "session_type": "wayland",
+    "python_version": "3.14.7"
+  },
+  "tested_commit": "7f0681a9850bb9dd51789aceb72f89dab70e22ff",
+  "modified_since_commit": false,
+  "sha256": {
+    "src/claude_fleet_monitor/terminal_apis/zellij.py": "f423c03318497c6b9539e638b5fca10fb22c9d1b1239378787f758d96c3e9959",
+    "validation/zellij.py": "4692b47c97378a1b3ffe29d93877938eb435fd4bc649b80295ed0c8ecc222c2f"
+  },
+  "versions": [
+    {
+      "version": "0.45.1",
+      "zellij_version_output": "zellij 0.45.1",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "d7bda1e18c30a688833ae7627f1d6a253bbba5349a4bc48e4f0ec008aaf75ed1",
+      "github_asset_digest": "sha256:d7bda1e18c30a688833ae7627f1d6a253bbba5349a4bc48e4f0ec008aaf75ed1",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "0ec6ef07b63c6355c02ce18343d40ef5ef5af19e25313ea9009c8fceda29e94f",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "focus-pane-id",
+        "list-clients",
+        "list-panes"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "pass",
+          "failed_step": null,
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "no zellij client moved to pane 1",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": 4,
+          "two_clients": {
+            "selected": true,
+            "detail": null,
+            "target": "2",
+            "list_clients_before": {
+              "1": "terminal_0",
+              "2": "terminal_1"
+            },
+            "list_clients_after": {
+              "1": "terminal_0",
+              "2": "terminal_2"
+            },
+            "second_client_landed_on": [
+              "1"
+            ],
+            "second_client_keystroke_routed_to": [
+              "2"
+            ],
+            "first_client_keystroke_routed_to": [
+              "0"
+            ]
+          },
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": null
+    },
+    {
+      "version": "0.45.0",
+      "zellij_version_output": "zellij 0.45.0",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "2d793377c788300256f18fa17ab251e444ba28db07b0959aca5902834c0f7efd",
+      "github_asset_digest": "sha256:2d793377c788300256f18fa17ab251e444ba28db07b0959aca5902834c0f7efd",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "a9331a7ac3e62833e599e3bedd3bbad053437d66bcb447466f21c079c3d5c002",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "focus-pane-id",
+        "list-clients",
+        "list-panes"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "pass",
+          "failed_step": null,
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "no zellij client moved to pane 1",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": 4,
+          "two_clients": {
+            "selected": true,
+            "detail": null,
+            "target": "2",
+            "list_clients_before": {
+              "1": "terminal_0",
+              "2": "terminal_1"
+            },
+            "list_clients_after": {
+              "1": "terminal_0",
+              "2": "terminal_2"
+            },
+            "second_client_landed_on": [
+              "1"
+            ],
+            "second_client_keystroke_routed_to": [
+              "2"
+            ],
+            "first_client_keystroke_routed_to": [
+              "0"
+            ]
+          },
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": null
+    },
+    {
+      "version": "0.44.3",
+      "zellij_version_output": "zellij 0.44.3",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "f901129919b0a405ac5f278f53acd7fde5d62401324c509b6233038d5c0ad1f9",
+      "github_asset_digest": "sha256:f901129919b0a405ac5f278f53acd7fde5d62401324c509b6233038d5c0ad1f9",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "a675b0106263113b9cb8f028649bad05c5d2283331fa62b2b36dd275aeaaa4d3",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "focus-pane-id",
+        "list-clients",
+        "list-panes"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "pass",
+          "failed_step": null,
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "no zellij client moved to pane 1",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": 4,
+          "two_clients": {
+            "selected": true,
+            "detail": null,
+            "target": "2",
+            "list_clients_before": {
+              "1": "terminal_0",
+              "2": "terminal_1"
+            },
+            "list_clients_after": {
+              "1": "terminal_0",
+              "2": "terminal_2"
+            },
+            "second_client_landed_on": [
+              "1"
+            ],
+            "second_client_keystroke_routed_to": [
+              "2"
+            ],
+            "first_client_keystroke_routed_to": [
+              "0"
+            ]
+          },
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": null
+    },
+    {
+      "version": "0.44.2",
+      "zellij_version_output": "zellij 0.44.2",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "4af3ceefd4f8e9792144175234bdd8ffa96653209e9722613627f84f3d09ef83",
+      "github_asset_digest": "sha256:4af3ceefd4f8e9792144175234bdd8ffa96653209e9722613627f84f3d09ef83",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "79dd83f21d80204a5a3af4055e6ffd4b076347d4493f403859590190384a86e3",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "focus-pane-id",
+        "list-clients",
+        "list-panes"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "pass",
+          "failed_step": null,
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "no zellij client moved to pane 1",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": 4,
+          "two_clients": {
+            "selected": true,
+            "detail": null,
+            "target": "2",
+            "list_clients_before": {
+              "1": "terminal_0",
+              "2": "terminal_1"
+            },
+            "list_clients_after": {
+              "1": "terminal_0",
+              "2": "terminal_2"
+            },
+            "second_client_landed_on": [
+              "1"
+            ],
+            "second_client_keystroke_routed_to": [
+              "2"
+            ],
+            "first_client_keystroke_routed_to": [
+              "0"
+            ]
+          },
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": null
+    },
+    {
+      "version": "0.44.1",
+      "zellij_version_output": "zellij 0.44.1",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "fa83210551ec003e5ae17dfcbad4f43840783c0aae56448112527ec1bc2ad18a",
+      "github_asset_digest": "sha256:fa83210551ec003e5ae17dfcbad4f43840783c0aae56448112527ec1bc2ad18a",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "f55f0fb825d7cde5d6194127453e07b7e99d015bc9ccc6239dd26e785f2165cc",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "focus-pane-id",
+        "list-clients",
+        "list-panes"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "two-client selection did not follow the most recent input client",
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "no zellij client moved to pane 1",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": 4,
+          "two_clients": {
+            "selected": true,
+            "detail": null,
+            "target": "2",
+            "list_clients_before": {
+              "1": "terminal_0",
+              "2": "terminal_1"
+            },
+            "list_clients_after": {
+              "1": "terminal_2",
+              "2": "terminal_1"
+            },
+            "second_client_landed_on": [],
+            "second_client_keystroke_routed_to": [
+              "1"
+            ],
+            "first_client_keystroke_routed_to": [
+              "2"
+            ]
+          },
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        },
+        {
+          "validator": "unmodified (repeat)",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "two-client selection did not follow the most recent input client",
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "no zellij client moved to pane 1",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": 4,
+          "two_clients": {
+            "selected": true,
+            "detail": null,
+            "target": "2",
+            "list_clients_before": {
+              "1": "terminal_0",
+              "2": "terminal_1"
+            },
+            "list_clients_after": {
+              "1": "terminal_2",
+              "2": "terminal_1"
+            },
+            "second_client_landed_on": [],
+            "second_client_keystroke_routed_to": [
+              "1"
+            ],
+            "first_client_keystroke_routed_to": [
+              "2"
+            ]
+          },
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "Both runs failed only the two-client step. All four single-client selections were confirmed by list-clients and keystroke routing. In the two-client step the second client's first keystroke reached no pane, focus-pane-id then moved the first client, and keystrokes from that client reached the target pane, so the reported selection was true; only the validator's most-recent-input-client expectation did not hold."
+    },
+    {
+      "version": "0.44.0",
+      "zellij_version_output": "zellij 0.44.0",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "458b0c5ec19d6313580293e451c9a467c73b337d42faf8e2ce1712c56767b727",
+      "github_asset_digest": "sha256:458b0c5ec19d6313580293e451c9a467c73b337d42faf8e2ce1712c56767b727",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "55aafe6d8361b9b78c52afe18669d609e19b2adae7cfe34da18b33e96ed7c5b8",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "list-clients",
+        "list-panes"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "warmup input not routed",
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "No focus-pane-id subcommand. The adapter reported 'zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version'; the validator then stopped at its own warmup keystroke check."
+    },
+    {
+      "version": "0.43.1",
+      "zellij_version_output": "zellij 0.43.1",
+      "asset": "zellij-no-web-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "bac0728945e8f5a28f2647e2b9b0cfe4591d71abfe227336b1318937241f071d",
+      "github_asset_digest": "sha256:bac0728945e8f5a28f2647e2b9b0cfe4591d71abfe227336b1318937241f071d",
+      "github_asset_digest_matches": true,
+      "binary_sha256": "0fa5203e689c6122fed3669dbff04323c76d33ef7255be28b5f80d25dc13813e",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "list-clients"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "fixture panes are not duplicate titles across two tabs",
+          "before_any_client_input": null,
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        },
+        {
+          "validator": "list-panes fixture substituted",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "warmup input not routed",
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "No focus-pane-id or list-panes subcommand. The unmodified validator stopped at its list-panes fixture check. A second run substituted only the fixture listing when list-panes failed: list-clients output was recognized and the adapter reported 'zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version'; the validator then stopped at its own warmup keystroke check."
+    },
+    {
+      "version": "0.42.2",
+      "zellij_version_output": "zellij 0.42.2",
+      "asset": "zellij-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "c2d4833512539455bfdddab5c297d43f7cc3b77d8b7e92ad03e2529111c7c652",
+      "github_asset_digest": null,
+      "github_asset_digest_matches": "not published for this release",
+      "binary_sha256": "d92a8ccf1b79939fbd8e7f843731bea3a56880471b37517af7d6103125e7f991",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "list-clients"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "fixture panes are not duplicate titles across two tabs",
+          "before_any_client_input": null,
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        },
+        {
+          "validator": "list-panes fixture substituted",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "warmup input not routed",
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "No focus-pane-id or list-panes subcommand. The unmodified validator stopped at its list-panes fixture check. A second run substituted only the fixture listing when list-panes failed: list-clients output was recognized and the adapter reported 'zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version'; the validator then stopped at its own warmup keystroke check."
+    },
+    {
+      "version": "0.41.2",
+      "zellij_version_output": "zellij 0.41.2",
+      "asset": "zellij-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "b1c321a817d8a5baf55c2798f6ac7495bba925d686d9877e9604a50784bf6c78",
+      "github_asset_digest": null,
+      "github_asset_digest_matches": "not published for this release",
+      "binary_sha256": "0e098d1dc4b28892c29a6f3d1b5021a1f212d76a7d9e09828fe7f4ed7d74697d",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "list-clients"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "fixture panes are not duplicate titles across two tabs",
+          "before_any_client_input": null,
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        },
+        {
+          "validator": "list-panes fixture substituted",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "warmup input not routed",
+          "before_any_client_input": {
+            "selected": false,
+            "detail": "zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version",
+            "client_pane": {
+              "1": "terminal_0"
+            }
+          },
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "No focus-pane-id or list-panes subcommand. The unmodified validator stopped at its list-panes fixture check. A second run substituted only the fixture listing when list-panes failed: list-clients output was recognized and the adapter reported 'zellij could not focus pane 1: CLI missing, timed out, unknown pane or unsupported version'; the validator then stopped at its own warmup keystroke check."
+    },
+    {
+      "version": "0.40.1",
+      "zellij_version_output": "zellij 0.40.1",
+      "asset": "zellij-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "a9fd3ef2d9bb2fd829e0ce024e9b0d718b8b5140de6194484cc1110ed324370f",
+      "github_asset_digest": null,
+      "github_asset_digest_matches": "not published for this release",
+      "binary_sha256": "d3998c03a2ed4c5c25bf64f68191de6ab35f85b71ca78b4c79e2df0b8226afc0",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [
+        "list-clients"
+      ],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "zellij session did not become ready",
+          "before_any_client_input": null,
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "No focus-pane-id subcommand. The validator fixture session did not become ready (not diagnosed), so no adapter call ran."
+    },
+    {
+      "version": "0.40.0",
+      "zellij_version_output": "zellij 0.40.0",
+      "asset": "zellij-x86_64-unknown-linux-musl.tar.gz",
+      "tarball_sha256": "d63f292a75e539a85a9ebc561b091a2d7bd3403e0807246087c63f12ab324a7f",
+      "github_asset_digest": null,
+      "github_asset_digest_matches": "not published for this release",
+      "binary_sha256": "8eb4fde141fa28f8e3f6e410b821debf29b70001485358e1bde5676683ee47af",
+      "binary_matches_release_sha256sum": true,
+      "action_subcommands": [],
+      "runs": [
+        {
+          "validator": "unmodified",
+          "unconfirmed_success_claims": [],
+          "result": "fail",
+          "failed_step": "zellij session did not become ready",
+          "before_any_client_input": null,
+          "selections_confirmed": null,
+          "two_clients": null,
+          "cleanup_survivors": 0,
+          "temp_dir_removed": true,
+          "user_config_unchanged": true,
+          "user_zellij_cache_entries_for_run": 0
+        }
+      ],
+      "false_success_observed": false,
+      "note": "Neither focus-pane-id nor list-clients exists. The validator fixture session did not become ready, so no adapter call ran."
+    }
+  ]
+}

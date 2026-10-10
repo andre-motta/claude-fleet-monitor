@@ -154,3 +154,46 @@ def test_validator_expects_the_current_pre_capture_detail():
     with pytest.raises(LookupError) as raised:
         ZellijAPI().find_tab(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "fleet"})
     assert str(raised.value) == validator.LEGACY_DETAIL
+
+
+FLOOR = ROOT / "validation" / "evidence" / "zellij-version-floor-fedora44.json"
+
+
+def test_version_floor_evidence_has_no_false_success():
+    evidence = json.loads(FLOOR.read_text())
+    versions = {entry["version"]: entry for entry in evidence["versions"]}
+
+    assert evidence["schema"] == "zellij-version-floor/1"
+    assert evidence["provenance"] == "live"
+    assert evidence["minimum_validated_version"] == "0.44.2"
+    assert re.fullmatch(r"[0-9a-f]{40}", evidence["tested_commit"])
+    assert not evidence["modified_since_commit"]
+    for entry in versions.values():
+        assert not entry["false_success_observed"]
+        assert entry["binary_matches_release_sha256sum"]
+        assert entry["github_asset_digest_matches"] in (
+            True, "not published for this release"
+        )
+        assert entry["zellij_version_output"] == f"zellij {entry['version']}"
+        for run in entry["runs"]:
+            assert run["unconfirmed_success_claims"] == []
+            assert run["cleanup_survivors"] == 0 and run["temp_dir_removed"]
+            assert run["user_config_unchanged"]
+            assert run["user_zellij_cache_entries_for_run"] == 0
+            before = run["before_any_client_input"]
+            assert before is None or not before["selected"]
+        passed = all(run["result"] == "pass" for run in entry["runs"])
+        assert passed == (
+            tuple(map(int, entry["version"].split("."))) >= (0, 44, 2)
+        )
+        assert ("focus-pane-id" in entry["action_subcommands"]) == (
+            tuple(map(int, entry["version"].split("."))) >= (0, 44, 1)
+        )
+
+
+def test_version_floor_evidence_is_public_safe():
+    text = FLOOR.read_text()
+
+    assert "/home/" not in text and "/tmp/" not in text and "/run/user/" not in text
+    assert "\u2014" not in text
+    assert "fleet-z5-" not in text

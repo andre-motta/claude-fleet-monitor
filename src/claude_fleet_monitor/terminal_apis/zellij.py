@@ -6,8 +6,9 @@ that pane before the action is on it afterwards, or when every attached client
 already showed the pane. focus-pane-id moves only the client that most recently
 sent input and exits 0 even with no client attached, so neither its exit status
 nor an idle client already on the pane proves the selection.
-Live behavior was validated with zellij 0.45.1; no older version was probed,
-so unrecognized output is treated as unsupported rather than gated by version.
+The isolated validator passes on zellij 0.44.2 through 0.45.1; 0.44.0 and
+older lack focus-pane-id and fail selection. Unrecognized output is treated as
+unsupported rather than gated by version.
 """
 
 import dataclasses

@@ -153,6 +153,21 @@ its own pane. Without `--no-write` it updates
 is reported unavailable: client PIDs are not exposed and the server is
 daemonized.
 
+### zellij version floor
+
+To check another release, extract an upstream binary into a new empty
+directory and put only that directory first on `PATH` for one run, for example
+`PATH=<dir>:$PATH python validation/zellij.py --out <scratch>/<version>.json`.
+Never install it. The [floor evidence](evidence/zellij-version-floor-fedora44.json)
+records the 2026-10-10 runs over zellij 0.40.0 to 0.45.1 with each tarball and
+binary checksum: the validator passes from 0.44.2; 0.44.1 (the first release
+with `focus-pane-id`) confirms every single-client selection but fails the
+two-client step; 0.44.0 and older lack `focus-pane-id` and the adapter reports
+an honest selection failure. No version produced a false success. For 0.41.2
+to 0.43.1 a scratch wrapper substituted the fixture listing that needs
+`list-panes` (0.44.0+) so the adapter steps could run; that wrapper is not
+committed.
+
 ## Kitty remote-control selection on Linux
 
 ```console
