@@ -1062,3 +1062,14 @@ def test_leaked_variables_never_list_a_foreign_kitty(monkeypatch, tools, process
         kitty.NOT_AN_ANCESTOR
     )
     assert fake.calls == []
+
+
+def test_ended_session_is_named_before_any_ls(monkeypatch, tools, processes):
+    fake = _fake(monkeypatch, FakeKitty())
+    del processes[10]
+
+    result = KittyAPI().focus_result(10, dict(KITTY_ENV))
+
+    assert result.selection.detail == "agent session process no longer exists"
+    assert result.activation.detail == "agent session process no longer exists"
+    assert fake.calls == []

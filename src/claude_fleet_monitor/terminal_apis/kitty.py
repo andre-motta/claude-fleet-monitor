@@ -39,6 +39,7 @@ KITTY_PID_MISSING = (
     "kitty process id was not captured; restart the agent session to enable"
     " kitty focus"
 )
+SESSION_GONE = "agent session process no longer exists"
 NOT_AN_ANCESTOR = (
     "captured kitty process is not an ancestor of the session (kitty variables"
     " may have leaked from another terminal)"
@@ -164,6 +165,16 @@ def _is_kitty_ancestor(pid, kitty_pid: int) -> bool:
     return False
 
 
+def _require_session_under(pid, kitty_pid: int) -> None:
+    if _is_kitty_ancestor(pid, kitty_pid):
+        return
+    try:
+        running = discovery.get_process_info(pid) is not None
+    except Exception:
+        running = False
+    raise LookupError(NOT_AN_ANCESTOR if running else SESSION_GONE)
+
+
 def _list(command: list[str], action: str):
     listed = _run([*command, "ls"])
     if listed is None or listed.returncode != 0:
@@ -267,8 +278,7 @@ class KittyAPI(TerminalAPI):
         address = _address(terminal_env)
         kitty_pid = _kitty_pid(terminal_env)
         # Leaked variables must never send ls to a foreign kitty.
-        if not _is_kitty_ancestor(pid, kitty_pid):
-            raise LookupError(NOT_AN_ANCESTOR)
+        _require_session_under(pid, kitty_pid)
         command = [*_remote_command(), "--to", address]
         try:
             _require_owned(_list(command, "ls"), int(window_id), kitty_pid)
@@ -314,8 +324,7 @@ class KittyAPI(TerminalAPI):
             raise LookupError("kitty window id was not captured")
         address = _address(terminal_env)
         kitty_pid = _kitty_pid(terminal_env)
-        if not _is_kitty_ancestor(pid, kitty_pid):
-            raise LookupError(NOT_AN_ANCESTOR)
+        _require_session_under(pid, kitty_pid)
         executable = resolve_qdbus()
         if not executable:
             raise LookupError(
