@@ -181,7 +181,7 @@ class GhosttyAPI(TerminalAPI):
             window = _x11.managed_window(
                 ghostty_pid, "Ghostty", time.monotonic() + _LOOKUP_DEADLINE
             )
-            return _x11.activate(window)
+            return _x11.activate(window, self._mark_raise_requested)
         except RuntimeError as error:
             if kwin_note:
                 raise RuntimeError(f"{error}; KWin: {kwin_note}") from None
@@ -219,8 +219,7 @@ class GhosttyAPI(TerminalAPI):
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
-    @staticmethod
-    def _try_kwin_raise(ghostty_pid: int) -> str | None:
+    def _try_kwin_raise(self, ghostty_pid: int) -> str | None:
         """Ask KWin to activate the single window of ghostty_pid.
 
         Returns a note for the failure detail; never a success claim.
@@ -237,4 +236,5 @@ class GhosttyAPI(TerminalAPI):
             return str(error)
         except OSError as error:
             return f"KWin script could not be written: {error.strerror or error}"
+        self.raise_requested = True
         return "activation requested but unconfirmed"

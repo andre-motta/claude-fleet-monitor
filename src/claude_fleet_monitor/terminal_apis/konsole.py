@@ -236,6 +236,7 @@ class KonsoleAPI(TerminalAPI):
                 "Konsole D-Bus owner process could not be read"
             )
         _activate_by_kwin_caption(titles, owner, executable)
+        self.raise_requested = True
         if _wait_for_active_target(
             executable, svc, win_id, sess_id, target_title
         ):

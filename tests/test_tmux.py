@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from claude_fleet_monitor.discovery import ProcessInfo
-from claude_fleet_monitor.terminal_apis import _qdbus, gnome, konsole, tmux
+from claude_fleet_monitor.terminal_apis import _qdbus, ghostty, gnome, konsole, tmux
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.generic import GenericAPI
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
@@ -267,7 +267,9 @@ def test_raise_window_requires_parent_selection_success(monkeypatch):
     monkeypatch.setattr(tmux, "_detect_parent_terminal", lambda pid: parent)
 
     with pytest.raises(
-        RuntimeError, match="^parent terminal unknown did not activate$"
+        RuntimeError,
+        match=r"^parent terminal unknown did not activate "
+        r"\(tab selection failed\)$",
     ):
         TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
     assert calls == ["select"]
@@ -609,7 +611,11 @@ def test_tmux_in_gnome_terminal_with_several_windows_is_not_raised(monkeypatch):
         monkeypatch, {"search": completed("11\n12\n")}
     )
 
-    with pytest.raises(RuntimeError, match="^parent terminal gnome did not activate$"):
+    with pytest.raises(
+        RuntimeError,
+        match=r"^parent terminal gnome did not activate \(gnome-terminal-server "
+        r"owns 2 windows; exact window unknown\)$",
+    ):
         TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
     assert "windowactivate" not in [command[1] for command in commands]
 
@@ -652,7 +658,9 @@ def test_tmux_in_background_konsole_window_needs_observed_activation(
     )
 
     with pytest.raises(
-        RuntimeError, match="^parent terminal konsole did not activate$"
+        RuntimeError,
+        match=r"^parent terminal konsole may have raised its window but could "
+        r"not confirm it \(no unique Konsole window matched the tab title",
     ):
         TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
 
@@ -759,3 +767,219 @@ def test_detached_tmux_selection_is_partial_focus(monkeypatch):
     assert result.state == "partial"
     assert result.selection.succeeded
     assert not result.activation.succeeded
+
+
+TWO_CLIENTS = "300\t$7\t@12\t%34\t0\n200\t$7\t@12\t%34\t0\n"
+
+
+def _konsole_behind_two_clients(monkeypatch, fake, parents):
+    konsole_run = _qdbus.subprocess.run
+
+    def run(command, **kwargs):
+        if command[0] == "tmux":
+            return completed(TWO_CLIENTS)
+        return konsole_run(command, **kwargs)
+
+    monkeypatch.setattr(tmux.subprocess, "run", run)
+    routed = []
+    monkeypatch.setattr(
+        tmux,
+        "_detect_parent_terminal",
+        lambda pid: routed.append(pid) or parents[pid],
+    )
+    return routed
+
+
+def _kwin_raises(fake):
+    return [
+        command
+        for command in fake.calls
+        if command[1:2] == ["org.kde.KWin"]
+        and command[3] == "org.kde.kwin.Script.run"
+    ]
+
+
+def test_two_konsole_parents_send_one_kwin_raise_when_tab_stays_wrong(
+    monkeypatch,
+):
+    fake = _fake_konsole(monkeypatch)
+    fake_run = fake.run
+
+    def tab_never_becomes_current(command, **kwargs):
+        if command[3:4] == ["org.kde.konsole.Window.setCurrentSession"]:
+            fake.calls.append(command)
+            return completed()
+        return fake_run(command, **kwargs)
+
+    monkeypatch.setattr(_qdbus.subprocess, "run", tab_never_becomes_current)
+    routed = _konsole_behind_two_clients(
+        monkeypatch,
+        fake,
+        {200: konsole.KonsoleAPI(), 300: konsole.KonsoleAPI()},
+    )
+
+    with pytest.raises(RuntimeError) as error:
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+
+    assert str(error.value).startswith(
+        "parent terminal konsole may have raised its window but could not "
+        "confirm it ("
+    )
+    assert routed == [200]
+    assert len(fake.scripts) == 1
+    assert len(_kwin_raises(fake)) == 1
+    assert fake.active and fake.focused == "5"
+
+
+def test_konsole_parent_failing_before_raise_lets_next_client_activate(
+    monkeypatch,
+):
+    fake = _fake_konsole(monkeypatch)
+    fake_run = fake.run
+
+    def owner_unreadable_for_dead_service(command, **kwargs):
+        if command[1:] == ["dead"]:
+            return fake_run(command[:1] + ["svc"], **kwargs)
+        if command[-1] == "dead" and "GetConnectionUnixProcessID" in command[3]:
+            fake.calls.append(command)
+            return completed(returncode=1)
+        return fake_run(command, **kwargs)
+
+    monkeypatch.setattr(_qdbus.subprocess, "run", owner_unreadable_for_dead_service)
+    first = konsole.KonsoleAPI()
+    first.find_tab = lambda pid, env: "dead|7|2"
+    routed = _konsole_behind_two_clients(
+        monkeypatch, fake, {200: first, 300: konsole.KonsoleAPI()}
+    )
+
+    assert TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert routed == [200, 300]
+    assert len(fake.scripts) == 1
+    assert fake.active and fake.focused == "2"
+
+
+def test_two_ghostty_parents_send_one_raise_when_readback_fails(monkeypatch):
+    calls = []
+    tree = {
+        200: process(200, 4242, "tmux: client"),
+        300: process(300, 4242, "tmux: client"),
+        4242: process(4242, 1, "ghostty"),
+    }
+    monkeypatch.setattr(ghostty.sys, "platform", "linux")
+    monkeypatch.setattr(ghostty.discovery, "get_process_info", tree.get)
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: "/usr/bin/qdbus-qt6")
+    monkeypatch.setattr(
+        ghostty.GhosttyAPI, "find_tab", lambda self, pid, env: f"{pid}:1"
+    )
+
+    def run(command, **kwargs):
+        calls.append(command)
+        if command[0] == "tmux":
+            return completed(TWO_CLIENTS)
+        if command[0] == "/usr/bin/qdbus-qt6":
+            if command[3] == "org.kde.kwin.Scripting.loadScript":
+                return completed("9\n")
+            return completed("true\n")
+        verb = command[1]
+        if verb == "search":
+            return completed("62914563\n")
+        if verb == "get_desktop_for_window":
+            return completed("0\n")
+        if verb == "windowactivate":
+            return completed()
+        assert verb == "getactivewindow", command
+        return completed("777\n")
+
+    monkeypatch.setattr(tmux.subprocess, "run", run)
+    routed = []
+    parents = {200: ghostty.GhosttyAPI(), 300: ghostty.GhosttyAPI()}
+    monkeypatch.setattr(
+        tmux,
+        "_detect_parent_terminal",
+        lambda pid: routed.append(pid) or parents[pid],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"^parent terminal ghostty may have raised its window but could "
+        r"not confirm it \(active window readback did not match the target",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert routed == [200]
+    assert sum(
+        command[3:4] == ["org.kde.kwin.Script.run"] for command in calls
+    ) == 1
+    assert [command[1] for command in calls].count("windowactivate") == 1
+
+
+def _two_gnome_servers():
+    tree = {
+        200: process(200, 100, "tmux: client"),
+        300: process(300, 110, "tmux: client"),
+    }
+    for server in (100, 110):
+        tree[server] = ProcessInfo(
+            pid=server,
+            ppid=1,
+            name="gnome-terminal-",
+            executable="/usr/libexec/gnome-terminal-server",
+            argv=("/usr/libexec/gnome-terminal-server",),
+            cwd=None,
+            start_token="1",
+        )
+    return tree
+
+
+def _route_two_gnome_servers(monkeypatch, windows, active):
+    monkeypatch.setattr(gnome.sys, "platform", "linux")
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setattr(tmux.discovery, "get_process_info", _two_gnome_servers().get)
+    commands = []
+
+    def run(command, **kwargs):
+        commands.append(command)
+        if command[0] == "tmux":
+            return completed(TWO_CLIENTS)
+        assert command[0] == "xdotool"
+        verb = command[1]
+        if verb == "search":
+            return completed(windows[command[-1]])
+        if verb == "get_desktop_for_window":
+            return completed("0\n")
+        if verb == "windowactivate":
+            return completed()
+        assert verb == "getactivewindow", command
+        return completed(active)
+
+    monkeypatch.setattr(tmux.subprocess, "run", run)
+    return commands
+
+
+def test_two_gnome_parents_send_one_activation_when_readback_disagrees(
+    monkeypatch,
+):
+    commands = _route_two_gnome_servers(
+        monkeypatch, {"100": "11\n", "110": "12\n"}, "99\n"
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"^parent terminal gnome may have raised its window but could not "
+        r"confirm it \(active window readback did not match the target\)$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    activations = [command for command in commands if command[1] == "windowactivate"]
+    assert activations == [["xdotool", "windowactivate", "--sync", "11"]]
+    assert ["xdotool", "search", "--pid", "110"] not in commands
+
+
+def test_gnome_parent_failing_before_raise_lets_next_client_activate(
+    monkeypatch,
+):
+    commands = _route_two_gnome_servers(
+        monkeypatch, {"100": "11\n13\n", "110": "12\n"}, "12\n"
+    )
+
+    assert TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    activations = [command for command in commands if command[1] == "windowactivate"]
+    assert activations == [["xdotool", "windowactivate", "--sync", "12"]]

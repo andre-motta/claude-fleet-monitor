@@ -10,15 +10,19 @@ from dataclasses import dataclass
 
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
+MAX_DETAIL_CHARS = 120
+_GENERIC_DETAILS = {"window activation", "tab or pane selection"}
+
 
 @dataclass(frozen=True)
 class ParentActivation:
     """Outcome of routing activation through a parent terminal.
 
-    activated means a parent window was raised; confirmed means the parent's
-    full protocol succeeded, including tab selection when it supports one.
-    Callers must stop trying other parents once activated is True, since a
-    second parent would raise a second window.
+    activated means a parent window may have been raised: activation
+    succeeded or a raise request was sent. confirmed means the parent's full
+    protocol succeeded, including tab selection when it supports one. Callers
+    must stop trying other parents once activated is True, since another
+    parent could raise a second window.
     """
 
     activated: bool = False
@@ -33,40 +37,82 @@ def _name(parent) -> str:
     return getattr(parent, "name", "unknown")
 
 
-def _not_activated(parent) -> ParentActivation:
-    return ParentActivation(detail=f"parent terminal {_name(parent)} did not activate")
+def _describe(parent, summary: str, detail: str = "") -> str:
+    text = f"parent terminal {_name(parent)} {summary}"
+    detail = " ".join(str(detail).split())
+    if not detail or detail in _GENERIC_DETAILS:
+        return text
+    if len(detail) > MAX_DETAIL_CHARS:
+        detail = detail[: MAX_DETAIL_CHARS - 3] + "..."
+    return f"{text} ({detail})"
 
 
-def _activate(parent: TerminalAPI, client_pid: int) -> ParentActivation:
+def _confirmed(parent) -> ParentActivation:
+    return ParentActivation(True, True, _describe(parent, "activated"))
+
+
+def _unconfirmed(parent, detail: str) -> ParentActivation:
+    return ParentActivation(
+        True,
+        False,
+        _describe(
+            parent, "may have raised its window but could not confirm it", detail
+        ),
+    )
+
+
+def _not_activated(parent, detail: str = "") -> ParentActivation:
+    return ParentActivation(detail=_describe(parent, "did not activate", detail))
+
+
+def _delegate(parent: TerminalAPI, client_pid: int) -> ParentActivation:
     selection_supported = getattr(parent, "selection_supported", True)
-    if (
-        getattr(parent, "activation_before_selection", False)
-        or not selection_supported
-        or getattr(parent, "deferred_selection_readback", False)
-    ):
+    try:
+        parent.raise_requested = False
         result = parent.focus_result(client_pid, {})
-        if not result.activation.succeeded:
-            return _not_activated(parent)
+    except Exception as error:
+        if getattr(parent, "raise_requested", False):
+            return _unconfirmed(parent, str(error))
+        return _not_activated(parent, str(error))
+    if result.activation.succeeded:
         if result.selection.succeeded or not selection_supported:
-            return ParentActivation(
-                True, True, f"parent terminal {_name(parent)} activated"
-            )
+            return _confirmed(parent)
         return ParentActivation(
             True,
             False,
-            f"parent terminal {_name(parent)} raised its window but could not "
-            "confirm the tab",
+            _describe(
+                parent,
+                "raised its window but could not confirm the tab",
+                result.selection.detail,
+            ),
         )
-    parent_tab = parent.find_tab(client_pid, {})
-    if not parent_tab or not parent.switch_tab(parent_tab, {}):
-        return _not_activated(parent)
-    find_target = getattr(parent, "find_activation_target", None)
-    target = (
-        find_target(client_pid, {}, parent_tab) if find_target else parent_tab
-    )
-    if not target or not parent.raise_window(target, {}):
-        return _not_activated(parent)
-    return ParentActivation(True, True, f"parent terminal {_name(parent)} activated")
+    if getattr(parent, "raise_requested", False):
+        return _unconfirmed(parent, result.activation.detail)
+    return _not_activated(parent, result.activation.detail)
+
+
+def _strict(parent: TerminalAPI, client_pid: int) -> ParentActivation:
+    requested = False
+    try:
+        parent_tab = parent.find_tab(client_pid, {})
+        if not parent_tab:
+            return _not_activated(parent, "tab was not found")
+        if not parent.switch_tab(parent_tab, {}):
+            return _not_activated(parent, "tab selection failed")
+        find_target = getattr(parent, "find_activation_target", None)
+        target = (
+            find_target(client_pid, {}, parent_tab) if find_target else parent_tab
+        )
+        if not target:
+            return _not_activated(parent, "window activation target was not found")
+        requested = True
+        if parent.raise_window(target, {}):
+            return _confirmed(parent)
+        return _unconfirmed(parent, "window activation was not confirmed")
+    except Exception as error:
+        if requested:
+            return _unconfirmed(parent, str(error))
+        return _not_activated(parent, str(error))
 
 
 def activate_parent(parent: TerminalAPI | None, client_pid: int) -> ParentActivation:
@@ -75,12 +121,12 @@ def activate_parent(parent: TerminalAPI | None, client_pid: int) -> ParentActiva
         return ParentActivation(detail="no parent terminal emulator found")
     if not getattr(parent, "activation_supported", True):
         return ParentActivation(
-            detail=(
-                f"parent terminal {_name(parent)} does not support window "
-                "activation"
-            )
+            detail=_describe(parent, "does not support window activation")
         )
-    try:
-        return _activate(parent, client_pid)
-    except Exception:
-        return _not_activated(parent)
+    if (
+        getattr(parent, "activation_before_selection", False)
+        or not getattr(parent, "selection_supported", True)
+        or getattr(parent, "deferred_selection_readback", False)
+    ):
+        return _delegate(parent, client_pid)
+    return _strict(parent, client_pid)

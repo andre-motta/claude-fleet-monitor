@@ -89,4 +89,4 @@ class GnomeAPI(TerminalAPI):
         return False
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
-        return _x11.activate(tab_id)
+        return _x11.activate(tab_id, self._mark_raise_requested)

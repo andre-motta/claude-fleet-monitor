@@ -303,16 +303,31 @@ hands-on, manual observation; no JSON was recorded for it.
 
 With several attached tmux clients showing the target pane in different
 emulator windows, tmux tries each client's parent in turn. R9 kept trying the
-next client after a delegated parent (Konsole, Ghostty) raised its window but
-could not confirm the tab, so more than one window could be raised.
+next client after a delegated parent (Konsole, Ghostty, GNOME Terminal) raised
+its window but reported failure, so more than one window could be raised.
 [#51](https://github.com/andre-motta/claude-fleet-monitor/issues/51) fixed
-this: `parent.activate_parent` now returns a `ParentActivation` with
-`activated` (a parent window was raised) and `confirmed` (the parent's full
-protocol succeeded). tmux and zellij stop at the first activated parent and
-report `parent terminal <name> raised its window but could not confirm the
-tab` instead of success when it is not confirmed. A parent whose activation
-readback disagrees (GNOME Terminal, Ghostty, Konsole) reports no activation,
-so the next client is still tried; that window was not confirmed raised.
+this:
+
+- `TerminalAPI.raise_requested` is set by an adapter when it actually sends a
+  raise request: Konsole after its KWin activation script ran, Ghostty after
+  its KWin owner-pid script ran or before `xdotool windowactivate`, GNOME
+  Terminal before `xdotool windowactivate`. `parent.activate_parent` resets
+  it before delegating. For strict parents the call to `raise_window` counts.
+- `parent.activate_parent` returns a `ParentActivation`: `activated` (a
+  window may have been raised: activation succeeded or a request was sent),
+  `confirmed` (the parent's full protocol succeeded) and a bounded `detail`
+  that carries the parent's own reason.
+- tmux and zellij stop at the first activated parent. When it is not
+  confirmed they report the detail, for example `parent terminal konsole may
+  have raised its window but could not confirm it (...)`, never success.
+  Parents that fail before any request (no unique window, unreadable D-Bus
+  owner, no tab) still let tmux try the next client.
+- The strict order is unchanged: a failed parent selection never raises.
+- Konsole's standalone `focus_result` reports exactly what it did before.
+
+Residual: a KWin `Script.run` call that fails or times out is treated as no
+request (Konsole and Ghostty set the flag only after it returns), so in that rare
+case a second client can still be tried.
 
 ### R9 combined local acceptance
 

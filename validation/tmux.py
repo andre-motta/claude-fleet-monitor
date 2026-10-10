@@ -171,14 +171,20 @@ def validate():
 
             parent = Parent()
             parent.selected = True
-            not_activated = "parent terminal instrumented did not activate"
+            unconfirmed = (
+                "parent terminal instrumented may have raised its window but "
+                "could not confirm it (window activation was not confirmed)"
+            )
             with patch("claude_fleet_monitor.terminal_apis.tmux._detect_parent_terminal", return_value=parent):
                 reason = raise_failure(api, target, env)
-            assert reason == not_activated, reason
+            assert reason == unconfirmed, reason
             assert calls == [(operation, target_client) for operation in ("find", "select", "raise")], calls
             successful_routing = list(calls)
             calls.clear()
             parent.selected = False
+            not_activated = (
+                "parent terminal instrumented did not activate (tab selection failed)"
+            )
             with patch("claude_fleet_monitor.terminal_apis.tmux._detect_parent_terminal", return_value=parent):
                 reason = raise_failure(api, target, env)
             assert reason == not_activated, reason
