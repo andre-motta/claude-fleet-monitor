@@ -383,7 +383,7 @@ change, Fedora 44 KDE Plasma Wayland:
 ## #52 follow-up: leaked markers and version floors
 
 Issue: [#52](https://github.com/andre-motta/claude-fleet-monitor/issues/52),
-branch `fix/52-ancestry-floors` from `main` at `47a0cbc`.
+branch `fix/52-ancestry-floors`, rebased onto `main` at `f20e70f`.
 
 ### Ancestry-based labels (Linux)
 

@@ -679,7 +679,8 @@ def test_process_names_are_registered_adapters_within_comm_length():
         assert len(comm) <= ancestry.COMM_LENGTH
         assert terminal in registered
     for name, terminal in tmux.TERMINAL_PROCESS_NAMES.items():
-        assert ancestry.comm_terminal(name[: ancestry.COMM_LENGTH]) == terminal
+        expected = None if terminal in ancestry.NON_LINUX_TERMINALS else terminal
+        assert ancestry.comm_terminal(name[: ancestry.COMM_LENGTH]) == expected
 
 
 @pytest.mark.parametrize(
@@ -858,3 +859,10 @@ def test_ancestry_never_reads_environ_or_cmdline():
     assert "/stat" in fstrings
     assert not any("environ" in text or "cmdline" in text for text in strings)
     assert "subprocess" not in imported
+
+
+@pytest.mark.parametrize("comm", ["Terminal", "iTerm2", "WindowsTerminal"])
+def test_linux_ancestry_ignores_non_linux_terminal_names(comm):
+    from claude_fleet_monitor.terminal_apis import _ancestry
+
+    assert _ancestry.comm_terminal(comm) is None

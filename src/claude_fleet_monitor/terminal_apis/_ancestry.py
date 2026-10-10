@@ -12,6 +12,7 @@ from claude_fleet_monitor.terminal_apis.tmux import TERMINAL_PROCESS_NAMES
 
 MAX_STEPS = 64
 COMM_LENGTH = 15
+NON_LINUX_TERMINALS = {"iterm2", "macos_terminal", "windows_terminal"}
 MULTIPLEXER_PROCESS_NAMES = {
     "zellij": "zellij",
     "screen": "screen",
@@ -21,6 +22,7 @@ PROCESS_TERMINALS = {
     **{
         name[:COMM_LENGTH]: terminal
         for name, terminal in TERMINAL_PROCESS_NAMES.items()
+        if terminal not in NON_LINUX_TERMINALS
     },
     **MULTIPLEXER_PROCESS_NAMES,
 }
