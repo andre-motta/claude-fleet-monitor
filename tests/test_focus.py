@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from claude_fleet_monitor.focus import focus_notification
+from claude_fleet_monitor.focus import focus_notification, focus_session
 from claude_fleet_monitor.models import FocusOperation, FocusResult
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from tests.conftest import write_session
@@ -201,19 +201,70 @@ def test_focus_notification_bounds_and_strips_details():
     assert message.endswith("; activation: ok)")
 
 
-def test_focus_notification_caps_total_length():
-    long_detail = "y" * 200
+def test_focus_notification_keeps_activation_after_long_selection():
     result = FocusResult(
         state="failed",
         reason="terminal focus operations failed",
-        selection=_operation(False, long_detail),
-        activation=_operation(False, long_detail),
+        selection=_operation(False, "s" * 150),
+        activation=_operation(False, "KWin script could not be loaded"),
     )
 
     message, _ = focus_notification(result, "repo")
 
-    assert len(message) == 200
-    assert message.endswith("...")
+    assert message.endswith(
+        "; activation: KWin script could not be loaded)"
+    )
+    selection = message.split("(selection: ")[1].split("; activation:")[0]
+    assert selection.endswith("...")
+    assert len(selection) == 120 - len("KWin script could not be loaded")
+
+
+def test_focus_notification_caps_each_long_detail_separately():
+    result = FocusResult(
+        state="failed",
+        reason="terminal focus operations failed",
+        selection=_operation(False, "s" * 150),
+        activation=_operation(False, "a" * 150),
+    )
+
+    message, _ = focus_notification(result, "repo")
+
+    details = message.split(" (selection: ")[1].removesuffix(")")
+    selection, activation = details.split("; activation: ")
+    assert selection == "s" * 57 + "..."
+    assert activation == "a" * 57 + "..."
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        FocusResult(state="unavailable", reason="no  captured\tterminal  "),
+        FocusResult(state="not-found", reason="no session matching 'x' " * 20),
+    ],
+)
+def test_focus_notification_keeps_terminal_states_verbatim(result):
+    label = result.state.replace("-", " ").capitalize()
+
+    assert focus_notification(result, "repo") == (
+        f"Focus {label}: repo: {result.reason}",
+        "error",
+    )
+
+
+def test_focus_notification_keeps_ambiguous_identities_verbatim(fleet_dir):
+    for index in range(12):
+        write_session(
+            fleet_dir, f"session-{index:02d}-" + "z" * 20, "repo", "/tmp/repo"
+        )
+
+    result = focus_session("repo")
+    message, severity = focus_notification(result, "repo")
+
+    assert result.state == "ambiguous"
+    assert message == f"Focus Ambiguous: repo: {result.reason}"
+    assert severity == "error"
+    assert len(message) > 200
+    assert all(f"session-{index:02d}-" in message for index in range(12))
 
 
 class _RaisingSelectionAPI(TerminalAPI):

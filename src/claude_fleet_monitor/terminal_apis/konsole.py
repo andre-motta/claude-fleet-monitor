@@ -192,6 +192,11 @@ class KonsoleAPI(TerminalAPI):
         if current is None:
             raise KonsoleFocusError("Konsole current tab could not be read")
         current_id = (current.stdout or "").strip()
+        if current_id != sess_id and _is_number(current_id):
+            raise KonsoleFocusError(
+                f"tab {sess_id} selection not confirmed (Konsole reports tab"
+                f" {current_id}; readback may be stale until activation)"
+            )
         if current_id != sess_id:
             raise KonsoleFocusError(_current_tab_detail(current_id, sess_id))
         return True
