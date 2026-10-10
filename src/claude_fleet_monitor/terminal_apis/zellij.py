@@ -33,6 +33,7 @@ from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.parent import (
     activate_parent,
     parent_activation_supported,
+    unsupported_detail,
 )
 
 SOCKET_DIR_KEY = "ZELLIJ_SOCKET_DIR"
@@ -436,9 +437,7 @@ class ZellijAPI(TerminalAPI):
         if parent is None:
             raise RuntimeError(NO_PARENT)
         if not parent_activation_supported(parent):
-            raise RuntimeError(
-                f"parent terminal {parent.name} does not support window activation"
-            )
+            raise RuntimeError(unsupported_detail(parent))
         outcome = activate_parent(parent, client_pid)
         if outcome.activated:
             self._mark_raise_requested()

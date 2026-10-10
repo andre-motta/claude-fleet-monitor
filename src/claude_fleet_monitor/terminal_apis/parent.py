@@ -48,6 +48,13 @@ def _name(parent) -> str:
     return getattr(parent, "name", "unknown")
 
 
+def unsupported_detail(parent) -> str:
+    """Explain why parent cannot activate a window."""
+    if _name(parent) == "generic":
+        return "parent terminal emulator has no Fleet adapter"
+    return _describe(parent, "does not support window activation")
+
+
 def _describe(parent, summary: str, detail: str = "") -> str:
     text = f"parent terminal {_name(parent)} {summary}"
     detail = " ".join(str(detail).split())
@@ -131,9 +138,7 @@ def activate_parent(parent: TerminalAPI | None, client_pid: int) -> ParentActiva
     if parent is None:
         return ParentActivation(detail="no parent terminal emulator found")
     if not parent_activation_supported(parent):
-        return ParentActivation(
-            detail=_describe(parent, "does not support window activation")
-        )
+        return ParentActivation(detail=unsupported_detail(parent))
     if (
         getattr(parent, "activation_before_selection", False)
         or not getattr(parent, "selection_supported", True)

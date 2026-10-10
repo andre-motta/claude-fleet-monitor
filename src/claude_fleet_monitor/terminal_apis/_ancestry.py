@@ -1,8 +1,10 @@
 """Hook-time process ancestry: the nearest terminal or multiplexer (Linux only).
 
 Environment markers leak into everything a terminal launches, so the nearest
-known ancestor names the innermost terminal more reliably. Only
-/proc/<pid>/stat is read (comm and ppid); environ and cmdline never are.
+known ancestor names the innermost terminal more reliably. A stop-listed
+emulator without an adapter maps to "generic", so the leaked markers it
+inherited are never used. Only /proc/<pid>/stat is read (comm and ppid);
+environ and cmdline never are.
 """
 
 import os

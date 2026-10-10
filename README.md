@@ -72,7 +72,7 @@ with substituted OS calls), **inspected** (source or documentation only) and
 | **iTerm2** | Yes (osascript; the session whose `unique ID` (from a well-formed `ITERM_SESSION_ID`) and `tty` both match the agent, readback of the current window's current session) | Yes (the target's own window, un-minimized; readback that iTerm2 is frontmost and its current window holds the session) | -- | mocked and inspected (iTerm2 source); unvalidated on macOS ([#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55)); as a tmux parent the single session using the client's tty is matched (mocked) |
 | **macOS Terminal** | Yes (osascript; tab matched by the agent's controlling tty from `ps`, readback of the front window's selected tab) | Yes (the target's own window, un-minimized; readback that Terminal is frontmost and its front window holds the tab) | -- | mocked and inspected; unvalidated on macOS ([#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55)); as a tmux parent the client's tty is matched (mocked) |
 | **Windows Terminal** | No (detection only) | No (owner window not identifiable) | -- | mocked; unvalidated on Windows |
-| **WezTerm** | No (no adapter) | No | -- | not validated (skipped); sessions fall back to generic |
+| **WezTerm** | No (no adapter) | No | -- | not validated (skipped); labelled generic, also when launched from a supported terminal (mocked) |
 | **Generic fallback** | No | No | -- | mocked |
 
 "Yes" means the operation is attempted and reported as succeeded only after
@@ -201,21 +201,29 @@ Ghostty, GNOME Terminal, Terminator, Kitty, tmux, zellij or GNU screen ancestor
 sets the label, and that adapter records whichever of its markers are present.
 So Kitty started from Konsole is labelled `kitty`, GNU screen or zellij inside
 tmux or Konsole is labelled `screen` or `zellij`, and a Konsole window opened
-from a tmux pane is labelled `konsole`. When the walk finds no known terminal
-or cannot read `/proc`, detection falls back to the fixed environment-variable
-order. Remaining limits:
+from a tmux pane is labelled `konsole`. A known emulator without a Fleet
+adapter also stops the walk and labels the session `generic`, which never
+selects or activates: Alacritty, foot, xterm, urxvt, WezTerm, xfce4-terminal,
+MATE Terminal, LXTerminal, QTerminal, Tilix, Ptyxis, GNOME Console (kgx),
+Terminology, Sakura, Tilda, Guake, cool-retro-term, Contour and the VS Code,
+VSCodium and Cursor terminals. So Alacritty launched from a tmux pane, foot
+launched from Kitty or WezTerm launched from Ghostty is labelled `generic`
+instead of targeting the launching terminal through its leaked markers.
+Yakuake, Kate and Dolphin embed Konsole, so they are not on that list. When
+the walk finds no known terminal or cannot read `/proc`, detection falls back
+to the fixed environment-variable order. Remaining limits:
 
 - On macOS and Windows detection uses environment variables only, so the
   leaked-marker cases above keep the label of the launching terminal.
 - A terminal adapter selected by ancestry can lack its own markers (for
   example Kitty without remote control), so focus reports its usual
   unavailable or unsupported failure rather than using the leaked markers.
-- WezTerm has no adapter. Its sessions are labelled `generic`, or after a
-  known terminal that launched WezTerm (for example `konsole`): the ancestry
-  walk passes WezTerm and reaches the launcher, matching the leaked markers.
-  If a
-  multiplexer inside WezTerm reaches a known emulator that launched WezTerm,
-  the parent walk continues to it; that emulator then finds no matching tab.
+- The same list stops the tmux and zellij parent walk: a multiplexer client
+  inside one of these emulators reports that its parent terminal emulator has
+  no Fleet adapter instead of raising the emulator that launched it. On macOS
+  and Windows only the parent walk uses the list.
+- An emulator missing from both lists is passed over, so the walk and the
+  leaked markers can still reach the terminal that launched it.
 - Records captured before an upgrade keep their old label and environment;
   start a fresh agent session to pick up new capture keys such as
   `ZELLIJ_PANE_ID`.
