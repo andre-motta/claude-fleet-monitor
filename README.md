@@ -63,7 +63,7 @@ with substituted OS calls), **inspected** (source or documentation only) and
 |----------|:---:|:---:|:---:|---|
 | **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked; as a tmux parent the Konsole service owned by the client's nearest ancestor is used (mocked) |
 | **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client; failures name the reason (no attached client, no parent emulator, unsupported or unconfirmed parent) | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked; failure details mocked |
-| **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client and the monitor's zellij socket dir | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)); floor 0.44.2, validator passing on 0.44.2 to 0.45.1 ([JSON](validation/evidence/zellij-version-floor-fedora44.json)); moved-client rule mocked |
+| **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client; custom socket dirs supported | Linux only, via parent terminal when exactly one client is attached (client found by its socket peer) | Yes | live: zellij 0.45.1 selection, custom and derived socket dirs, client mapping and refusals ([JSON](validation/evidence/zellij-fedora44.json)); floor 0.44.2, validator passing on 0.44.2 to 0.45.1 ([JSON](validation/evidence/zellij-version-floor-fedora44.json)); parent routing instrumented and mocked |
 | **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); window raise unverified |
 | **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires exactly one window-manager-managed window (minimized or on another desktop counts) owned by the Ghostty process the session descends from; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
@@ -100,9 +100,13 @@ terminal emulator hosting a client that is attached to that pane. The
 structured result reports selection and activation separately, so a detached
 session or an unsupported parent gives an honest partial result. Kitty and
 Terminator stop the parent walk and report activation unsupported rather than
-climbing to whatever launched them. A zellij server is daemonized, so the
-emulator showing a zellij client is not reachable and zellij activation is
-reported unavailable.
+climbing to whatever launched them. A zellij server is daemonized, so its
+ancestry never reaches a GUI. On Linux, Fleet instead finds the server in the
+agent's ancestry, maps its accepted sockets to client PIDs (a `sock_diag`
+netlink dump plus `/proc/<pid>/fd` links of your own `zellij` processes) and
+routes activation to the emulator hosting the one attached client. It refuses
+when several clients or a `zellij watch` client are attached, when the client
+processes do not match `list-clients`, or when the client exited meanwhile.
 
 tmux selection uses stable session, window and pane IDs with selection readback.
 Parent-window routing considers only clients attached to the target session;
@@ -368,6 +372,7 @@ src/claude_fleet_monitor/
         konsole.py        # KDE Konsole
         tmux.py           # tmux
         zellij.py         # zellij
+        _unix_peers.py    # Linux unix-socket peer lookup (zellij clients)
         ghostty.py        # Ghostty (Linux, owner-window KWin/X11)
         gnome.py          # GNOME Terminal
         terminator.py     # Terminator (detection only)
@@ -391,9 +396,10 @@ src/claude_fleet_monitor/
 - **Ghostty:** Window activation requires a single managed Ghostty window (minimized and other-desktop windows count) and an X11 readback; with several windows, or on Wayland without xdotool readback, activation fails with a detail and no Alt+N keys are sent. This path is mocked only.
 - **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
 - **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
-- **Kitty, GNU screen and zellij windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback, a screen session owns no window, and a zellij client's emulator is not reachable from the daemonized server.
+- **Kitty and GNU screen windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback and a screen session owns no window.
+- **zellij windows:** Window activation is Linux only and needs exactly one attached client; with several clients, or a `zellij watch` client, Fleet cannot tell which window shows the pane and reports activation unavailable. Elsewhere zellij activation is unavailable.
 - **GNU screen and zellij with several displays or clients:** GNU screen switches only the most recently attached display, and zellij moves only the client that most recently received input; other displays and clients keep their own window or pane. Both need an attached display or client: a detached session reports a failed selection.
-- **zellij socket directory:** Fleet runs `zellij --session` with its own environment, so it finds a session only when its `ZELLIJ_SOCKET_DIR` matches the session's. Sessions started with a custom `ZELLIJ_SOCKET_DIR` report a failed selection instead of a guess.
+- **zellij socket directory:** Every zellij call targets the session's socket directory: on Linux it is derived from the zellij server's command line, otherwise the `ZELLIJ_SOCKET_DIR` captured at hook time is used, and without either zellij's default applies. A session that cannot be found reports which socket directory was searched.
 - **zellij selection proof:** Selection succeeds only when a client that was elsewhere moves to the pane, or when every attached client already showed it ("pane already focused"). An idle client that already showed the pane while the active client did not move is a failure.
 - **Generic fallback:** Unknown terminals get no selection or window raise; the earlier best-effort raise could activate an unrelated window and was removed.
 

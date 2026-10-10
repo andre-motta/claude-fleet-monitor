@@ -6,9 +6,14 @@ drives it through private PTY clients, and selects duplicate-title panes in two
 tabs through ZellijAPI with list-clients readback plus keystroke routing as
 independent confirmation. A decoy background session in the same private
 socket directory checks that --session wins over ZELLIJ_SESSION_NAME and that
-zero attached clients is reported as a failure. It never touches the default
-socket directory, user config or cache, makes no KWin, qdbus or xdotool calls,
-and only signals processes it started (PID plus kernel start time).
+zero attached clients is reported as a failure. Parent activation maps the
+pane's server to its one attached PTY client through socket peers and routes
+to an instrumented parent; a second client and a `zellij watch` client must be
+refused. Selection is also run with the monitor's own ZELLIJ_SOCKET_DIR unset,
+proving the captured and server-derived socket directories. It never touches
+the default socket directory, user config or cache, makes no KWin, qdbus or
+xdotool calls, and only signals processes it started (PID plus kernel start
+time).
 """
 
 import argparse
@@ -18,6 +23,7 @@ import os
 from pathlib import Path
 import secrets
 import shutil
+import signal
 import sys
 import tempfile
 import time
@@ -40,6 +46,7 @@ from probe_terminals import (
 )
 
 from claude_fleet_monitor.terminal_apis import tmux, zellij
+from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -48,14 +55,26 @@ LEGACY_DETAIL = (
     "session recorded before zellij pane capture; restart the agent"
     " session to enable selection"
 )
-HASHED = ("src/claude_fleet_monitor/terminal_apis/zellij.py", "validation/zellij.py")
+HASHED = (
+    "src/claude_fleet_monitor/terminal_apis/zellij.py",
+    "src/claude_fleet_monitor/terminal_apis/_unix_peers.py",
+    "validation/zellij.py",
+)
 PANES = ("0", "1", "2")
 SELECTION_ORDER = ("1", "2", "0", "1")
-ISOLATION_KEYS = ("ZELLIJ_SOCKET_DIR", "ZELLIJ_CONFIG_DIR", "XDG_CACHE_HOME", "XDG_DATA_HOME")
+ISOLATION_KEYS = ("ZELLIJ_SOCKET_DIR", "ZELLIJ_CONFIG_DIR", "XDG_CACHE_HOME", "XDG_DATA_HOME",
+                  "XDG_RUNTIME_DIR", "TMPDIR")
 GUI_ACTIVATION = (
-    "unavailable: client PIDs are not discoverable through the zellij CLI and the "
-    "agent PID ancestry ends at the daemonized server, so no parent emulator is "
-    "reachable; no KWin, qdbus or xdotool calls were made")
+    "Linux only, exactly one attached client: the agent's ancestry reaches the daemonized "
+    "server, whose accepted sockets are mapped to client PIDs with a sock_diag netlink dump "
+    "plus /proc/<pid>/fd links; the one interactive client's ancestry gives the parent "
+    "emulator. Validated against an instrumented parent; no KWin, qdbus or xdotool calls "
+    "were made")
+PARENT_RULE = (
+    "activation is claimed only when list-clients shows one client and exactly one "
+    "interactive peer process (not `action`, not `watch`, with a controlling tty) is "
+    "connected; several clients, a watcher or any mismatch is refused, and the client's "
+    "start time must be unchanged before and after parent activation")
 
 
 class Check(Exception):
@@ -91,12 +110,14 @@ def isolated_env(root):
         "ZELLIJ_CONFIG_DIR": str(root / "cfg"),
         "XDG_CACHE_HOME": str(root / "cache"),
         "XDG_DATA_HOME": str(root / "data"),
+        "XDG_RUNTIME_DIR": str(root / "xdg"),
+        "TMPDIR": str(root / "tmp"),
     })
     return env
 
 
 def write_fixture(root):
-    for name in ("sock", "cfg", "cache", "data", "cwd", "io"):
+    for name in ("sock", "cfg", "cache", "data", "xdg", "tmp", "cwd", "io"):
         (root / name).mkdir(parents=True, mode=0o700)
     (root / "cfg" / "config.kdl").write_text(
         "show_startup_tips false\nshow_release_notes false\nsession_serialization false\n")
@@ -136,8 +157,11 @@ class Session:
 def captured_env(io_dir, pane):
     """Run ZellijAPI.capture_env against the env a real pane received."""
     child = read_env_file(io_dir / f"env-{pane}")
-    names = ("ZELLIJ", "ZELLIJ_SESSION_NAME", "ZELLIJ_PANE_ID")
+    names = ("ZELLIJ", "ZELLIJ_SESSION_NAME", "ZELLIJ_PANE_ID", "ZELLIJ_SOCKET_DIR")
     with patch.dict(os.environ, {name: child[name] for name in names if name in child}):
+        for name in names:
+            if name not in child:
+                os.environ.pop(name, None)
         return ZellijAPI.capture_env()
 
 
@@ -154,9 +178,80 @@ class SpyRun:
         self.calls = 0
         self.real = zellij._run
 
-    def __call__(self, argv):
+    def __call__(self, argv, env=None):
         self.calls += 1
-        return self.real(argv)
+        return self.real(argv, env)
+
+
+class InstrumentedParent(TerminalAPI):
+    """Stands in for the client's emulator; records routing, never raises a window."""
+
+    name = "instrumented"
+    selection_supported = False
+
+    def __init__(self):
+        self.calls = []
+
+    @staticmethod
+    def detect():
+        return False
+
+    @staticmethod
+    def capture_env():
+        return {}
+
+    def detect_from(self, pid):
+        self.calls.append(("detect", pid))
+        return self
+
+    def find_tab(self, pid, env):
+        return None
+
+    def find_activation_target(self, pid, env, tab_id):
+        self.calls.append(("target", pid))
+        return "window"
+
+    def switch_tab(self, tab_id, env):
+        raise AssertionError("instrumented parent has no tabs")
+
+    def raise_window(self, tab_id, env):
+        self.calls.append(("raise", tab_id))
+        return True
+
+
+def activation_only(api, pid, env, client_pid):
+    """Run focus_result on a selection-free record so only activation runs."""
+    parent = InstrumentedParent()
+    record = {key: value for key, value in env.items() if key != "ZELLIJ_PANE_ID"}
+    with patch.object(tmux, "_detect_parent_terminal", parent.detect_from):
+        result = api.focus_result(pid, record)
+    return {
+        "attempted": result.activation.attempted,
+        "succeeded": result.activation.succeeded,
+        "detail": result.activation.detail,
+        "parent_calls": [[step, "client" if value == client_pid else str(value)]
+                         for step, value in parent.calls],
+    }
+
+
+def peer_count(server):
+    owners = zellij._unix_peers.peer_owners(server.pid, server.argv[2], "zellij")
+    return None if owners is None else len(owners)
+
+
+def stop_owned(pid, settled):
+    """Stop a client this run started; zellij watch ignores SIGTERM."""
+    for action in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.kill(pid, action)
+        except OSError:
+            pass
+        if wait_until(settled, 5):
+            return True
+    return False
+
+
+ROUTED = [["detect", "client"], ["target", "client"], ["raise", "window"]]
 
 
 def exercise(root, session, decoy, tracker, observations):
@@ -268,6 +363,30 @@ def exercise(root, session, decoy, tracker, observations):
                and not result.activation.succeeded, "focus_result was not an honest partial")
         typed_target(client, io_dir, "after-focus-result")
 
+        server = zellij._find_server(pids["0"])
+        expect(server is not None, "no zellij server found from the pane process")
+        started = time.perf_counter()
+        mapped = zellij._attached_client(server)
+        mapping_ms = round((time.perf_counter() - started) * 1000, 1)
+        real_parent = tmux._detect_parent_terminal(client.pid)
+        routed = activation_only(api, pids["0"], envs["0"], client.pid)
+        observations["single_client_activation"] = {
+            "server_socket_path": server.argv[2],
+            "server_argv_flag": server.argv[1],
+            "derived_socket_dir_matches": zellij._socket_dir(server, {})
+            == env["ZELLIJ_SOCKET_DIR"],
+            "mapped_client_is_pty_client": mapped.pid == client.pid,
+            "mapping_ms": mapping_ms,
+            "client_tty_nonzero": bool(zellij._unix_peers.controlling_tty(client.pid)),
+            "client_ancestry_parent_detected": getattr(real_parent, "name", None),
+            **routed,
+        }
+        expect(observations["single_client_activation"]["derived_socket_dir_matches"],
+               "socket dir derived from the server argv is not the private dir")
+        expect(mapped.pid == client.pid, "peer mapping did not find the PTY client")
+        expect(routed["succeeded"] and routed["parent_calls"] == ROUTED,
+               f"activation was not routed to the client's parent: {routed}")
+
         second = PtyClient(["zellij", "--config-dir", str(root / "cfg"), "attach", session],
                            env, str(root / "cwd"), tracker, "client")
         expect(wait_until(lambda: len(target.clients() or {}) == 2, 10),
@@ -290,6 +409,12 @@ def exercise(root, session, decoy, tracker, observations):
         expect(multi["selected"] and multi["second_client_keystroke_routed_to"] == [pane]
                and multi["first_client_keystroke_routed_to"] == ["0"],
                "two-client selection did not follow the most recent input client")
+
+        refused = activation_only(api, pids["0"], envs["0"], client.pid)
+        refused["peer_processes"] = peer_count(server)
+        observations["two_clients_activation"] = refused
+        expect(not refused["attempted"] and refused["detail"] == zellij.SEVERAL_CLIENTS
+               and refused["parent_calls"] == [], "two attached clients were not refused")
 
         def stale(pane_id, env_for):
             rows = target.clients()
@@ -315,6 +440,58 @@ def exercise(root, session, decoy, tracker, observations):
             **zero, "decoy_clients_before": decoy_before, "decoy_clients_after": other.clients()}
         expect(not zero["selected"] and zero["detail"] == "no attached zellij client",
                "zero attached clients was not reported")
+
+        expect(stop_owned(second.pid, lambda: len(target.clients() or {}) == 1
+                          and peer_count(server) == 1), "second client did not detach")
+        watcher = PtyClient(["zellij", "--config-dir", str(root / "cfg"), "watch", session],
+                            env, str(root / "cwd"), tracker, "watcher")
+        expect(wait_until(lambda: peer_count(server) == 2, 10), "watcher did not connect")
+        tracker.sweep()
+        watched = activation_only(api, pids["0"], envs["0"], client.pid)
+        watched["list_clients_rows"] = len(target.clients() or {})
+        watched["peer_processes"] = peer_count(server)
+        observations["watcher_activation"] = watched
+        expect(not watched["attempted"] and watched["detail"] == zellij.WATCHER
+               and watched["parent_calls"] == [] and watched["list_clients_rows"] == 1,
+               "a watch client was not refused")
+        expect(stop_owned(watcher.pid, lambda: peer_count(server) == 1), "watcher did not exit")
+
+        socket_dir_checks(api, client, io_dir, pids, envs, env, observations)
+
+
+def socket_dir_checks(api, client, io_dir, pids, envs, env, observations):
+    """Selection with the monitor's ZELLIJ_SOCKET_DIR unset and an empty default dir."""
+    expect(envs["1"].get("ZELLIJ_SOCKET_DIR") == env["ZELLIJ_SOCKET_DIR"],
+           "capture_env did not record the custom socket dir")
+    bare = {pane: {key: value for key, value in envs[pane].items()
+                   if key != "ZELLIJ_SOCKET_DIR"} for pane in envs}
+    with patch.dict(os.environ):
+        os.environ.pop("ZELLIJ_SOCKET_DIR", None)
+        control = failure_detail(api.switch_tab, "1", bare["1"])
+        expect(not control["selected"] and "default socket dir" in (control["detail"] or ""),
+               f"a bare record reached the private session: {control}")
+        captured = failure_detail(api.switch_tab, "1", envs["1"])
+        captured["keystroke_routed_to"] = typed_target(client, io_dir, "captured-dir")
+        expect(captured["selected"] and captured["keystroke_routed_to"] == ["1"],
+               "captured custom socket dir did not select the pane")
+        parent = InstrumentedParent()
+        with patch.object(tmux, "_detect_parent_terminal", parent.detect_from):
+            result = api.focus_result(pids["0"], bare["0"])
+        derived = {
+            "selected": result.selection.succeeded,
+            "selection_detail": result.selection.detail,
+            "activation_succeeded": result.activation.succeeded,
+            "keystroke_routed_to": typed_target(client, io_dir, "derived-dir"),
+        }
+        expect(derived["selected"] and derived["activation_succeeded"]
+               and derived["keystroke_routed_to"] == ["0"],
+               f"server-derived socket dir did not select and route: {derived}")
+    observations["socket_dir"] = {
+        "monitor_socket_dir_unset": True,
+        "bare_record_control": control,
+        "captured_custom_dir": captured,
+        "derived_from_server_argv": derived,
+    }
 
 
 def cleanup(root, sessions, tracker):
@@ -380,11 +557,14 @@ def validate(write=True, output=EVIDENCE):
             "success requires list-clients to show the target pane for at least one client; "
             "focus-pane-id moves only the client that most recently sent input"),
         "gui_activation": GUI_ACTIVATION,
+        "parent_activation_rule": PARENT_RULE,
         **observations,
         "cleanup": cleanup_result,
         "user_config_unchanged": config_snapshot() == config_before,
         "user_zellij_cache_entries_for_run": zellij_cache_mentions(token),
-        "socket_dir": "private temporary ZELLIJ_SOCKET_DIR for every zellij invocation",
+        "socket_dir_isolation": (
+            "private temporary ZELLIJ_SOCKET_DIR, XDG_RUNTIME_DIR and TMPDIR for every zellij "
+            "invocation; the default-dir control resolves inside the private XDG_RUNTIME_DIR"),
         "kwin_calls": 0,
         "duration_seconds": round(time.monotonic() - started, 1),
         "platform": platform_facts(),
