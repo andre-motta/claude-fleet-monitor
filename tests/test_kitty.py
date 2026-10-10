@@ -1,5 +1,6 @@
 import json
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -104,7 +105,20 @@ def test_capture_env_reads_only_valid_values_without_processes(monkeypatch):
     monkeypatch.setenv("KITTY_PID", "4242")
     monkeypatch.setenv("KITTY_PUBLIC_KEY", "secret")
 
-    assert KittyAPI.capture_env() == {"KITTY_WINDOW_ID": "7", "KITTY_LISTEN_ON": ADDRESS}
+    assert KittyAPI.capture_env() == {
+        "KITTY_WINDOW_ID": "7",
+        "KITTY_LISTEN_ON": ADDRESS,
+        "KITTY_PID": "4242",
+    }
+
+
+@pytest.mark.parametrize("value", ["", "0x10", "-5", "12 ", "4242;rm", "1" * 13])
+def test_capture_env_omits_invalid_kitty_pid(monkeypatch, value):
+    clear_terminal_markers(monkeypatch)
+    monkeypatch.setenv("KITTY_WINDOW_ID", "7")
+    monkeypatch.setenv("KITTY_PID", value)
+
+    assert KittyAPI.capture_env() == {"KITTY_WINDOW_ID": "7"}
 
 
 def test_capture_env_accepts_abstract_socket(monkeypatch):
@@ -217,7 +231,7 @@ def test_selection_succeeds_only_on_active_tab_and_window_readback(monkeypatch, 
     assert result.state == "partial"
     assert result.selection.succeeded
     assert not result.activation.attempted
-    assert result.activation.detail == "backend does not support window activation"
+    assert result.activation.detail == kitty.KITTY_PID_MISSING
 
 
 def test_kitty_at_is_used_when_kitten_is_missing(monkeypatch, tools):
@@ -477,15 +491,14 @@ def test_error_detail_strips_control_characters(monkeypatch, tools):
     assert len(detail) <= 120
 
 
-def test_activation_is_never_claimed(monkeypatch, tools):
-    fake = _fake(monkeypatch, FakeKitty())
+def test_capabilities_claim_activation_but_not_as_a_parent():
     api = KittyAPI()
 
     assert api.selection_supported
-    assert not api.activation_supported
+    assert api.activation_supported
+    assert not api.activation_before_selection
     assert not api.deferred_selection_readback
-    assert not api.raise_window("2", dict(KITTY_ENV))
-    assert fake.calls == []
+    assert not api.parent_activation_supported
     assert api.name == "kitty"
 
 
@@ -495,3 +508,297 @@ def test_boolean_window_id_in_readback_is_not_the_target(monkeypatch, tools):
 
     with pytest.raises(RuntimeError, match="no longer exists"):
         KittyAPI().switch_tab("1", {"KITTY_WINDOW_ID": "1", "KITTY_LISTEN_ON": ADDRESS})
+
+
+KITTY_PID = 500
+ACTIVATION_ENV = {**KITTY_ENV, "KITTY_PID": str(KITTY_PID)}
+QDBUS = "/usr/bin/qdbus-qt6"
+
+
+def _process(pid, ppid, name):
+    return SimpleNamespace(pid=pid, ppid=ppid, name=name)
+
+
+class FakeDesktop(FakeKitty):
+    """One kitty process whose OS window focus follows a fake KWin activation."""
+
+    def __init__(self, os_windows=1, focused=False, confirms=True, accepts=True,
+                 focus_delay=0):
+        listing = _listing()
+        listing[0]["is_focused"] = focused
+        for extra in range(2, os_windows + 1):
+            listing.append({"id": extra, "is_focused": False, "tabs": []})
+        super().__init__(listing=listing)
+        self.confirms = confirms
+        self.accepts = accepts
+        self.focus_delay = focus_delay
+        self.kwin = []
+        self.order = []
+
+    def __call__(self, argv):
+        self.order.append(argv[-1] if argv[-1] == "ls" else argv[4])
+        if argv[-1] == "ls" and self.kwin and self.accepts:
+            if self.focus_delay:
+                self.focus_delay -= 1
+            else:
+                self.listing[0]["is_focused"] = True
+        return super().__call__(argv)
+
+    def activate(self, executable, owner_pid, **kwargs):
+        self.order.append("kwin")
+        self.kwin.append((executable, owner_pid, kwargs))
+        if isinstance(self.confirms, Exception):
+            raise self.confirms
+        return self.confirms
+
+
+@pytest.fixture
+def desktop(monkeypatch, tools):
+    def install(**kwargs):
+        fake = FakeDesktop(**kwargs)
+        _fake(monkeypatch, fake)
+        monkeypatch.setattr(kitty, "activate_owned_window", fake.activate)
+        return fake
+
+    tree = {
+        10: _process(10, 9, "claude"),
+        9: _process(9, KITTY_PID, "bash"),
+        KITTY_PID: _process(KITTY_PID, 1, "kitty"),
+    }
+    monkeypatch.setattr(kitty.discovery, "get_process_info", tree.get)
+    monkeypatch.setattr(kitty, "resolve_qdbus", lambda: QDBUS)
+    monkeypatch.setattr(kitty, "kwin_available", lambda executable: True)
+    monkeypatch.setattr(kitty, "ACTIVATION_SETTLE_SECONDS", 0)
+    install.tree = tree
+    return install
+
+
+def test_activation_confirmed_by_kitty_focus_readback(desktop):
+    fake = desktop()
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert result.state == "complete"
+    assert result.selection.succeeded
+    assert result.activation.succeeded
+    assert result.activation.detail == "window activation"
+    assert fake.order == ["ls", "focus-window", "ls", "ls", "kwin", "ls"]
+    assert fake.kwin == [
+        (QDBUS, KITTY_PID, {"plugin_prefix": "claude-fleet-kitty", "report": True})
+    ]
+
+
+def test_activation_waits_for_late_focus(desktop, monkeypatch):
+    monkeypatch.setattr(kitty, "ACTIVATION_SETTLE_SECONDS", 5)
+    monkeypatch.setattr(kitty, "ACTIVATION_POLL_SECONDS", 0)
+    fake = desktop(focus_delay=2)
+
+    assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert fake.order == ["ls", "kwin", "ls", "ls", "ls"]
+
+
+def test_refused_activation_times_out_with_detail(desktop):
+    fake = desktop(accepts=False)
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert result.state == "partial"
+    assert result.activation.attempted and not result.activation.succeeded
+    assert result.activation.detail == (
+        "kitty did not report its OS window focused within 0s (KWin focus"
+        " stealing prevention may have refused it)"
+    )
+    assert len(fake.kwin) == 1
+
+
+def test_unconfirmed_kwin_activation_fails_without_readback(desktop):
+    fake = desktop(confirms=False)
+
+    with pytest.raises(RuntimeError, match=(
+        "^KWin did not confirm a single normal window owned by kitty process 500$"
+    )):
+        KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert fake.order == ["ls", "kwin"]
+
+
+def test_stale_focus_without_kwin_window_is_not_activation(desktop):
+    fake = desktop(focused=True, confirms=False)
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert fake.listing[0]["is_focused"] is True
+    assert not result.activation.succeeded
+    assert "KWin did not confirm" in result.activation.detail
+
+
+def test_already_focused_window_confirmed_by_kwin_succeeds(desktop):
+    fake = desktop(focused=True)
+
+    assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert len(fake.kwin) == 1
+
+
+def test_kwin_script_failure_is_named(desktop):
+    desktop(confirms=kitty.KWinScriptError("KWin script could not be loaded"))
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert result.activation.attempted
+    assert result.activation.detail == "KWin script could not be loaded"
+
+
+def test_missing_kitty_pid_never_reaches_kwin(desktop):
+    fake = desktop()
+
+    result = KittyAPI().focus_result(10, dict(KITTY_ENV))
+
+    assert result.selection.succeeded
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "kitty process id was not captured; restart the agent session to enable"
+        " kitty window activation"
+    )
+    assert fake.kwin == []
+
+
+@pytest.mark.parametrize(
+    "tree_update",
+    [
+        {9: _process(9, 77, "bash"), 77: _process(77, 1, "konsole")},
+        {KITTY_PID: _process(KITTY_PID, 1, "konsole")},
+        {9: None},
+        {9: _process(9, 10, "bash")},
+    ],
+    ids=["not-ancestor", "not-kitty", "vanished", "cycle"],
+)
+def test_leaked_kitty_pid_is_rejected(desktop, tree_update):
+    fake = desktop()
+    desktop.tree.update(tree_update)
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "captured kitty process is not an ancestor of the session (kitty"
+        " variables may have leaked from another terminal)"
+    )
+    assert fake.kwin == []
+
+
+def test_session_pid_equal_to_kitty_pid_is_rejected(desktop):
+    assert not kitty._is_kitty_ancestor(KITTY_PID, KITTY_PID)
+    assert not kitty._is_kitty_ancestor(True, KITTY_PID)
+    assert kitty._is_kitty_ancestor(10, KITTY_PID)
+
+
+def test_ancestor_walk_is_bounded(monkeypatch):
+    monkeypatch.setattr(
+        kitty.discovery,
+        "get_process_info",
+        lambda pid: _process(pid, pid + 1, "bash"),
+    )
+
+    assert not kitty._is_kitty_ancestor(10, 10_000)
+
+
+def test_ancestor_lookup_errors_are_rejection(monkeypatch):
+    def broken(pid):
+        raise OSError("gone")
+
+    monkeypatch.setattr(kitty.discovery, "get_process_info", broken)
+
+    assert not kitty._is_kitty_ancestor(10, KITTY_PID)
+
+
+def test_multiple_os_windows_are_ambiguous(desktop):
+    fake = desktop(os_windows=2)
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert result.selection.succeeded
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "kitty process has 2 OS windows and KWin cannot tell them apart;"
+        " activation needs one OS window per kitty process"
+    )
+    assert fake.kwin == []
+
+
+def test_os_window_added_after_lookup_stops_before_kwin(desktop):
+    fake = desktop()
+    fake.listing.append({"id": 9, "is_focused": False, "tabs": []})
+
+    with pytest.raises(RuntimeError, match="has 2 OS windows"):
+        KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert fake.kwin == []
+
+
+def test_target_missing_from_single_os_window_is_unavailable(desktop):
+    fake = desktop()
+
+    result = KittyAPI().focus_result(10, {**ACTIVATION_ENV, "KITTY_WINDOW_ID": "8"})
+
+    assert not result.activation.attempted
+    assert result.activation.detail == "kitty ls readback: target window no longer exists"
+    assert fake.kwin == []
+
+
+def test_without_qdbus_activation_is_unavailable(desktop, monkeypatch):
+    fake = desktop()
+    monkeypatch.setattr(kitty, "resolve_qdbus", lambda: None)
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert result.state == "partial"
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "kitty window activation needs KDE Plasma KWin; qdbus not found"
+    )
+    assert fake.kwin == []
+
+
+def test_without_kwin_activation_is_unavailable(desktop, monkeypatch):
+    fake = desktop()
+    monkeypatch.setattr(kitty, "kwin_available", lambda executable: False)
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "kitty window activation needs KDE Plasma KWin; KWin is not running on"
+        " the session bus"
+    )
+    assert fake.kwin == []
+
+
+def test_activation_lookup_reports_ls_failure(desktop):
+    fake = desktop()
+    fake.ls_result = _done([], 1, "", "Error: Failed to connect to unix:/x: refused")
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "kitty ls: remote control socket refused or missing (kitty closed or"
+        " remote control off)"
+    )
+
+
+@pytest.mark.parametrize(
+    "target", ["2", "500:", ":2", "500:2:1", "-1:2", "500:2 ", None, 500, "1" * 13 + ":2"]
+)
+def test_raise_window_rejects_malformed_targets(desktop, target):
+    fake = desktop()
+
+    assert not KittyAPI().raise_window(target, dict(ACTIVATION_ENV))
+    assert fake.calls == [] and fake.kwin == []
+
+
+def test_remote_control_off_reports_activation_unavailable(desktop):
+    fake = desktop()
+
+    result = KittyAPI().focus_result(10, {"KITTY_WINDOW_ID": "2", "KITTY_PID": "500"})
+
+    assert not result.activation.attempted
+    assert result.activation.detail == kitty.REMOTE_CONTROL_UNAVAILABLE
+    assert fake.calls == [] and fake.kwin == []

@@ -30,7 +30,10 @@ from claude_fleet_monitor.models import FocusResult
 from claude_fleet_monitor.terminal_apis import _unix_peers, tmux
 from claude_fleet_monitor.terminal_apis._env import bounded_env, is_decimal_id
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
-from claude_fleet_monitor.terminal_apis.parent import activate_parent
+from claude_fleet_monitor.terminal_apis.parent import (
+    activate_parent,
+    parent_activation_supported,
+)
 
 SOCKET_DIR_KEY = "ZELLIJ_SOCKET_DIR"
 ENV_KEYS = ("ZELLIJ", "ZELLIJ_SESSION_NAME", "ZELLIJ_PANE_ID", SOCKET_DIR_KEY)
@@ -432,7 +435,7 @@ class ZellijAPI(TerminalAPI):
             raise RuntimeError(CLIENT_GONE)
         if parent is None:
             raise RuntimeError(NO_PARENT)
-        if not getattr(parent, "activation_supported", True):
+        if not parent_activation_supported(parent):
             raise RuntimeError(
                 f"parent terminal {parent.name} does not support window activation"
             )

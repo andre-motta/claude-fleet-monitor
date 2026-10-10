@@ -2,19 +2,39 @@
 
 Selection needs kitty started with allow_remote_control (socket-only is
 recommended) and listen_on. Fleet never edits kitty.conf. Only unix socket
-addresses are used; tcp and fd addresses are rejected. Window activation is
-not claimed because kitty offers no independent OS focus readback.
+addresses are used; tcp and fd addresses are rejected.
+
+Window activation needs KDE Plasma: KWin activates the single normal window
+owned by the captured KITTY_PID, and only kitty's own is_focused readback for
+that OS window confirms it. KWin cannot tell two OS windows of one kitty
+process apart, so such processes are never activated.
 """
 
 import json
+import re
 import shutil
 import subprocess
+import time
 
+from claude_fleet_monitor import discovery
 from claude_fleet_monitor.terminal_apis._env import bounded_env, is_decimal_id
+from claude_fleet_monitor.terminal_apis._kwin import (
+    activate_owned_window,
+    kwin_available,
+)
+from claude_fleet_monitor.terminal_apis._qdbus import KWinScriptError, resolve_qdbus
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
-ENV_KEYS = ("KITTY_WINDOW_ID", "KITTY_LISTEN_ON")
+ENV_KEYS = ("KITTY_WINDOW_ID", "KITTY_LISTEN_ON", "KITTY_PID")
 TIMEOUT = 5
+ACTIVATION_SETTLE_SECONDS = 1.0
+ACTIVATION_POLL_SECONDS = 0.05
+_MAX_ANCESTORS = 64
+_ACTIVATION_TARGET = re.compile(r"^(\d{1,12}):(\d{1,12})$")
+KITTY_PID_MISSING = (
+    "kitty process id was not captured; restart the agent session to enable"
+    " kitty window activation"
+)
 _STDERR_LIMIT = 80
 REMOTE_CONTROL_UNAVAILABLE = (
     "kitty remote control unavailable: needs allow_remote_control and a unix:"
@@ -109,6 +129,65 @@ def _address(terminal_env) -> str:
     return address
 
 
+def _is_kitty_ancestor(pid, kitty_pid: int) -> bool:
+    """Whether kitty_pid is a process named kitty above pid.
+
+    Guards against KITTY_* variables leaked into another terminal.
+    """
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 1:
+        return False
+    visited = set()
+    current = pid
+    for _ in range(_MAX_ANCESTORS):
+        if current <= 1 or current in visited:
+            return False
+        visited.add(current)
+        try:
+            process = discovery.get_process_info(current)
+        except Exception:
+            return False
+        if process is None:
+            return False
+        if current == kitty_pid:
+            return current != pid and process.name == "kitty"
+        if process.ppid is None:
+            return False
+        current = process.ppid
+    return False
+
+
+def _list(command: list[str], action: str):
+    listed = _run([*command, "ls"])
+    if listed is None or listed.returncode != 0:
+        raise RuntimeError(_failure(action, listed))
+    try:
+        listing = json.loads(listed.stdout)
+    except ValueError:
+        raise RuntimeError("kitty ls readback returned malformed JSON") from None
+    if not isinstance(listing, list):
+        raise RuntimeError("kitty ls readback returned malformed JSON")
+    return listing
+
+
+def _single_os_window(listing, window_id: int) -> dict:
+    """Return the only OS window, which must contain window_id."""
+    if len(listing) != 1:
+        raise RuntimeError(
+            f"kitty process has {len(listing)} OS windows and KWin cannot tell"
+            " them apart; activation needs one OS window per kitty process"
+        )
+    try:
+        found = _locate(listing, window_id)
+    except (ValueError, TypeError, KeyError):
+        raise RuntimeError("kitty ls readback returned malformed JSON") from None
+    if found is None:
+        raise RuntimeError("kitty ls readback: target window no longer exists")
+    os_window = listing[0]
+    if not isinstance(os_window, dict):
+        raise RuntimeError("kitty ls readback returned malformed JSON")
+    return os_window
+
+
 def _locate(listing, window_id: int):
     if not isinstance(listing, list):
         raise ValueError("listing is not a list")
@@ -122,7 +201,8 @@ def _locate(listing, window_id: int):
 
 class KittyAPI(TerminalAPI):
     name = "kitty"
-    activation_supported = False
+    # A multiplexer client env carries no KITTY_LISTEN_ON or KITTY_PID.
+    parent_activation_supported = False
 
     @staticmethod
     def detect() -> bool:
@@ -135,6 +215,8 @@ class KittyAPI(TerminalAPI):
             captured.pop("KITTY_WINDOW_ID", None)
         if not is_listen_address(captured.get("KITTY_LISTEN_ON")):
             captured.pop("KITTY_LISTEN_ON", None)
+        if not is_decimal_id(captured.get("KITTY_PID")):
+            captured.pop("KITTY_PID", None)
         return captured
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
@@ -171,5 +253,76 @@ class KittyAPI(TerminalAPI):
             "kitty ls readback: target window is not active in the active tab"
         )
 
+    def find_activation_target(
+        self, pid: int, terminal_env: dict, tab_id: str | None
+    ) -> str | None:
+        """Check every activation precondition before any KWin call."""
+        if not isinstance(terminal_env, dict):
+            return None
+        window_id = terminal_env.get("KITTY_WINDOW_ID")
+        if not is_decimal_id(window_id):
+            raise LookupError("kitty window id was not captured")
+        address = _address(terminal_env)
+        kitty_pid = terminal_env.get("KITTY_PID")
+        if not is_decimal_id(kitty_pid):
+            raise LookupError(KITTY_PID_MISSING)
+        if not _is_kitty_ancestor(pid, int(kitty_pid)):
+            raise LookupError(
+                "captured kitty process is not an ancestor of the session"
+                " (kitty variables may have leaked from another terminal)"
+            )
+        executable = resolve_qdbus()
+        if not executable:
+            raise LookupError(
+                "kitty window activation needs KDE Plasma KWin; qdbus not found"
+            )
+        if not kwin_available(executable):
+            raise LookupError(
+                "kitty window activation needs KDE Plasma KWin; KWin is not"
+                " running on the session bus"
+            )
+        command = [*_remote_command(), "--to", address]
+        try:
+            _single_os_window(_list(command, "ls"), int(window_id))
+        except RuntimeError as error:
+            raise LookupError(str(error)) from None
+        return f"{int(kitty_pid)}:{int(window_id)}"
+
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
-        return False
+        match = _ACTIVATION_TARGET.fullmatch(tab_id) if isinstance(tab_id, str) else None
+        if match is None:
+            return False
+        kitty_pid, window_id = int(match.group(1)), int(match.group(2))
+        address = _address(terminal_env)
+        executable = resolve_qdbus()
+        if not executable:
+            raise RuntimeError("qdbus is not available")
+        command = [*_remote_command(), "--to", address]
+        _single_os_window(_list(command, "ls"), window_id)
+        try:
+            confirmed = activate_owned_window(
+                executable,
+                kitty_pid,
+                plugin_prefix="claude-fleet-kitty",
+                report=True,
+            )
+        except KWinScriptError as error:
+            raise RuntimeError(str(error)) from None
+        if not confirmed:
+            raise RuntimeError(
+                f"KWin did not confirm a single normal window owned by kitty"
+                f" process {kitty_pid}"
+            )
+        deadline = time.monotonic() + ACTIVATION_SETTLE_SECONDS
+        while True:
+            os_window = _single_os_window(_list(command, "ls readback"), window_id)
+            if os_window.get("is_focused") is True:
+                return True
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(ACTIVATION_POLL_SECONDS)
+        raise RuntimeError(
+            f"kitty did not report its OS window focused within"
+            f" {ACTIVATION_SETTLE_SECONDS:g}s (KWin focus stealing prevention"
+            " may have refused it)"
+        )
