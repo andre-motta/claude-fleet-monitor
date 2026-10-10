@@ -6,6 +6,7 @@ observe; the unload is visible through isScriptLoaded.
 """
 
 import json
+import re
 import time
 import uuid
 
@@ -45,6 +46,7 @@ if (matches.length === 1) {
     workspace.activeWindow = matches[0];
 __REPORT__}
 """
+_PLACEHOLDER = re.compile(r"__(TITLES|OWNER|NORMAL_ONLY|REPORT)__")
 _REPORT = (
     '    callDBus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting",'
     ' "unloadScript", __PLUGIN__);\n'
@@ -62,12 +64,14 @@ def activation_script(
     report = ""
     if report_plugin is not None:
         report = _REPORT.replace("__PLUGIN__", json.dumps(report_plugin))
-    return (
-        _SCRIPT.replace("__TITLES__", json.dumps(titles))
-        .replace("__OWNER__", json.dumps(owner_pid))
-        .replace("__NORMAL_ONLY__", json.dumps(normal_only))
-        .replace("__REPORT__", report)
-    )
+    values = {
+        "TITLES": json.dumps(titles),
+        "OWNER": json.dumps(owner_pid),
+        "NORMAL_ONLY": json.dumps(normal_only),
+        "REPORT": report,
+    }
+    # One pass, so placeholder names inside embedded values stay literal data.
+    return _PLACEHOLDER.sub(lambda match: values[match.group(1)], _SCRIPT)
 
 
 def kwin_available(executable: str) -> bool:

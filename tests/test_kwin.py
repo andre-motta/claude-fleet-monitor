@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from claude_fleet_monitor.terminal_apis import _kwin, _qdbus
+from claude_fleet_monitor.terminal_apis import _kwin, _qdbus, konsole
 
 QDBUS = "/usr/bin/qdbus-qt6"
 NODE = shutil.which("node")
@@ -268,3 +268,38 @@ def test_malicious_plugin_name_stays_data():
 
     assert result["active"] == "a"
     assert result["calls"][0][-1] == plugin
+
+
+MARKERS = ["__TITLES__", "__OWNER__", "__NORMAL_ONLY__", "__REPORT__", "__PLUGIN__"]
+
+
+@pytest.mark.parametrize("marker", MARKERS)
+def test_placeholder_names_in_values_stay_literal(marker):
+    title = f"x {marker} y"
+    plugin = f"p-{marker}"
+
+    script = _kwin.activation_script(7, [title], report_plugin=plugin)
+
+    assert f"var titles = {json.dumps([title])};" in script
+    assert "var owner = 7;" in script
+    assert "var normalOnly = true;" in script
+    assert script.count(json.dumps(plugin)) == 1
+    assert script.count("callDBus") == 1
+    assert konsole._kwin_activation_script([title], 7).splitlines()[1] == (
+        f"var titles = {json.dumps([title])};"
+    )
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+@pytest.mark.parametrize("marker", MARKERS)
+def test_script_matches_marker_titles_literally(marker):
+    windows = [
+        _window("literal", caption=f"{marker} — Konsole"),
+        _window("rewritten", caption="500 — Konsole"),
+        _window("rewritten-bool", caption="false — Konsole"),
+    ]
+
+    result = _run(_kwin.activation_script(500, [marker], normal_only=False), windows)
+
+    assert result["active"] == "literal"
+    assert result["calls"] == []
