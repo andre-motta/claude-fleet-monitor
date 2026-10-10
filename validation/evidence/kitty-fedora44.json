@@ -2,11 +2,12 @@
   "result": "pass",
   "kitty_version": "kitty 0.47.1",
   "install_source": "rpm kitty-0.47.1-1.fc44.x86_64",
-  "remote_control": "kitty --config NONE, allow_remote_control=socket-only, temporary unix listen_on; Fleet never edits kitty.conf",
+  "remote_control": "kitty --config NONE, allow_remote_control=socket-only, temporary unix listen_on (path and abstract); Fleet never edits kitty.conf",
   "capture": {
     "detect": true,
     "keys": [
       "KITTY_LISTEN_ON",
+      "KITTY_PID",
       "KITTY_WINDOW_ID"
     ],
     "window_ids_match": true,
@@ -30,16 +31,18 @@
       "active_before": [
         3
       ],
-      "state": "partial",
+      "state": "complete",
       "selection": {
         "attempted": true,
         "succeeded": true,
         "detail": "tab or pane selection"
       },
       "activation": {
-        "attempted": false,
-        "detail": "backend does not support window activation"
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
       },
+      "readback_os_window_focused": true,
       "readback_target_tab_active": true,
       "readback_target_window_active": true,
       "readback_same_tab_others_active": [
@@ -54,16 +57,18 @@
       "active_before": [
         1
       ],
-      "state": "partial",
+      "state": "complete",
       "selection": {
         "attempted": true,
         "succeeded": true,
         "detail": "tab or pane selection"
       },
       "activation": {
-        "attempted": false,
-        "detail": "backend does not support window activation"
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
       },
+      "readback_os_window_focused": true,
       "readback_target_tab_active": true,
       "readback_target_window_active": true,
       "readback_same_tab_others_active": [
@@ -78,16 +83,18 @@
       "active_before": [
         2
       ],
-      "state": "partial",
+      "state": "complete",
       "selection": {
         "attempted": true,
         "succeeded": true,
         "detail": "tab or pane selection"
       },
       "activation": {
-        "attempted": false,
-        "detail": "backend does not support window activation"
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
       },
+      "readback_os_window_focused": true,
       "readback_target_tab_active": true,
       "readback_target_window_active": true,
       "readback_same_tab_others_active": [],
@@ -100,16 +107,18 @@
       "active_before": [
         3
       ],
-      "state": "partial",
+      "state": "complete",
       "selection": {
         "attempted": true,
         "succeeded": true,
         "detail": "tab or pane selection"
       },
       "activation": {
-        "attempted": false,
-        "detail": "backend does not support window activation"
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
       },
+      "readback_os_window_focused": true,
       "readback_target_tab_active": true,
       "readback_target_window_active": true,
       "readback_same_tab_others_active": [
@@ -124,16 +133,18 @@
       "active_before": [
         1
       ],
-      "state": "partial",
+      "state": "complete",
       "selection": {
         "attempted": true,
         "succeeded": true,
         "detail": "tab or pane selection"
       },
       "activation": {
-        "attempted": false,
-        "detail": "backend does not support window activation"
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
       },
+      "readback_os_window_focused": true,
       "readback_target_tab_active": true,
       "readback_target_window_active": true,
       "readback_same_tab_others_active": [
@@ -165,12 +176,13 @@
   "remote_control_off": {
     "detect": true,
     "captured_keys": [
+      "KITTY_PID",
       "KITTY_WINDOW_ID"
     ],
     "socket_created": false,
     "state": "failed",
     "selection_attempted": false,
-    "selection_detail": "kitty remote control unavailable (allow_remote_control/listen_on not configured)",
+    "selection_detail": "kitty remote control unavailable: needs allow_remote_control and a unix: listen_on socket",
     "forced_address_exit": 1,
     "forced_address_stderr": "Error: Failed to connect to unix:<socket> with error: dial unix <socket>: connect: no such file or directory",
     "provenance": "live"
@@ -179,25 +191,214 @@
     "text": "Remote control is disabled. Add allow_remote_control to your kitty.conf",
     "provenance": "inspected: kitty 0.47.1 boss.py reply for tty or password routes; not reachable through an unconfigured socket because kitty then does not listen, which the remote_control_off case observes live"
   },
+  "two_os_windows_one_process": {
+    "os_windows": 2,
+    "selection_succeeded": true,
+    "activation": {
+      "attempted": false,
+      "succeeded": false,
+      "detail": "kitty process has 2 OS windows and KWin cannot tell them apart; activation needs one OS window per kitty process"
+    },
+    "kwin_scripts": 0
+  },
+  "preconditions": {
+    "kitty_pid_missing": {
+      "attempted": false,
+      "succeeded": false,
+      "detail": "kitty process id was not captured; restart the agent session to enable kitty window activation"
+    },
+    "kitty_pid_not_an_ancestor": {
+      "attempted": false,
+      "succeeded": false,
+      "detail": "captured kitty process is not an ancestor of the session (kitty variables may have leaked from another terminal)"
+    },
+    "kwin_scripts": 0
+  },
+  "hidden_os_window": {
+    "os_focus_before": true,
+    "selection_succeeded": true,
+    "activation": {
+      "attempted": true,
+      "succeeded": false,
+      "detail": "KWin did not confirm a single normal window owned by kitty process <kitty_pid>"
+    },
+    "kwin_scripts": 1,
+    "os_focus_after": true,
+    "meaning": "a hidden kitty may report is_focused true; activation must not be claimed unless KWin itself found and activated one window"
+  },
+  "activation_alternations": [
+    {
+      "target": "A",
+      "os_focus_before": {
+        "A": true,
+        "B": false
+      },
+      "state": "complete",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
+      },
+      "seconds": 0.08,
+      "kwin_scripts": 1,
+      "os_focus_after": {
+        "A": true,
+        "B": false
+      }
+    },
+    {
+      "target": "B",
+      "os_focus_before": {
+        "A": true,
+        "B": false
+      },
+      "state": "complete",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
+      },
+      "seconds": 0.07,
+      "kwin_scripts": 1,
+      "os_focus_after": {
+        "A": false,
+        "B": true
+      }
+    },
+    {
+      "target": "A",
+      "os_focus_before": {
+        "A": false,
+        "B": true
+      },
+      "state": "complete",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
+      },
+      "seconds": 0.07,
+      "kwin_scripts": 1,
+      "os_focus_after": {
+        "A": true,
+        "B": false
+      }
+    },
+    {
+      "target": "B",
+      "os_focus_before": {
+        "A": true,
+        "B": false
+      },
+      "state": "complete",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
+      },
+      "seconds": 0.08,
+      "kwin_scripts": 1,
+      "os_focus_after": {
+        "A": false,
+        "B": true
+      }
+    },
+    {
+      "target": "A",
+      "os_focus_before": {
+        "A": false,
+        "B": true
+      },
+      "state": "complete",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
+      },
+      "seconds": 0.07,
+      "kwin_scripts": 1,
+      "os_focus_after": {
+        "A": true,
+        "B": false
+      }
+    },
+    {
+      "target": "B",
+      "os_focus_before": {
+        "A": true,
+        "B": false
+      },
+      "state": "complete",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "window activation"
+      },
+      "seconds": 0.07,
+      "kwin_scripts": 1,
+      "os_focus_after": {
+        "A": false,
+        "B": true
+      }
+    }
+  ],
   "checks": {
     "capture": true,
     "duplicates": true,
     "selections": true,
     "failures_rejected": true,
-    "kitty_at_fallback": true
+    "kitty_at_fallback": true,
+    "activation_alternations": true,
+    "activation_refusals": true,
+    "hidden_not_claimed": true
   },
   "cleanup": {
-    "tracked": 7,
+    "tracked": 12,
     "survivors": 0,
     "marker_strays": 0
   },
-  "provenance": "live: disposable minimized kitty instances; env captured by KittyAPI inside each kitty window; selection by KittyAPI.focus_result; independent readback by kitten @ ls (tab and window is_active)",
+  "kwin": {
+    "scripts_run": 13,
+    "owner_pids_all_probe_kitty": true,
+    "non_probe_owner_refusals": 0,
+    "scripts_left_loaded": 0
+  },
+  "provenance": "live: disposable minimized and hidden kitty instances; env captured by KittyAPI inside each kitty window; selection and KWin activation by KittyAPI.focus_result; independent readback by kitten @ ls (tab and window is_active, OS window is_focused)",
   "evidence_kind": "live",
-  "gui_activation": "unverified: not claimed (activation_supported is False); no KWin, qdbus or xdotool calls",
-  "kwin_calls": 0,
+  "gui_activation": "verified on KDE Plasma: KWin activates the single normal window owned by the captured KITTY_PID, confirmed by the script's own unload signal and kitty's OS window is_focused readback; KWin scripts ran only for probe kitty pids; no xdotool calls",
   "user_config_unchanged": true,
   "marker_strays_after_run": 0,
-  "validation_date": "2026-10-09",
+  "validation_date": "2026-10-10",
   "platform": {
     "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
     "kernel_release": "7.2.7-200.fc44.x86_64",
@@ -205,10 +406,12 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "4c58e95121f678652dd5f6aa6689cad74ba3302f",
+  "tested_commit": "ef74387f1324026213fa9736fc6480dc3ef0a70f",
   "tested_files_modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/kitty.py": "ab912e92da9e9156dec250334a00b52851fe48d22d609c2e054cfe68c5f5aaf0",
-    "validation/kitty.py": "13f7cbc9979fa80b14ccbf9ecd659e9b2dd9b4ca03795627c69063f3be0153ce"
+    "src/claude_fleet_monitor/terminal_apis/kitty.py": "181ecba732909163c79f91724be509fd4eb5c8bf49eddc3e7c05173356b00407",
+    "src/claude_fleet_monitor/terminal_apis/_kwin.py": "0f8f4984efa81410e1680c20383320652417d6a2e5f51164ed4296cadbf59903",
+    "src/claude_fleet_monitor/terminal_apis/_qdbus.py": "49ca04326fefd6182957d119827a18130a4129996de25c9d98207df97de5ea45",
+    "validation/kitty.py": "bd47cabb2d1ad4757b42f6a1ebe22cbd44b820fe652fbab09364c8f131764098"
   }
 }
