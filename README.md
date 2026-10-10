@@ -64,7 +64,7 @@ with substituted OS calls), **inspected** (source or documentation only) and
 | **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked; as a tmux parent the Konsole service owned by the client's nearest ancestor is used (mocked) |
 | **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client; failures name the reason (no attached client, no parent emulator, unsupported or unconfirmed parent) | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked; failure details mocked |
 | **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client; custom socket dirs supported | Linux only, via parent terminal when exactly one client is attached (client found by its socket peer) | Yes | live: zellij 0.45.1 selection, custom and derived socket dirs, client mapping and refusals ([JSON](validation/evidence/zellij-fedora44.json)); floor 0.44.2, validator passing on 0.44.2 to 0.45.1 ([JSON](validation/evidence/zellij-version-floor-fedora44.json)); parent routing instrumented and mocked |
-| **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); window raise unverified |
+| **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | KDE Plasma only: KWin activates the single normal window owned by the captured `KITTY_PID`, confirmed by kitty's OS window `is_focused` readback; needs one OS window per kitty process and a session started after upgrading | -- | live: kitty 0.47.1 on Plasma Wayland, selection and window raise verified between two probe instances ([JSON](validation/evidence/kitty-fedora44.json)) |
 | **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires exactly one window-manager-managed window (minimized or on another desktop counts) owned by the Ghostty process the session descends from; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
 | **GNOME Terminal** | No | Exact owner window only: the single window-manager-managed window (minimized or on another desktop counts) of the session's gnome-terminal-server, X11 only (xdotool readback) | -- | mocked; not live-validated |
@@ -100,7 +100,8 @@ terminal emulator hosting a client that is attached to that pane. The
 structured result reports selection and activation separately, so a detached
 session or an unsupported parent gives an honest partial result. Kitty and
 Terminator stop the parent walk and report activation unsupported rather than
-climbing to whatever launched them. A zellij server is daemonized, so its
+climbing to whatever launched them (a multiplexer client carries no kitty
+socket or `KITTY_PID`, so kitty cannot raise its window as a parent). A zellij server is daemonized, so its
 ancestry never reaches a GUI. On Linux, Fleet instead finds the server in the
 agent's ancestry, maps its accepted sockets to client PIDs (a `sock_diag`
 netlink dump plus `/proc/<pid>/fd` links of your own `zellij` processes) and
@@ -162,6 +163,21 @@ abstract `@` sockets on shared hosts, and turn remote control off when you do
 not need it. Fleet only runs `ls` and `focus-window` and never sends a remote
 control password; if kitty requires one, focus reports the refusal instead of
 selecting.
+
+Kitty window raise works on KDE Plasma only and needs, besides remote control:
+
+- `KITTY_PID`, captured by the hook since this release. Sessions recorded
+  earlier report "restart the agent session to enable kitty window
+  activation".
+- The kitty process named by `KITTY_PID` must be an ancestor of the agent
+  process, which rejects kitty variables leaked into another terminal.
+- Exactly one OS window in that kitty process. KWin sees every OS window of a
+  kitty process (including `--single-instance` windows) under one pid and
+  cannot tell them apart, so focus then selects the tab but reports activation
+  unavailable.
+- qdbus and KWin on the session bus. KWin activates the single normal window
+  owned by `KITTY_PID`; success needs the script to confirm it found that
+  window and kitty to report the OS window focused within one second.
 
 ### Terminal detection limits
 
@@ -254,7 +270,7 @@ hook paths.
 - `textual` >= 1.0
 
 Optional (for terminal focus):
-- `qdbus`, `qdbus6` or `qdbus-qt6` -- Konsole tab switching and KWin activation (KDE)
+- `qdbus`, `qdbus6` or `qdbus-qt6` -- Konsole tab switching and KWin activation for Konsole and Kitty (KDE)
 - `xdotool` -- GNOME Terminal / X11 window focus
 - `kitten` or `kitty` with remote control enabled -- Kitty window selection
 - `zellij` and `screen` CLIs -- pane and window selection for those multiplexers
@@ -401,7 +417,8 @@ src/claude_fleet_monitor/
 - **Ghostty:** Window activation requires a single managed Ghostty window (minimized and other-desktop windows count) and an X11 readback; with several windows, or on Wayland without xdotool readback, activation fails with a detail and no Alt+N keys are sent. This path is mocked only.
 - **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
 - **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
-- **Kitty and GNU screen windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback and a screen session owns no window.
+- **Kitty windows:** Window raise is KDE Plasma (KWin) only and needs a single OS window per kitty process; other desktops, several OS windows (including `--single-instance`), and sessions recorded before `KITTY_PID` was captured report activation unavailable with the reason.
+- **GNU screen windows:** Selection is read back, but no GUI window activation is claimed. A screen session owns no window.
 - **zellij windows:** Window activation is Linux only and needs exactly one attached interactive client; with several clients, or a `zellij watch`, `zellij web` or other non-interactive zellij process connected, Fleet cannot tell which window shows the pane and reports activation unavailable. Elsewhere zellij activation is unavailable. Real GUI activation through the client's emulator is not live-validated yet: the live validator routes to an instrumented parent only.
 - **GNU screen and zellij with several displays or clients:** GNU screen switches only the most recently attached display, and zellij moves only the client that most recently received input; other displays and clients keep their own window or pane. Both need an attached display or client: a detached session reports a failed selection.
 - **zellij socket directory:** Every zellij call targets the session's socket directory: on Linux it is derived from the zellij server's command line, otherwise the `ZELLIJ_SOCKET_DIR` captured at hook time is used, and without either zellij's default applies. A session that cannot be found reports which socket directory was searched.

@@ -365,6 +365,46 @@ live probe on zellij 0.45.1 (Linux):
   xdotool call was made; real GUI activation through the client's emulator is
   covered by the existing parent adapters and still needs a hands-on check.
 
+### Kitty window activation (#49)
+
+[#49](https://github.com/andre-motta/claude-fleet-monitor/issues/49) replaces
+the earlier CTO decision that left kitty window raise unverified. Live probes
+on kitty 0.47.1 under KWin (Plasma Wayland) showed: `KITTY_PID` in every
+window equals the kitty GUI pid (also with `--single-instance` handoff and
+`launch --type=os-window`); KWin lists each OS window of that process with
+the same pid, so two OS windows are indistinguishable; after a KWin
+activation `kitten @ ls` reports the target OS window `is_focused` on the
+first poll, also for minimized targets; a refused focus leaves it false; and
+a `--start-as=hidden` kitty can report `is_focused` true with no window.
+
+- `terminal_apis/_kwin.py` is extracted from Konsole: pid filter, optional
+  normal-window and caption-title filters, exactly one match, un-minimize and
+  activate, values embedded as JSON. Konsole uses it with its caption rule
+  and without the normal-window filter, so its script and standalone
+  `focus_result` behave as before (its tests are unchanged).
+- KWin scripts have no return channel. A reporting script calls
+  `unloadScript` on its own plugin after activating; the caller polls
+  `isScriptLoaded` for up to 0.5 s before its own unload. False means KWin
+  found no single window (or could not report it), and activation is not
+  claimed.
+- Kitty captures `KITTY_PID` at hook time. At focus time activation is
+  unavailable, with the reason, unless `KITTY_PID` is captured, is a `kitty`
+  ancestor of the session pid (bounded, cycle-safe walk), qdbus and KWin are
+  on the session bus, and `kitten @ ls` lists exactly one OS window holding
+  `KITTY_WINDOW_ID`.
+- Order: selection (`focus-window` plus `is_active` readback, unchanged) then
+  activation. Activation re-checks the single OS window, runs the reporting
+  script, sets `raise_requested`, and succeeds only if the script confirmed
+  and kitty reports the OS window `is_focused` within 1 s. Requiring the KWin
+  confirmation covers the hidden-window case where `is_focused` is already
+  true.
+- Kitty stays an unsupported nested parent (`parent_activation_supported =
+  False`): tmux and zellij route with an empty env, which has no socket or
+  `KITTY_PID`.
+- Live: `validation/kitty.py` activates two probe instances alternately and
+  records refusals and the hidden case
+  ([JSON](../../validation/evidence/kitty-fedora44.json)).
+
 ### R9 combined local acceptance
 
 Run on 2026-10-09 in the R9 worktree on the integrated tree plus the R9
@@ -407,9 +447,10 @@ change, Fedora 44 KDE Plasma Wayland:
 
 - Windows Terminal: Win32 owner-window activation, which needs validation on a
   Windows host.
-- Kitty and WezTerm GUI activation through the shared KWin helper in
-  `terminal_apis/_qdbus.py` (extracted in F11; using it for Kitty or WezTerm
-  is not done and needs its own high-risk review).
+- WezTerm GUI activation through the shared KWin helper in
+  `terminal_apis/_kwin.py` (Kitty uses it since #49).
+- Kitty as a nested parent (tmux or zellij inside kitty): would need the
+  client's kitty socket and `KITTY_PID`, which parent routing does not have.
 - Zellij parent activation off Linux (no client PID route) and with several
   attached clients (no way to tell which window shows the pane).
 - Version floors: only one version of kitty and screen was validated;

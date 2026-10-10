@@ -179,16 +179,24 @@ python validation/kitty.py --out /tmp/kitty-validation.json
 ```
 
 This opens disposable minimized kitty windows with `--config NONE`,
-`allow_remote_control=socket-only` and a temporary unix `--listen-on`, plus one
-instance with remote control off. Environments are captured by the real
+`allow_remote_control=socket-only` and temporary unix `--listen-on` sockets
+(path and abstract), one hidden instance, and one instance with remote control
+off. Environments are captured by the real
 `KittyAPI` inside each kitty window. Duplicate-title windows and tabs are
 selected through `KittyAPI.focus_result` and confirmed independently with
 `kitten @ ls` (tab and window `is_active`; `is_focused` is not used). It also
 records stale-window, missing-socket and remote-control-off failures and the
 `kitty @` fallback when `kitten` is absent. Because it opens GUI windows, run
 it only on a desktop where that is acceptable; it closes every window it
-opened. The committed [evidence](evidence/kitty-fedora44.json) covers kitty
-0.47.1. Window activation is not claimed.
+opened. On KDE Plasma it also activates the two probe instances alternately
+through `KittyAPI.focus_result` (each probe window briefly takes focus) and
+confirms each raise with OS window `is_focused` on both instances; it records
+that two OS windows in one process, a missing `KITTY_PID` and a leaked
+`KITTY_PID` are refused before any KWin call, and that a hidden kitty
+reporting `is_focused` is not claimed. An interlock lets KWin scripts run only
+for probe kitty pids and the run fails if any script stays loaded. The
+committed [evidence](evidence/kitty-fedora44.json) covers kitty 0.47.1 on
+Plasma Wayland.
 
 ## GNU screen window selection on Linux
 
