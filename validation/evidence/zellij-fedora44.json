@@ -1,0 +1,173 @@
+{
+  "schema": "zellij-validation/1",
+  "result": "pass",
+  "error": null,
+  "zellij_version": "zellij 0.45.1",
+  "validated_versions": [
+    "0.45.1"
+  ],
+  "version_floor": "not established: only zellij 0.45.1 was probed and validated; the adapter gates on behavior (nonzero exit, unknown subcommand or unrecognized list-clients columns fail selection) rather than a version number",
+  "provenance": "live",
+  "provenance_detail": "real zellij server, panes and PTY clients in an isolated socket, config, cache and data directory; selection read back with list-clients and confirmed by keystroke routing",
+  "selection_argv": [
+    "zellij",
+    "--session",
+    "<session>",
+    "action",
+    "focus-pane-id",
+    "terminal_<ZELLIJ_PANE_ID>"
+  ],
+  "readback_argv": [
+    "zellij",
+    "--session",
+    "<session>",
+    "action",
+    "list-clients"
+  ],
+  "multi_client_rule": "success requires list-clients to show the target pane for at least one client; focus-pane-id moves only the client that most recently sent input",
+  "gui_activation": "unavailable: client PIDs are not discoverable through the zellij CLI and the agent PID ancestry ends at the daemonized server, so no parent emulator is reachable; no KWin, qdbus or xdotool calls were made",
+  "duplicate_targets": {
+    "terminal_panes": 3,
+    "titles": [
+      "dup"
+    ],
+    "tabs": 2,
+    "tab_names": [
+      "dup"
+    ],
+    "same_cwd": true
+  },
+  "capture_env_keys": [
+    "ZELLIJ",
+    "ZELLIJ_PANE_ID",
+    "ZELLIJ_SESSION_NAME"
+  ],
+  "pre_upgrade_record_detail": "record predates pane capture",
+  "injection_rejected_before_subprocess": true,
+  "before_any_client_input": {
+    "selected": false,
+    "detail": "no zellij client shows pane 1 after selection",
+    "client_pane": {
+      "1": "terminal_0"
+    }
+  },
+  "selections": [
+    {
+      "target": "1",
+      "tab": 1,
+      "selected": true,
+      "detail": null,
+      "list_clients_matches": true,
+      "keystroke_routed_to": [
+        "1"
+      ]
+    },
+    {
+      "target": "2",
+      "tab": 2,
+      "selected": true,
+      "detail": null,
+      "list_clients_matches": true,
+      "keystroke_routed_to": [
+        "2"
+      ]
+    },
+    {
+      "target": "0",
+      "tab": 1,
+      "selected": true,
+      "detail": null,
+      "list_clients_matches": true,
+      "keystroke_routed_to": [
+        "0"
+      ]
+    },
+    {
+      "target": "1",
+      "tab": 1,
+      "selected": true,
+      "detail": null,
+      "list_clients_matches": true,
+      "keystroke_routed_to": [
+        "1"
+      ]
+    }
+  ],
+  "session_flag_overrides_env": true,
+  "focus_result": {
+    "state": "partial",
+    "selection": {
+      "succeeded": true,
+      "detail": "tab or pane selection"
+    },
+    "activation": {
+      "succeeded": false,
+      "detail": "no parent terminal emulator found for zellij"
+    }
+  },
+  "two_clients": {
+    "selected": true,
+    "detail": null,
+    "target": "2",
+    "list_clients_before": {
+      "1": "terminal_0",
+      "2": "terminal_1"
+    },
+    "list_clients_after": {
+      "1": "terminal_0",
+      "2": "terminal_2"
+    },
+    "second_client_landed_on": [
+      "1"
+    ],
+    "second_client_keystroke_routed_to": [
+      "2"
+    ],
+    "first_client_keystroke_routed_to": [
+      "0"
+    ]
+  },
+  "stale_ids": {
+    "unknown_pane": {
+      "selected": false,
+      "detail": "zellij could not focus pane 99: CLI missing, timed out, unknown pane or unsupported version",
+      "clients_unchanged": true
+    },
+    "closed_pane": {
+      "selected": false,
+      "detail": "zellij could not focus pane 2: CLI missing, timed out, unknown pane or unsupported version",
+      "clients_unchanged": true
+    }
+  },
+  "zero_clients": {
+    "selected": false,
+    "detail": "no attached zellij client",
+    "decoy_clients_before": {},
+    "decoy_clients_after": {}
+  },
+  "cleanup": {
+    "tracked": 8,
+    "survivors": 0,
+    "marker_strays": 0,
+    "temp_dir_removed": true,
+    "marker_strays_after_run": 0
+  },
+  "user_config_unchanged": true,
+  "user_zellij_cache_entries_for_run": 0,
+  "socket_dir": "private temporary ZELLIJ_SOCKET_DIR for every zellij invocation",
+  "kwin_calls": 0,
+  "duration_seconds": 2.4,
+  "platform": {
+    "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
+    "kernel_release": "7.2.7-200.fc44.x86_64",
+    "desktop": "KDE",
+    "session_type": "wayland",
+    "python_version": "3.14.7"
+  },
+  "tested_commit": "7045cda0792298df1d00540ffe6d4d48302d9de0",
+  "modified_since_commit": false,
+  "sha256": {
+    "src/claude_fleet_monitor/terminal_apis/zellij.py": "a01636b9ea030d74eec663f2430db91964e7a3cc271aacc2d548062738bb4fe4",
+    "validation/zellij.py": "9b3739f75ad26d68f6d0a3589f29704f503df8e2684e17bcc64165563a176bd6"
+  }
+}
