@@ -376,8 +376,7 @@ change, Fedora 44 KDE Plasma Wayland:
   is not done and needs its own high-risk review).
 - Zellij parent GUI activation: client PIDs are not obtainable from the CLI.
 - Version floors: only one version of kitty and screen was validated;
-  adapters gate on behavior, not on a version number. zellij floors: see #52
-  below.
+  adapters gate on behavior, not on a version number. zellij: see #52 below.
 - Leaked-marker misclassification on macOS and Windows (env-only detection).
   Linux uses the #52 ancestry walk below.
 
@@ -418,3 +417,31 @@ Evidence:
   `wezterm-gui` wrapper stayed `konsole` (documented WezTerm limit).
 - cost: the real walk took about 21 us per call for a five-process chain,
   against roughly 20 ms of hook start-up.
+
+### zellij version floor
+
+Live, isolated runs of the unchanged `validation/zellij.py` on 2026-10-10
+(recorded at `tested_commit`, the ancestry commit rebased onto `f20e70f`; two
+earlier rounds before and after that rebase gave identical outcomes) against upstream x86_64 musl release binaries (no-web build where
+published), each extracted into its own new scratch directory and used only
+through a temporary `PATH` prefix. Tarballs matched the GitHub asset digest
+where the API publishes one (0.43.1 and later) and every binary matched its
+release `.sha256sum`. Every run used private sockets, config, cache, data and
+PTYs, left no survivors and no user config or cache change. Evidence:
+[floor JSON](../../validation/evidence/zellij-version-floor-fedora44.json).
+
+| zellij | `focus-pane-id` | Validator | Failing step | False success |
+| --- | --- | --- | --- | --- |
+| 0.45.1, 0.45.0, 0.44.3, 0.44.2 | yes | pass | none | no |
+| 0.44.1 | yes | fail (2 of 2 runs, every round) | two-client check; all 4 single-client selections confirmed | no |
+| 0.44.0 | no | fail | warmup keystroke (adapter already reported "could not focus pane") | no |
+| 0.43.1, 0.42.2, 0.41.2 | no | fail | `list-panes` fixture check; with it substituted, warmup keystroke after the same adapter failure | no |
+| 0.40.1, 0.40.0 | no | fail | fixture session not ready (not diagnosed); no adapter call | no |
+
+Minimum validated version: 0.44.2. On 0.44.1 the second client's first
+keystroke reached no pane, so `focus-pane-id` moved the first client; the
+adapter's success claim was still true (that client's keystrokes reached the
+target), only the validator's most-recent-input expectation failed. The host's
+own zellij 0.45.1 is byte-identical to the upstream build and passed as a
+control. The adapter was not changed: it gates on behavior and no version gave
+a false success.

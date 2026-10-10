@@ -63,7 +63,7 @@ with substituted OS calls), **inspected** (source or documentation only) and
 |----------|:---:|:---:|:---:|---|
 | **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked; as a tmux parent the Konsole service owned by the client's nearest ancestor is used (mocked) |
 | **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client; failures name the reason (no attached client, no parent emulator, unsupported or unconfirmed parent) | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked; failure details mocked |
-| **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client and the monitor's zellij socket dir | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)); moved-client rule mocked |
+| **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client and the monitor's zellij socket dir | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)); floor 0.44.2, validator passing on 0.44.2 to 0.45.1 ([JSON](validation/evidence/zellij-version-floor-fedora44.json)); moved-client rule mocked |
 | **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); window raise unverified |
 | **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires exactly one window-manager-managed window (minimized or on another desktop counts) owned by the Ghostty process the session descends from; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
@@ -77,7 +77,10 @@ with substituted OS calls), **inspected** (source or documentation only) and
 
 "Yes" means the operation is attempted and reported as succeeded only after
 independent readback. Version support is the one version validated on the
-host; no older version floor is established.
+host, except zellij: the isolated validator passes on 0.44.2 through 0.45.1.
+zellij 0.44.1, the first release with `focus-pane-id`, selects panes but did
+not pass the two-client check; 0.44.0 and older have no `focus-pane-id`, so
+selection reports a failure instead of a guess.
 
 Nested terminals (e.g. tmux inside Konsole) are handled automatically: the
 focus command selects the exact pane, then routes window activation to the

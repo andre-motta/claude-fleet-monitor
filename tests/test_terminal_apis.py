@@ -692,7 +692,7 @@ def test_process_names_are_registered_adapters_within_comm_length():
         ("10 (bash) S", None),
         ("10 (bash) S x", None),
         ("10 (bash) S -3", None),
-        ("10 (bash) S ٣", None),
+        ("10 (bash) S \u0663", None),
         ("10 bash S 9", None),
         ("10 )bash( S 9", None),
         ("", None),
@@ -829,7 +829,7 @@ def test_real_reader_decodes_invalid_utf8(monkeypatch):
         raising=False,
     )
 
-    assert ancestry._parse_stat(REAL_READ_STAT(42)) == ("��", 1)
+    assert ancestry._parse_stat(REAL_READ_STAT(42)) == ("\ufffd\ufffd", 1)
 
 
 def test_ancestry_never_reads_environ_or_cmdline():
