@@ -141,7 +141,13 @@ def test_every_registered_terminal_has_an_abbreviation():
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("terminal", "label"),
-    [("terminator", "trm"), ("ghostty", "gho"), ("konsole", "KDE")],
+    [
+        ("terminator", "trm"),
+        ("ghostty", "gho"),
+        ("konsole", "KDE"),
+        ("kitty", "kty"),
+        ("screen", "scr"),
+    ],
 )
 async def test_terminal_column_uses_abbreviation(terminal, label):
     async with TableApp().run_test() as pilot:

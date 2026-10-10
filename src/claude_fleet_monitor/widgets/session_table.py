@@ -37,6 +37,8 @@ TERMINAL_ABBREV = {
     "gnome": "GTK",
     "terminator": "trm",
     "windows_terminal": "win",
+    "kitty": "kty",
+    "screen": "scr",
     "generic": "gen",
 }
 
