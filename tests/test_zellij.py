@@ -480,6 +480,9 @@ def test_zellij_failed_parent_activation_is_not_success(monkeypatch):
     assert result.state == "failed"
     assert result.activation.attempted
     assert not result.activation.succeeded
+    assert result.activation.detail == (
+        f"parent terminal {WindowParent.name} did not activate"
+    )
 
 
 def test_zellij_without_parent_reports_activation_detail(monkeypatch):

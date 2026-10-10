@@ -51,7 +51,7 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `konsole.py`: KDE Konsole via qdbus (qdbus, qdbus6 or qdbus-qt6) + KWin scripting. Selection is read back over D-Bus; activation targets one unique owned window and is verified after KWin activation (`deferred_selection_readback`).
 - `tmux.py`: tmux via CLI with stable session/window/pane IDs and readback. Routes parent activation per attached client through `parent.py`; owns `TERMINAL_PROCESS_NAMES` and the bounded parent walk.
 - `zellij.py`: zellij via CLI. Exact pane selection with `focus-pane-id` and `list-clients` readback using the captured `ZELLIJ_PANE_ID`. Parent activation is usually unavailable because the server is daemonized.
-- `ghostty.py`: Ghostty via GTK DBus. Window raise via `org.gtk.Application.Activate` + KWin fallback. Tab switching via ydotool/xdotool Alt+N (requires ydotoold on Wayland).
+- `ghostty.py`: Ghostty on Linux: activates only the single managed window owned by the session's Ghostty ancestor (KWin owner-pid request plus xdotool `getactivewindow` readback, X11 only); Alt+N tab switching via ydotool/xdotool only after confirmed activation (requires ydotoold on Wayland).
 - `gnome.py`: GNOME Terminal on Linux X11. No tab selection; activates only the single window owned by the `gnome-terminal-server` ancestor and confirms it with `xdotool getactivewindow`.
 - `terminator.py`: Terminator, detection only (#47). Captures `TERMINATOR_UUID`, `TERMINATOR_DBUS_NAME` and `TERMINATOR_DBUS_PATH`; claims no selection or activation because Terminator's D-Bus API cannot select or raise.
 - `iterm2.py`: iTerm2 via osascript

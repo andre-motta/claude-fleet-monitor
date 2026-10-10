@@ -42,11 +42,11 @@
     "ZELLIJ_PANE_ID",
     "ZELLIJ_SESSION_NAME"
   ],
-  "pre_upgrade_record_detail": "record predates pane capture",
+  "pre_upgrade_record_detail": "session recorded before zellij pane capture; restart the agent session to enable selection",
   "injection_rejected_before_subprocess": true,
   "before_any_client_input": {
     "selected": false,
-    "detail": "no zellij client shows pane 1 after selection",
+    "detail": "no zellij client moved to pane 1",
     "client_pane": {
       "1": "terminal_0"
     }
@@ -164,10 +164,10 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "7045cda0792298df1d00540ffe6d4d48302d9de0",
+  "tested_commit": "e63a63430926fb2b730bb354969acf1580ce3c37",
   "modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/zellij.py": "a01636b9ea030d74eec663f2430db91964e7a3cc271aacc2d548062738bb4fe4",
-    "validation/zellij.py": "9b3739f75ad26d68f6d0a3589f29704f503df8e2684e17bcc64165563a176bd6"
+    "src/claude_fleet_monitor/terminal_apis/zellij.py": "d5e0f0831ebc0f8f51fe064a507c30de4bcaf6e80cf99d8d104adef32faba4be",
+    "validation/zellij.py": "4692b47c97378a1b3ffe29d93877938eb435fd4bc649b80295ed0c8ecc222c2f"
   }
 }
