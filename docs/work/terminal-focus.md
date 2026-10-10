@@ -446,7 +446,7 @@ own zellij 0.45.1 is byte-identical to the upstream build and passed as a
 control. The adapter was not changed: it gates on behavior and no version gave
 a false success.
 
-### macOS AppleScript hardening (#55)
+## macOS AppleScript hardening (#55)
 
 Andre approved hardening the iTerm2 and Terminal.app adapters on
 2026-10-10 without a Mac: all evidence is mocked or inspected, and the README
