@@ -196,15 +196,23 @@ def test_session_at_byte_limit_is_accepted(no_cli):
     assert ZellijAPI().find_tab(101, env) == "3"
 
 
-def test_switch_tab_selects_exact_pane_with_readback(fake):
-    assert ZellijAPI().switch_tab("3", dict(PANE_ENV))
-    assert fake.calls == [
-        ["zellij", "--session", "session", "action", "focus-pane-id", "terminal_3"],
-        ["zellij", "--session", "session", "action", "list-clients"],
-    ]
+ON_OTHER = f"{HEADER}\n1 terminal_1 sh"
+ON_TARGET = f"{HEADER}\n1 terminal_3 claude"
+LIST = ["zellij", "--session", "session", "action", "list-clients"]
+FOCUS = ["zellij", "--session", "session", "action", "focus-pane-id", "terminal_3"]
+
+
+def test_switch_tab_selects_exact_pane_with_before_and_after_readback(fake):
+    fake.clients = [ON_OTHER, ON_TARGET]
+
+    api = ZellijAPI()
+    assert api.switch_tab("3", dict(PANE_ENV))
+    assert fake.calls == [LIST, FOCUS, LIST]
+    assert api._selection_detail is None
 
 
 def test_focus_result_is_complete_with_selection_and_parent(monkeypatch, fake):
+    fake.clients = [ON_OTHER, ON_TARGET]
     parent = WindowParent()
     monkeypatch.setattr(DETECT_PARENT, lambda pid: parent)
 
@@ -212,12 +220,14 @@ def test_focus_result_is_complete_with_selection_and_parent(monkeypatch, fake):
 
     assert result.state == "complete"
     assert result.selection.succeeded
+    assert result.selection.detail == "tab or pane selection"
     assert result.activation.succeeded
-    assert fake.actions() == ["focus-pane-id", "list-clients"]
+    assert fake.actions() == ["list-clients", "focus-pane-id", "list-clients"]
     assert parent.calls == [("target", 101), ("raise", "window")]
 
 
 def test_selection_without_parent_is_partial(monkeypatch, fake):
+    fake.clients = [ON_OTHER, ON_TARGET]
     monkeypatch.setattr(DETECT_PARENT, lambda pid: None)
 
     result = ZellijAPI().focus_result(101, dict(PANE_ENV))
@@ -228,16 +238,66 @@ def test_selection_without_parent_is_partial(monkeypatch, fake):
 
 
 def test_readback_waits_for_client_to_move(fake):
-    fake.clients = [f"{HEADER}\n1 terminal_1 sh", f"{HEADER}\n1 terminal_3 sh"]
+    fake.clients = [ON_OTHER, ON_OTHER, ON_TARGET]
 
     assert ZellijAPI().switch_tab("3", dict(PANE_ENV))
-    assert fake.actions() == ["focus-pane-id", "list-clients", "list-clients"]
+    assert fake.actions() == [
+        "list-clients", "focus-pane-id", "list-clients", "list-clients"
+    ]
 
 
-def test_any_client_on_target_satisfies_multi_client_rule(fake):
-    fake.clients = [f"{HEADER}\n1 terminal_1 sh\n2 terminal_3 claude"]
+def test_idle_client_already_on_target_is_not_selection_proof(fake):
+    rows = f"{HEADER}\n1 terminal_1 sh\n2 terminal_3 claude"
+    fake.clients = [rows]
+
+    with pytest.raises(RuntimeError, match="no zellij client moved to pane 3"):
+        ZellijAPI().switch_tab("3", dict(PANE_ENV))
+    assert fake.actions().count("focus-pane-id") == 1
+    assert fake.actions().count("list-clients") == 1 + zellij.READBACK_ATTEMPTS
+
+
+def test_active_client_moving_to_target_is_success(fake):
+    fake.clients = [
+        f"{HEADER}\n1 terminal_1 sh\n2 terminal_3 claude",
+        f"{HEADER}\n1 terminal_3 claude\n2 terminal_3 claude",
+    ]
 
     assert ZellijAPI().switch_tab("3", dict(PANE_ENV))
+
+
+def test_newly_attached_client_on_target_is_not_selection_proof(fake):
+    fake.clients = [ON_OTHER, f"{HEADER}\n1 terminal_1 sh\n2 terminal_3 claude"]
+
+    with pytest.raises(RuntimeError, match="no zellij client moved to pane 3"):
+        ZellijAPI().switch_tab("3", dict(PANE_ENV))
+
+
+@pytest.mark.parametrize(
+    "rows", ["1 terminal_3 claude", "1 terminal_3 claude\n2 terminal_3 claude"]
+)
+def test_all_clients_already_on_target_is_success_with_detail(
+    monkeypatch, fake, rows
+):
+    fake.clients = [f"{HEADER}\n{rows}"]
+    monkeypatch.setattr(DETECT_PARENT, lambda pid: None)
+
+    result = ZellijAPI().focus_result(101, dict(PANE_ENV))
+
+    assert result.selection.attempted
+    assert result.selection.succeeded
+    assert result.selection.detail == "pane already focused"
+    assert fake.actions() == ["list-clients"]
+
+
+def test_already_focused_detail_does_not_leak_into_later_selection(fake):
+    api = ZellijAPI()
+    fake.clients = [ON_TARGET]
+    assert api.switch_tab("3", dict(PANE_ENV))
+    fake.clients = [ON_OTHER, ON_TARGET]
+
+    result = api.focus_result(101, dict(PANE_ENV))
+
+    assert result.selection.detail == "tab or pane selection"
 
 
 @pytest.mark.parametrize(
@@ -246,9 +306,9 @@ def test_any_client_on_target_satisfies_multi_client_rule(fake):
 def test_readback_mismatch_is_failure_with_detail(fake, rows):
     fake.clients = [f"{HEADER}\n{rows}"]
 
-    with pytest.raises(RuntimeError, match="no zellij client shows pane 3"):
+    with pytest.raises(RuntimeError, match="no zellij client moved to pane 3"):
         ZellijAPI().switch_tab("3", dict(PANE_ENV))
-    assert fake.actions().count("list-clients") == zellij.READBACK_ATTEMPTS
+    assert fake.actions().count("list-clients") == 1 + zellij.READBACK_ATTEMPTS
 
 
 def test_zero_clients_is_failure_with_detail(monkeypatch, fake):
@@ -260,21 +320,38 @@ def test_zero_clients_is_failure_with_detail(monkeypatch, fake):
     assert result.selection.attempted
     assert not result.selection.succeeded
     assert result.selection.detail == "no attached zellij client"
+    assert fake.actions() == ["list-clients"]
+
+
+def test_clients_detaching_after_selection_is_failure(fake):
+    fake.clients = [ON_OTHER, HEADER]
+
+    with pytest.raises(RuntimeError, match="no attached zellij client"):
+        ZellijAPI().switch_tab("3", dict(PANE_ENV))
+
+
+def test_failed_snapshot_command_is_failure_before_selection(fake):
+    fake.clients = [None]
+
+    with pytest.raises(RuntimeError, match="list-clients snapshot failed"):
+        ZellijAPI().switch_tab("3", dict(PANE_ENV))
+    assert fake.actions() == ["list-clients"]
 
 
 def test_failed_readback_command_is_failure(fake):
-    fake.clients = [None]
+    fake.clients = [ON_OTHER, None]
 
     with pytest.raises(RuntimeError, match="list-clients readback failed"):
         ZellijAPI().switch_tab("3", dict(PANE_ENV))
 
 
 def test_failed_focus_command_skips_readback(fake):
+    fake.clients = [ON_OTHER]
     fake.focus = False
 
     with pytest.raises(RuntimeError, match="could not focus pane 3"):
         ZellijAPI().switch_tab("3", dict(PANE_ENV))
-    assert fake.actions() == ["focus-pane-id"]
+    assert fake.actions() == ["list-clients", "focus-pane-id"]
 
 
 def test_run_uses_bounded_timeout(monkeypatch):
@@ -320,6 +397,8 @@ def test_cli_failures_give_selection_failure_with_detail(monkeypatch, run):
 
     def record(argv, **kwargs):
         calls.append(argv)
+        if argv[-1] == "list-clients":
+            return subprocess.CompletedProcess(argv, 0, ON_OTHER, "")
         return run(argv, **kwargs)
 
     monkeypatch.setattr(zellij.subprocess, "run", record)
@@ -333,7 +412,34 @@ def test_cli_failures_give_selection_failure_with_detail(monkeypatch, run):
     assert not result.selection.succeeded
     assert result.selection.detail.startswith("zellij could not focus pane 3")
     assert len(result.selection.detail) <= 120
-    assert [call[4] for call in calls[1:]] == ["focus-pane-id"]
+    assert [call[4] for call in calls[1:]] == ["list-clients", "focus-pane-id"]
+
+
+@pytest.mark.parametrize(
+    "run",
+    [
+        pytest.param(_raise(FileNotFoundError("zellij")), id="missing-cli"),
+        pytest.param(_raise(subprocess.TimeoutExpired("zellij", 5)), id="timeout"),
+        pytest.param(_completed(1, stderr="session not found"), id="no-session"),
+    ],
+)
+def test_snapshot_cli_failures_skip_selection(monkeypatch, run):
+    calls = []
+
+    def record(argv, **kwargs):
+        calls.append(argv)
+        return run(argv, **kwargs)
+
+    monkeypatch.setattr(zellij.subprocess, "run", record)
+    monkeypatch.setattr(DETECT_PARENT, lambda pid: None)
+
+    result = ZellijAPI().focus_result(101, dict(PANE_ENV))
+
+    assert result.state == "failed"
+    assert result.selection.attempted
+    assert result.selection.detail.startswith("zellij list-clients snapshot failed")
+    assert len(result.selection.detail) <= 120
+    assert [call[4] for call in calls] == ["list-clients"]
 
 
 @pytest.mark.parametrize(

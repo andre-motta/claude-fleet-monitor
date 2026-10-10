@@ -94,6 +94,42 @@ def test_capture_fills_unset_and_oversized_keys_with_empty(monkeypatch, no_subpr
 
 
 @pytest.mark.parametrize(
+    ("sty", "window", "expected"),
+    [
+        ("pts-3.fleet", "2", {"STY": "", "WINDOW": "2"}),
+        ("4242.a/b", "2", {"STY": "", "WINDOW": "2"}),
+        ("4242.a b", "2", {"STY": "", "WINDOW": "2"}),
+        ("\uff14\uff12.fleet", "2", {"STY": "", "WINDOW": "2"}),
+        (STY, "-1", {"STY": STY, "WINDOW": ""}),
+        (STY, "2a", {"STY": STY, "WINDOW": ""}),
+        (STY, "1 2", {"STY": STY, "WINDOW": ""}),
+        (STY, "\uff12", {"STY": STY, "WINDOW": ""}),
+        (STY, "1" * 13, {"STY": STY, "WINDOW": ""}),
+        ("x", "y", {"STY": "", "WINDOW": ""}),
+    ],
+)
+def test_capture_stores_empty_for_invalid_sty_or_window(
+    monkeypatch, no_subprocess, sty, window, expected
+):
+    clear_terminal_markers(monkeypatch)
+    monkeypatch.setenv("STY", sty)
+    monkeypatch.setenv("WINDOW", window)
+
+    captured = ScreenAPI.capture_env()
+
+    assert captured == expected
+    assert ScreenAPI().find_tab(101, captured) is None
+
+
+def test_capture_keeps_valid_values_unchanged(monkeypatch, no_subprocess):
+    clear_terminal_markers(monkeypatch)
+    monkeypatch.setenv("STY", STY)
+    monkeypatch.setenv("WINDOW", "02")
+
+    assert ScreenAPI.capture_env() == {"STY": STY, "WINDOW": "02"}
+
+
+@pytest.mark.parametrize(
     ("sty", "window"),
     [
         ("", "2"),

@@ -169,7 +169,7 @@ def test_remote_control_off_reports_unavailable_without_processes(monkeypatch, t
     fake = _fake(monkeypatch, FakeKitty())
     env = {"KITTY_WINDOW_ID": "2"}
 
-    with pytest.raises(LookupError, match="allow_remote_control/listen_on"):
+    with pytest.raises(LookupError, match="allow_remote_control and a unix: listen_on"):
         KittyAPI().find_tab(10, env)
     result = KittyAPI().focus_result(10, env)
 
@@ -304,6 +304,39 @@ def test_run_returns_nonzero_result_for_error_detail(monkeypatch):
             "kitty focus-window: remote control password was refused",
         ),
         (
+            "Error: The user rejected this request",
+            "kitty focus-window: remote control request was rejected",
+        ),
+        (
+            "Error: Failed to connect to unix:/run/user/1000/password-store/kitty.sock"
+            " with error: dial unix: connect: no such file or directory",
+            "kitty focus-window: remote control socket refused or missing"
+            " (kitty closed or remote control off)",
+        ),
+        (
+            "Error: Failed to connect to unix:/tmp/remote control is disabled/k.sock"
+            " with error: connect: connection refused",
+            "kitty focus-window: remote control socket refused or missing"
+            " (kitty closed or remote control off)",
+        ),
+        (
+            "Error: Failed to connect to unix:/tmp/no matching windows/k.sock",
+            "kitty focus-window: remote control socket refused or missing"
+            " (kitty closed or remote control off)",
+        ),
+        (
+            "Remote control is disabled. Add allow_remote_control to your kitty.conf",
+            "kitty focus-window: remote control is disabled (allow_remote_control)",
+        ),
+        (
+            "Error: open /run/password/rc: permission denied",
+            "kitty focus-window exited 2: Error: open /run/password/rc: permission denied",
+        ),
+        (
+            "Error: request failed: no matching windows",
+            "kitty focus-window exited 2: Error: request failed: no matching windows",
+        ),
+        (
             "Error: No matching windows for expression: id:2",
             "kitty focus-window: target window no longer exists",
         ),
@@ -320,6 +353,29 @@ def test_nonzero_exit_fails_with_specific_detail(monkeypatch, tools, stderr, det
     assert result.selection.attempted
     assert result.selection.detail == detail
     assert len(fake.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "address",
+    ["tcp:127.0.0.1:5000", "fd:3", "unix:relative.sock"],
+)
+def test_non_unix_listen_on_reports_unix_socket_requirement(
+    monkeypatch, tools, address
+):
+    monkeypatch.setenv("KITTY_WINDOW_ID", "2")
+    monkeypatch.setenv("KITTY_LISTEN_ON", address)
+    fake = _fake(monkeypatch, FakeKitty())
+
+    env = KittyAPI.capture_env()
+    result = KittyAPI().focus_result(10, env)
+
+    assert "KITTY_LISTEN_ON" not in env
+    assert not result.selection.attempted
+    assert result.selection.detail == (
+        "kitty remote control unavailable: needs allow_remote_control and a unix:"
+        " listen_on socket"
+    )
+    assert fake.calls == []
 
 
 def test_stale_window_id_fails(monkeypatch, tools):

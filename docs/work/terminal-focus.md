@@ -221,6 +221,23 @@ hands-on, manual observation; no JSON was recorded for it.
   adapter. Adds the `kty` and `scr` table labels and reconciles README,
   CLAUDE.md, the compatibility matrix and the validation guide with the
   evidence.
+- **F10**: closes the independent adapter review notes. The zellij selection
+  rule was tightened after the live evidence was recorded: a `list-clients`
+  snapshot is taken before `focus-pane-id`, and selection succeeds only when a
+  client that was elsewhere moves to the pane, or when every attached client
+  already showed it (reported as "pane already focused"). An idle client
+  already on the pane no longer counts. Evidence: mocked; an isolated
+  `python validation/zellij.py --no-write` rerun passed on zellij 0.45.1 and
+  the committed JSON was left as recorded. Kitty errors are classified on
+  kitty's fixed message prefixes, connect failure first, so words in an
+  echoed socket path no longer change the label, and the unavailable detail
+  names the `unix:` listen_on requirement (the committed kitty JSON keeps the
+  earlier wording it recorded). Screen capture stores `''` for an invalid
+  `STY` or `WINDOW`, and the screen validator's two-display check now requires
+  exactly one display showing the target and a consistent rule (the committed
+  evidence already shows one display; not rerun). README rows now state the
+  attached display or client requirement, the zellij socket directory match
+  and the kitty `unix:` socket requirement.
 
 ### Multi-client tmux routing note
 
