@@ -101,7 +101,8 @@ structured result reports selection and activation separately, so a detached
 session or an unsupported parent gives an honest partial result. Kitty and
 Terminator stop the parent walk and report activation unsupported rather than
 climbing to whatever launched them (a multiplexer client carries no kitty
-socket or `KITTY_PID`, so kitty cannot raise its window as a parent). A zellij server is daemonized, so its
+socket or `KITTY_PID`, so kitty cannot raise its window as a parent). A
+zellij server is daemonized, so its
 ancestry never reaches a GUI. On Linux, Fleet instead finds the server in the
 agent's ancestry, maps its accepted sockets to client PIDs (a `sock_diag`
 netlink dump plus `/proc/<pid>/fd` links of your own `zellij` processes) and

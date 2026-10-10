@@ -181,10 +181,10 @@ python validation/kitty.py --out /tmp/kitty-validation.json
 This opens disposable minimized kitty windows with `--config NONE`,
 `allow_remote_control=socket-only` and temporary unix `--listen-on` sockets
 (path and abstract), one hidden instance, and one instance with remote control
-off. Environments are captured by the real
-`KittyAPI` inside each kitty window. Duplicate-title windows and tabs are
-selected through `KittyAPI.focus_result` and confirmed independently with
-`kitten @ ls` (tab and window `is_active`; `is_focused` is not used). It also
+off. Environments are captured by the real `KittyAPI` inside each kitty
+window. Duplicate-title windows and tabs are selected through
+`KittyAPI.focus_result` and confirmed independently with `kitten @ ls` (tab
+and window `is_active`; selection never uses `is_focused`). It also
 records stale-window, missing-socket and remote-control-off failures and the
 `kitty @` fallback when `kitten` is absent. Because it opens GUI windows, run
 it only on a desktop where that is acceptable; it closes every window it
@@ -195,8 +195,8 @@ that two OS windows in one process, a missing `KITTY_PID`, a leaked
 `KITTY_PID` and an inherited outer socket are refused before any KWin call
 (and, except for two OS windows, before any `focus-window`), and that a
 hidden kitty reporting `is_focused` is not claimed. Before alternating it
-waits until the probes' focus state is unchanged for 0.5 s (at most 5 s). An interlock lets KWin scripts run only
-for probe kitty pids and the run fails if any script stays loaded. The
+waits until the probes' focus state is unchanged for 0.5 s (at most 5 s). An
+interlock lets KWin scripts run only for probe kitty pids and the run fails if any script stays loaded. The
 committed [evidence](evidence/kitty-fedora44.json) covers kitty 0.47.1 on
 Plasma Wayland.
 

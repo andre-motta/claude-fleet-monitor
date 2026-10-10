@@ -403,8 +403,9 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
 - Selection uses the same ownership rule and refuses, before any
   `focus-window`, unless `KITTY_PID` is captured, is an ancestor of the
   session (checked first, so leaked variables never send `ls` to a foreign
-  kitty) and owns the child process of the window the socket lists. Records without `KITTY_PID` are refused with "restart the
-  agent session to enable kitty focus" rather than trusted, because without
+  kitty) and owns the child process of the window the socket lists. Records
+  without `KITTY_PID` are refused with "restart the agent session to enable
+  kitty focus" rather than trusted, because without
   it an inherited outer socket could select a same-numbered window in the
   wrong kitty.
 - Order: selection (`focus-window` plus `is_active` readback) then
@@ -421,7 +422,8 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
 - Live: `validation/kitty.py` activates two probe instances alternately and
   records refusals and the hidden case
   ([JSON](../../validation/evidence/kitty-fedora44.json)).
-- Failed live run, not committed as evidence: on `80f0ca8` the first
+- Failed live run, not committed as evidence: on `80f0ca8` (before the
+  rebase onto #59 to #61; now `c699dbe`) the first
   alternation reported A activated (kitty read `is_focused` true), but the
   validator's own readback about 0.1 s later showed neither probe focused.
   Suspected cause: a late map or minimize of probe B, started just before,
