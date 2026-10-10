@@ -65,7 +65,7 @@ not turn this inventory into live acceptance on every operating system.
 | **Terminator** (detection only; mocked, #47 inspection) | No | No | -- |
 | **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
 | **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- |
-| **Windows Terminal** | No | Yes (pywinctl) | -- |
+| **Windows Terminal** | No | No (detection only; owner window not identifiable) | -- |
 | **Generic fallback** | No | Best effort | -- |
 
 Nested terminals (e.g. tmux inside Konsole) are handled automatically: the
@@ -149,7 +149,6 @@ hook paths.
 Optional (for terminal focus):
 - `qdbus` -- Konsole tab switching (KDE)
 - `xdotool` -- GNOME Terminal / X11 window focus
-- `pywinctl` -- Windows Terminal window focus
 - `notify-send` -- desktop notifications (Linux)
 
 Optional agent integration:
@@ -282,7 +281,8 @@ src/claude_fleet_monitor/
 
 - **Same-name tabs in different windows (Konsole/KDE):** When multiple sessions share the same repo name and live in different Konsole windows, the focus command will switch to the correct tab but may raise the wrong window. Workaround: keep same-name sessions grouped in the same Konsole window.
 - **Wayland window activation:** On Wayland/KDE, window raising uses KWin scripting via DBus. Other Wayland compositors may not support programmatic window activation.
-- **GNOME Terminal / Windows Terminal:** No tab switching API available; window raise only.
+- **GNOME Terminal:** No tab switching API available; window raise only for the exact owning window on X11.
+- **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
 - **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
 
 ## Configuration

@@ -292,97 +292,22 @@ def test_gnome_selection_stays_unsupported():
     assert not api.switch_tab("1", {})
 
 
-class _Window:
-    def __init__(self, handle, active_after=True):
-        self.handle = handle
-        self.active_after = active_after
-        self.isActive = False
-        self.activated = 0
+def test_windows_terminal_never_selects_or_activates(monkeypatch):
+    _forbid_activation(monkeypatch)
+    api = WindowsTerminalAPI()
 
-    def getHandle(self):
-        return self.handle
+    result = api.focus_result(101, {"WT_SESSION": "guid"})
 
-    def activate(self):
-        self.activated += 1
-        self.isActive = self.active_after
-        return True
-
-
-def _pywinctl(monkeypatch, windows):
-    titles = []
-
-    def get_windows(title):
-        titles.append(title)
-        return list(windows)
-
-    monkeypatch.setitem(
-        sys.modules, "pywinctl", SimpleNamespace(getWindowsWithTitle=get_windows)
-    )
-    return titles
-
-
-@pytest.mark.parametrize("count_", [0, 2])
-def test_windows_terminal_non_unique_window_is_unavailable(monkeypatch, count_):
-    windows = [_Window(100 + index) for index in range(count_)]
-    _pywinctl(monkeypatch, windows)
-
-    result = WindowsTerminalAPI().focus_result(101, {"WT_SESSION": "guid"})
-
+    assert not api.selection_supported
+    assert not api.activation_supported
     assert result.state == "failed"
     assert not result.target_found
-    assert not result.activation.attempted
-    assert all(window.activated == 0 for window in windows)
-
-
-def test_windows_terminal_two_windows_detail(monkeypatch):
-    _pywinctl(monkeypatch, [_Window(1), _Window(2)])
-
-    result = WindowsTerminalAPI().focus_result(101, {})
-
-    assert result.activation.detail == (
-        "2 Windows Terminal windows; exact window unknown"
-    )
-
-
-def test_windows_terminal_unique_window_with_readback_succeeds(monkeypatch):
-    window = _Window(4242)
-    titles = _pywinctl(monkeypatch, [window])
-
-    result = WindowsTerminalAPI().focus_result(101, {"WT_SESSION": "guid"})
-
-    assert result.state == "partial"
-    assert result.target_found
     assert not result.selection.attempted
-    assert result.activation.succeeded
-    assert window.activated == 1
-    assert set(titles) == {windows_terminal.WINDOW_TITLE}
-
-
-def test_windows_terminal_inactive_after_activate_is_not_success(monkeypatch):
-    window = _Window(4242, active_after=False)
-    _pywinctl(monkeypatch, [window])
-
-    result = WindowsTerminalAPI().focus_result(101, {})
-
-    assert result.state == "failed"
-    assert result.activation.attempted
-    assert not result.activation.succeeded
-    assert "did not become active" in result.activation.detail
-
-
-def test_windows_terminal_without_pywinctl_is_unavailable(monkeypatch):
-    monkeypatch.setitem(sys.modules, "pywinctl", None)
-
-    result = WindowsTerminalAPI().focus_result(101, {})
-
     assert not result.activation.attempted
-    assert result.activation.detail == "pywinctl is not installed"
+    assert result.activation.detail == "backend does not support window activation"
+    assert not api.raise_window("4242", {})
 
 
-def test_windows_terminal_target_change_is_not_activated(monkeypatch):
-    window = _Window(7)
-    _pywinctl(monkeypatch, [window])
-
-    with pytest.raises(RuntimeError, match="changed"):
-        WindowsTerminalAPI().raise_window("8", {})
-    assert window.activated == 0
+def test_windows_terminal_module_has_no_window_library():
+    assert "pywinctl" not in vars(windows_terminal)
+    assert "subprocess" not in vars(windows_terminal)
