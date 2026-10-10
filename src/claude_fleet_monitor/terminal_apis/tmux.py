@@ -6,6 +6,7 @@ import subprocess
 
 from claude_fleet_monitor import discovery
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
+from claude_fleet_monitor.terminal_apis.parent import activate_parent
 
 TERMINAL_PROCESS_NAMES = {
     "konsole": "konsole",
@@ -243,17 +244,7 @@ class TmuxAPI(TerminalAPI):
                 if parsed_pid > 1:
                     client_pids.append(parsed_pid)
 
-        for client_pid in sorted(set(client_pids)):
-            parent_api = _detect_parent_terminal(client_pid)
-            if parent_api is None:
-                continue
-            try:
-                parent_tab = parent_api.find_tab(client_pid, {})
-                if parent_api.selection_supported:
-                    if not parent_tab or not parent_api.switch_tab(parent_tab, {}):
-                        continue
-                if parent_tab and parent_api.raise_window(parent_tab, {}):
-                    return True
-            except Exception:
-                continue
-        return False
+        return any(
+            activate_parent(_detect_parent_terminal(client_pid), client_pid)
+            for client_pid in sorted(set(client_pids))
+        )
