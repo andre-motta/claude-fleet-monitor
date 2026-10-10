@@ -99,3 +99,110 @@ This proves routing against real tmux state, not GUI window activation or live
 harness behavior. No desktop server is required. The existing Pi validation
 job runs this check before the real Pi lifecycle test and uploads its JSON
 alongside the other validation evidence.
+
+## Shared safety rules for terminal validators
+
+The terminal probe and the zellij, Kitty and GNU screen validators below are
+local-only Linux helpers. Ordinary pytest and hosted CI never run them, and CI
+does not install these terminals. Each helper starts only disposable
+instances: private PTYs, temporary socket, config, cache and data directories,
+and unique session names. It records the PID and kernel start time of every
+process it starts, signals only those, and reports survivors and stray marker
+processes as a failure. It never reads or edits user configuration (a
+before-and-after snapshot is compared), never attaches to the user's own
+sessions or default socket directories, and never calls KWin, qdbus or
+xdotool. Evidence JSON is redacted to placeholders and the helpers refuse to
+write a file that still contains a home path, user name or host name. Run each
+as a script from the checkout with the candidate package installed in the
+active environment.
+
+## Terminal capability probe
+
+```console
+python validation/probe_terminals.py --out /tmp/terminal-probe.json
+```
+
+The probe records, per terminal (zellij, wezterm, kitty, screen, terminator),
+whether it is installed, its version and install source, the environment
+marker names and value shapes, process names along the agent ancestry, the
+selection and readback commands, whether readback was proven, multi-client
+behavior, PID-only lookup viability and activation readback status. `--only`
+limits the run to some terminals. The committed
+[probe record](evidence/terminal-probe-fedora44.json) was produced on Fedora
+44 KDE Plasma Wayland; `tests/test_probe_record.py` checks its schema. It gated
+the zellij, Kitty and screen adapters. WezTerm was skipped by CTO decision and
+is recorded as `unverified`; Terminator was observed on a private D-Bus
+session bus with a hidden window for detection only.
+
+## Exact zellij pane selection on Linux
+
+```console
+python validation/zellij.py --no-write
+```
+
+This starts a uniquely named zellij session in a private `ZELLIJ_SOCKET_DIR`
+with temporary config, cache and data directories, drives it through private
+PTY clients, and selects duplicate-title panes across two tabs through
+`ZellijAPI`. Each selection is read back with `list-clients` and confirmed by
+keystroke routing. It also checks that `--session` overrides an inherited
+`ZELLIJ_SESSION_NAME`, that unknown and closed pane IDs fail without moving any
+client, that zero attached clients is a failure, that selection before any
+client sent input is not reported as success, and that a second client keeps
+its own pane. Without `--no-write` it updates
+[the evidence](evidence/zellij-fedora44.json) (zellij 0.45.1). GUI activation
+is reported unavailable: client PIDs are not exposed and the server is
+daemonized.
+
+## Kitty remote-control selection on Linux
+
+```console
+python validation/kitty.py --out /tmp/kitty-validation.json
+```
+
+This opens disposable minimized kitty windows with `--config NONE`,
+`allow_remote_control=socket-only` and a temporary unix `--listen-on`, plus one
+instance with remote control off. Environments are captured by the real
+`KittyAPI` inside each kitty window. Duplicate-title windows and tabs are
+selected through `KittyAPI.focus_result` and confirmed independently with
+`kitten @ ls` (tab and window `is_active`; `is_focused` is not used). It also
+records stale-window, missing-socket and remote-control-off failures and the
+`kitty @` fallback when `kitten` is absent. Because it opens GUI windows, run
+it only on a desktop where that is acceptable; it closes every window it
+opened. The committed [evidence](evidence/kitty-fedora44.json) covers kitty
+0.47.1. Window activation is not claimed.
+
+## GNU screen window selection on Linux
+
+```console
+python validation/screen.py --out /tmp/screen-validation.json
+```
+
+This starts two screen sessions in a temporary `SCREENDIR` with a temporary
+`SCREENRC`, attaches real displays in private PTYs and drives `ScreenAPI` as
+the focus path does. Each selection is confirmed by `-Q number` and by
+keystroke routing into the window shells. It covers a never-attached and a
+detached session (named failure), one and two displays, an unknown or stale
+window, a stale session, a malformed `STY` that never reaches argv and an
+unrelated session that must not change. Without `--out` it only prints the
+JSON. The committed [evidence](evidence/screen-fedora44.json) covers screen
+5.0.1. A screen session owns no GUI window, so activation is not supported.
+
+## Combined terminal focus acceptance
+
+The integrated candidate for #32 and #47 is accepted locally with full pytest
+on Python 3.10, 3.12 and 3.13, the marker-leak run below, the headless Textual
+journey, and reruns of the tmux, zellij and screen validators. The Kitty and
+Konsole validators open GUI windows and are run only at the desktop.
+
+```console
+env KONSOLE_VERSION=1 KONSOLE_DBUS_SERVICE=x TERMINATOR_UUID=urn:uuid:x \
+  KITTY_WINDOW_ID=1 WEZTERM_PANE=1 STY=1.x ZELLIJ=0 ZELLIJ_PANE_ID=1 \
+  GNOME_TERMINAL_SERVICE=x TERM_PROGRAM=ghostty TMUX=/tmp/x,1,0 \
+  python -m pytest -q tests/test_terminal_apis.py tests/test_terminator.py \
+  tests/test_zellij.py tests/test_fallback_terminals.py tests/test_kitty.py \
+  tests/test_screen.py
+```
+
+The marker-leak run proves that terminal tests do not depend on the markers of
+the terminal that runs pytest. Results are recorded in
+[the terminal focus record](../docs/work/terminal-focus.md).

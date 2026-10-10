@@ -1,0 +1,306 @@
+{
+  "schema": "screen-validation/1",
+  "result": "pass",
+  "verdict": "adapter",
+  "versions": {
+    "screen": "Screen version 5.0.1",
+    "install_source": "rpm screen-5.0.1-6.fc44.x86_64",
+    "python": "3.14.7"
+  },
+  "platform": {
+    "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
+    "kernel_release": "7.2.7-200.fc44.x86_64",
+    "desktop": "KDE",
+    "session_type": "wayland",
+    "python_version": "3.14.7"
+  },
+  "tested_commit": "33ca29bd0143dacb100041f64dafe3326abb7f96",
+  "modified_since_commit": false,
+  "sha256": {
+    "src/claude_fleet_monitor/terminal_apis/screen.py": "932d00f724abc9a8d832cb0250848a30187c3b31bc77929c1c44c0905ca32a9e",
+    "validation/screen.py": "2268c11640b2e9a1116dd485659cbbcb1cca48ab07dc04ca2d53f53592371705"
+  },
+  "provenance": "live: real screen servers in a temporary SCREENDIR and real displays in private PTYs; ScreenAPI argv executed unmodified; selection confirmed by -Q number and keystroke routing",
+  "gui_activation": "not supported: a screen session owns no GUI window, ScreenAPI declares activation_supported False, and no KWin, qdbus or xdotool calls were made",
+  "version_floor": "not established: only this version was validated; the adapter gates on behavior (-Q readback and a non-empty -Q windows)",
+  "select_argv": [
+    "screen",
+    "-S",
+    "<STY>",
+    "-X",
+    "select",
+    "<WINDOW>"
+  ],
+  "readback_argv": [
+    "screen",
+    "-S",
+    "<STY>",
+    "-Q",
+    "number"
+  ],
+  "display_guard_argv": [
+    "screen",
+    "-S",
+    "<STY>",
+    "-Q",
+    "windows"
+  ],
+  "detection_signal": "STY matching <digits>.<name> plus a decimal WINDOW",
+  "find_tab": "env-only: WINDOW from the captured env; None without valid STY and WINDOW",
+  "process_comm": {
+    "server": "screen",
+    "server_argv0": "SCREEN",
+    "client": "screen",
+    "add_to_terminal_process_names": false
+  },
+  "proposed_detection_slot": "immediately before GenericAPI",
+  "multi_display_rule": "select and -Q number act on the same single display (see cases.two_displays_observed_rule); success proves that display shows the window, not what other displays show",
+  "checks": {
+    "capture_ran_in_every_window": true,
+    "capture_detects_screen_without_subprocess": true,
+    "capture_keys_exact": true,
+    "sty_shared_and_window_unique": true,
+    "sty_is_server_pid_dot_session": true,
+    "find_tab_returns_window": true,
+    "detached_fails_with_named_step": true,
+    "one_display_selection_verified": true,
+    "unknown_window_rejected_by_readback": true,
+    "stale_window_rejected": true,
+    "two_displays_selection_verified_on_one_display": true,
+    "unrelated_session_unchanged": true,
+    "detached_after_attach_fails": true,
+    "malformed_sty_never_reaches_argv": true,
+    "stale_session_fails": true,
+    "cleanup_no_survivors": true,
+    "user_config_unchanged": true,
+    "user_screen_sessions_unchanged": true
+  },
+  "cases": {
+    "identity": {
+      "sty_shape": "<server pid>.<session>",
+      "window_titles": "duplicate",
+      "window_cwd": "identical",
+      "prefix_sharing_session_present": true,
+      "server_comm": "screen",
+      "server_argv0": "SCREEN"
+    },
+    "detached_never_attached": {
+      "result": {
+        "state": "failed",
+        "selection": {
+          "attempted": true,
+          "succeeded": false,
+          "detail": "no attached screen display"
+        },
+        "activation": {
+          "attempted": false,
+          "succeeded": false,
+          "detail": "backend does not support window activation"
+        }
+      },
+      "number_before": "3",
+      "number_after": "3",
+      "windows_query_empty": true
+    },
+    "one_display": [
+      {
+        "target": "1",
+        "result": {
+          "state": "partial",
+          "selection": {
+            "attempted": true,
+            "succeeded": true,
+            "detail": "tab or pane selection"
+          },
+          "activation": {
+            "attempted": false,
+            "succeeded": false,
+            "detail": "backend does not support window activation"
+          }
+        },
+        "number": "1",
+        "keystroke_window": [
+          "1"
+        ]
+      },
+      {
+        "target": "0",
+        "result": {
+          "state": "partial",
+          "selection": {
+            "attempted": true,
+            "succeeded": true,
+            "detail": "tab or pane selection"
+          },
+          "activation": {
+            "attempted": false,
+            "succeeded": false,
+            "detail": "backend does not support window activation"
+          }
+        },
+        "number": "0",
+        "keystroke_window": [
+          "0"
+        ]
+      },
+      {
+        "target": "2",
+        "result": {
+          "state": "partial",
+          "selection": {
+            "attempted": true,
+            "succeeded": true,
+            "detail": "tab or pane selection"
+          },
+          "activation": {
+            "attempted": false,
+            "succeeded": false,
+            "detail": "backend does not support window activation"
+          }
+        },
+        "number": "2",
+        "keystroke_window": [
+          "2"
+        ]
+      },
+      {
+        "target": "3",
+        "result": {
+          "state": "partial",
+          "selection": {
+            "attempted": true,
+            "succeeded": true,
+            "detail": "tab or pane selection"
+          },
+          "activation": {
+            "attempted": false,
+            "succeeded": false,
+            "detail": "backend does not support window activation"
+          }
+        },
+        "number": "3",
+        "keystroke_window": [
+          "3"
+        ]
+      }
+    ],
+    "unknown_window": {
+      "detail": "screen shows window 3, not window 9",
+      "number_after": "3"
+    },
+    "stale_window": {
+      "result": {
+        "state": "failed",
+        "selection": {
+          "attempted": true,
+          "succeeded": false,
+          "detail": "screen shows window 2, not window 3"
+        },
+        "activation": {
+          "attempted": false,
+          "succeeded": false,
+          "detail": "backend does not support window activation"
+        }
+      },
+      "number_after": "2",
+      "keystroke_window": [
+        "2"
+      ]
+    },
+    "two_displays": [
+      {
+        "target": "1",
+        "last_input_display": "d1",
+        "newest_display": "d2",
+        "result": {
+          "state": "partial",
+          "selection": {
+            "attempted": true,
+            "succeeded": true,
+            "detail": "tab or pane selection"
+          },
+          "activation": {
+            "attempted": false,
+            "succeeded": false,
+            "detail": "backend does not support window activation"
+          }
+        },
+        "number": "1",
+        "displays_showing_target": [
+          "d2"
+        ]
+      },
+      {
+        "target": "0",
+        "last_input_display": "d2",
+        "newest_display": "d2",
+        "result": {
+          "state": "partial",
+          "selection": {
+            "attempted": true,
+            "succeeded": true,
+            "detail": "tab or pane selection"
+          },
+          "activation": {
+            "attempted": false,
+            "succeeded": false,
+            "detail": "backend does not support window activation"
+          }
+        },
+        "number": "0",
+        "displays_showing_target": [
+          "d2"
+        ]
+      }
+    ],
+    "two_displays_observed_rule": "most recently attached display",
+    "unrelated_session": {
+      "name_shares_prefix": true,
+      "current_window_unchanged": true
+    },
+    "detached_after_attach": {
+      "result": {
+        "state": "failed",
+        "selection": {
+          "attempted": true,
+          "succeeded": false,
+          "detail": "no attached screen display"
+        },
+        "activation": {
+          "attempted": false,
+          "succeeded": false,
+          "detail": "backend does not support window activation"
+        }
+      },
+      "number_before": "2",
+      "number_after": "2",
+      "windows_query_empty": true
+    },
+    "stale_session": {
+      "result": {
+        "state": "failed",
+        "selection": {
+          "attempted": true,
+          "succeeded": false,
+          "detail": "screen session could not be queried"
+        },
+        "activation": {
+          "attempted": false,
+          "succeeded": false,
+          "detail": "backend does not support window activation"
+        }
+      }
+    }
+  },
+  "error": null,
+  "cleanup": {
+    "tracked": 11,
+    "survivors": 0,
+    "marker_strays": 0
+  },
+  "kwin_calls": 0,
+  "labels": {
+    "live": "observed on this host with real screen processes",
+    "instrumented": "adapter seam wrapped to count argv"
+  }
+}

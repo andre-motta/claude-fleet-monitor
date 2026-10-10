@@ -1,4 +1,11 @@
-"""Windows Terminal API. Tab switching not supported; window raise only."""
+"""Windows Terminal API.
+
+Detection only. A window titled "Windows Terminal" can belong to another
+session because titles follow the active tab, and all windows usually share
+one WindowsTerminal.exe process, so the session's own window cannot be
+identified without Win32 owner and top-level window enumeration that has not
+been validated on a Windows host. Selection and activation stay unsupported.
+"""
 
 import os
 
@@ -8,6 +15,7 @@ from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 class WindowsTerminalAPI(TerminalAPI):
     name = "windows_terminal"
     selection_supported = False
+    activation_supported = False
 
     @staticmethod
     def detect() -> bool:
@@ -23,18 +31,10 @@ class WindowsTerminalAPI(TerminalAPI):
     def find_activation_target(
         self, pid: int, terminal_env: dict, tab_id: str | None
     ) -> str | None:
-        return terminal_env.get("WT_SESSION") or None
+        return None
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
         return False
 
     def raise_window(self, tab_id: str, terminal_env: dict) -> bool:
-        try:
-            import pywinctl
-        except ImportError:
-            return False
-        wins = pywinctl.getWindowsWithTitle("Windows Terminal")
-        if wins:
-            wins[0].activate()
-            return True
         return False

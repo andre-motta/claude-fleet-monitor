@@ -1,0 +1,214 @@
+{
+  "result": "pass",
+  "kitty_version": "kitty 0.47.1",
+  "install_source": "rpm kitty-0.47.1-1.fc44.x86_64",
+  "remote_control": "kitty --config NONE, allow_remote_control=socket-only, temporary unix listen_on; Fleet never edits kitty.conf",
+  "capture": {
+    "detect": true,
+    "keys": [
+      "KITTY_LISTEN_ON",
+      "KITTY_WINDOW_ID"
+    ],
+    "window_ids_match": true,
+    "listen_on_equals_given_address": true,
+    "listen_on_shape": "unix:<tmp>/rc.sock"
+  },
+  "duplicate_targets": {
+    "window_titles": [
+      "dup"
+    ],
+    "tab_titles": [
+      "dup"
+    ],
+    "same_cwd": true,
+    "windows_sharing_a_tab": true,
+    "separate_tabs": true
+  },
+  "selections": [
+    {
+      "target": "1",
+      "active_before": [
+        3
+      ],
+      "state": "partial",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": false,
+        "detail": "backend does not support window activation"
+      },
+      "readback_target_tab_active": true,
+      "readback_target_window_active": true,
+      "readback_same_tab_others_active": [
+        false
+      ],
+      "readback_other_tabs_active": [
+        false
+      ]
+    },
+    {
+      "target": "2",
+      "active_before": [
+        1
+      ],
+      "state": "partial",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": false,
+        "detail": "backend does not support window activation"
+      },
+      "readback_target_tab_active": true,
+      "readback_target_window_active": true,
+      "readback_same_tab_others_active": [
+        false
+      ],
+      "readback_other_tabs_active": [
+        false
+      ]
+    },
+    {
+      "target": "3",
+      "active_before": [
+        2
+      ],
+      "state": "partial",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": false,
+        "detail": "backend does not support window activation"
+      },
+      "readback_target_tab_active": true,
+      "readback_target_window_active": true,
+      "readback_same_tab_others_active": [],
+      "readback_other_tabs_active": [
+        false
+      ]
+    },
+    {
+      "target": "1",
+      "active_before": [
+        3
+      ],
+      "state": "partial",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": false,
+        "detail": "backend does not support window activation"
+      },
+      "readback_target_tab_active": true,
+      "readback_target_window_active": true,
+      "readback_same_tab_others_active": [
+        false
+      ],
+      "readback_other_tabs_active": [
+        false
+      ]
+    },
+    {
+      "target": "2",
+      "active_before": [
+        1
+      ],
+      "state": "partial",
+      "selection": {
+        "attempted": true,
+        "succeeded": true,
+        "detail": "tab or pane selection"
+      },
+      "activation": {
+        "attempted": false,
+        "detail": "backend does not support window activation"
+      },
+      "readback_target_tab_active": true,
+      "readback_target_window_active": true,
+      "readback_same_tab_others_active": [
+        false
+      ],
+      "readback_other_tabs_active": [
+        false
+      ]
+    }
+  ],
+  "kitty_at_fallback": {
+    "tools": [
+      "kitty"
+    ],
+    "selection_succeeded": true,
+    "readback_active": true
+  },
+  "stale_target": {
+    "state": "failed",
+    "selection_attempted": true,
+    "selection_detail": "kitty focus-window: target window no longer exists",
+    "active_unchanged": true
+  },
+  "missing_socket": {
+    "state": "failed",
+    "selection_attempted": true,
+    "selection_detail": "kitty focus-window: remote control socket refused or missing (kitty closed or remote control off)"
+  },
+  "remote_control_off": {
+    "detect": true,
+    "captured_keys": [
+      "KITTY_WINDOW_ID"
+    ],
+    "socket_created": false,
+    "state": "failed",
+    "selection_attempted": false,
+    "selection_detail": "kitty remote control unavailable (allow_remote_control/listen_on not configured)",
+    "forced_address_exit": 1,
+    "forced_address_stderr": "Error: Failed to connect to unix:<socket> with error: dial unix <socket>: connect: no such file or directory",
+    "provenance": "live"
+  },
+  "remote_control_disabled_reply": {
+    "text": "Remote control is disabled. Add allow_remote_control to your kitty.conf",
+    "provenance": "inspected: kitty 0.47.1 boss.py reply for tty or password routes; not reachable through an unconfigured socket because kitty then does not listen, which the remote_control_off case observes live"
+  },
+  "checks": {
+    "capture": true,
+    "duplicates": true,
+    "selections": true,
+    "failures_rejected": true,
+    "kitty_at_fallback": true
+  },
+  "cleanup": {
+    "tracked": 7,
+    "survivors": 0,
+    "marker_strays": 0
+  },
+  "provenance": "live: disposable minimized kitty instances; env captured by KittyAPI inside each kitty window; selection by KittyAPI.focus_result; independent readback by kitten @ ls (tab and window is_active)",
+  "evidence_kind": "live",
+  "gui_activation": "unverified: not claimed (activation_supported is False); no KWin, qdbus or xdotool calls",
+  "kwin_calls": 0,
+  "user_config_unchanged": true,
+  "marker_strays_after_run": 0,
+  "validation_date": "2026-10-09",
+  "platform": {
+    "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
+    "kernel_release": "7.2.7-200.fc44.x86_64",
+    "desktop": "KDE",
+    "session_type": "wayland",
+    "python_version": "3.14.7"
+  },
+  "tested_commit": "4c58e95121f678652dd5f6aa6689cad74ba3302f",
+  "tested_files_modified_since_commit": false,
+  "sha256": {
+    "src/claude_fleet_monitor/terminal_apis/kitty.py": "ab912e92da9e9156dec250334a00b52851fe48d22d609c2e054cfe68c5f5aaf0",
+    "validation/kitty.py": "13f7cbc9979fa80b14ccbf9ecd659e9b2dd9b4ca03795627c69063f3be0153ce"
+  }
+}

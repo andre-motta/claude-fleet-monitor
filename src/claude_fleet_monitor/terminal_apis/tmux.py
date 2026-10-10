@@ -6,12 +6,15 @@ import subprocess
 
 from claude_fleet_monitor import discovery
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
+from claude_fleet_monitor.terminal_apis.parent import activate_parent
 
 TERMINAL_PROCESS_NAMES = {
     "konsole": "konsole",
     "ghostty": "ghostty",
     "gnome-terminal": "gnome",
     "gnome-terminal-server": "gnome",
+    "terminator": "terminator",
+    "kitty": "kitty",
     "iTerm2": "iterm2",
     "Terminal": "macos_terminal",
     "WindowsTerminal": "windows_terminal",
@@ -213,7 +216,7 @@ class TmuxAPI(TerminalAPI):
             + ["list-clients", "-t", session_id, "-F", _CLIENT_FORMAT]
         )
         if result is None:
-            return False
+            raise RuntimeError("tmux client list could not be read")
 
         client_pids = []
         for line in (result.stdout or "").splitlines():
@@ -221,7 +224,7 @@ class TmuxAPI(TerminalAPI):
                 continue
             parts = line.split("\t")
             if len(parts) != 5:
-                return False
+                raise RuntimeError("unrecognized tmux list-clients output")
             client_pid, client_session, client_window, client_pane, control = parts
             if (
                 not client_pid.isdigit()
@@ -231,7 +234,7 @@ class TmuxAPI(TerminalAPI):
                 )
                 is None
             ):
-                return False
+                raise RuntimeError("unrecognized tmux list-clients output")
             if (
                 control == "0"
                 and client_session == session_id
@@ -242,17 +245,21 @@ class TmuxAPI(TerminalAPI):
                 if parsed_pid > 1:
                     client_pids.append(parsed_pid)
 
+        if not client_pids:
+            raise RuntimeError("no attached tmux client shows the pane")
+        failures = []
         for client_pid in sorted(set(client_pids)):
-            parent_api = _detect_parent_terminal(client_pid)
-            if parent_api is None:
-                continue
-            try:
-                parent_tab = parent_api.find_tab(client_pid, {})
-                if parent_api.selection_supported:
-                    if not parent_tab or not parent_api.switch_tab(parent_tab, {}):
-                        continue
-                if parent_tab and parent_api.raise_window(parent_tab, {}):
-                    return True
-            except Exception:
-                continue
-        return False
+            parent = _detect_parent_terminal(client_pid)
+            if activate_parent(parent, client_pid):
+                return True
+            failures.append(_parent_failure(parent))
+        raise RuntimeError("; ".join(dict.fromkeys(failures)))
+
+
+def _parent_failure(parent) -> str:
+    if parent is None:
+        return "no parent terminal emulator found"
+    name = getattr(parent, "name", "unknown")
+    if not getattr(parent, "activation_supported", True):
+        return f"parent terminal {name} does not support window activation"
+    return f"parent terminal {name} did not activate"

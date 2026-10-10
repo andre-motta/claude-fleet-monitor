@@ -4,7 +4,7 @@ Fleet monitoring for Claude Code and Codex sessions. The core is pure Python and
 The approved Pi integration may package an optional dependency-free JavaScript extension.
 
 See [docs/SDLC.md](docs/SDLC.md) for the adopted agent workflow, approval gates
-and [active planning](docs/work/harnesses-desktop.md).
+and [active planning](docs/work/terminal-focus.md).
 
 ## Architecture
 
@@ -47,23 +47,28 @@ Codex sessions --------/
 
 Pluggable terminal abstraction. Each terminal has a class implementing `TerminalAPI`:
 
-- `base.py`: ABC defining `detect()`, `capture_env()`, `find_tab()`, `switch_tab()`, `raise_window()`, `focus()`
-- `konsole.py`: KDE Konsole via qdbus + KWin scripting
-- `tmux.py`: tmux via CLI. Detects parent terminal for window raising.
-- `zellij.py`: zellij via CLI. Detects parent terminal for window raising.
-- `ghostty.py`: Ghostty via GTK DBus. Window raise via `org.gtk.Application.Activate` + KWin fallback. Tab switching via ydotool/xdotool Alt+N (requires ydotoold on Wayland).
-- `gnome.py`: GNOME Terminal via xdotool (no tab switching API)
+- `base.py`: ABC defining `detect()`, `capture_env()`, `find_tab()`, `switch_tab()`, `raise_window()`, `focus()` and the structured `focus_result()`. Capability flags: `selection_supported`, `activation_supported`, `activation_before_selection`, `deferred_selection_readback`.
+- `konsole.py`: KDE Konsole via qdbus (qdbus, qdbus6 or qdbus-qt6) + KWin scripting. Selection is read back over D-Bus; activation targets one unique owned window and is verified after KWin activation (`deferred_selection_readback`).
+- `tmux.py`: tmux via CLI with stable session/window/pane IDs and readback. Routes parent activation per attached client through `parent.py`; owns `TERMINAL_PROCESS_NAMES` and the bounded parent walk.
+- `zellij.py`: zellij via CLI. Exact pane selection with `focus-pane-id` and `list-clients` readback using the captured `ZELLIJ_PANE_ID`. Parent activation is usually unavailable because the server is daemonized.
+- `ghostty.py`: Ghostty on Linux: activates only the single managed window owned by the session's Ghostty ancestor (KWin owner-pid request plus xdotool `getactivewindow` readback, X11 only); Alt+N tab switching via ydotool/xdotool only after confirmed activation (requires ydotoold on Wayland).
+- `gnome.py`: GNOME Terminal on Linux X11. No tab selection; activates only the single window owned by the `gnome-terminal-server` ancestor and confirms it with `xdotool getactivewindow`.
+- `terminator.py`: Terminator, detection only (#47). Captures `TERMINATOR_UUID`, `TERMINATOR_DBUS_NAME` and `TERMINATOR_DBUS_PATH`; claims no selection or activation because Terminator's D-Bus API cannot select or raise.
 - `iterm2.py`: iTerm2 via osascript
 - `macos_terminal.py`: macOS Terminal.app via osascript
-- `windows_terminal.py`: Windows Terminal via pywinctl (window raise only)
-- `generic.py`: Fallback using pywinctl/xdotool/osascript
+- `windows_terminal.py`: Windows Terminal, detection only (owner window not identifiable without validated Win32 enumeration)
+- `kitty.py`: Kitty via opt-in remote control (`kitten @ --to <KITTY_LISTEN_ON>`, unix sockets only). Window selection with `ls` readback; no activation claim. Fleet never edits kitty.conf.
+- `screen.py`: GNU screen via `-X select` with `-Q number` readback and an attached-display guard. No activation (a screen session owns no GUI window).
+- `generic.py`: Fallback that identifies no target and never selects or activates
+- `parent.py`: `activate_parent()`, the one nested-parent routing helper used by tmux and zellij. Delegates to the parent's own `focus_result()` for activation-first, selection-less or deferred-readback parents; otherwise a failed selection never raises the window.
+- `_env.py`: Env-only, never-raising capture helpers for adapters (`bounded_env`, `is_decimal_id`)
 - `__init__.py`: `detect_terminal()`, `capture_terminal_info()`, `get_terminal_api()`
 
-Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > windows_terminal > generic. tmux/zellij first because they run inside other terminals.
+Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > terminator > windows_terminal > kitty > screen > generic. tmux/zellij first because they run inside other terminals. Kitty and screen sit immediately before generic so every earlier result is unchanged; markers leaked from a launching terminal keep precedence (screen inside Konsole is labelled konsole).
 
-Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields.
+Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields. Capture reads only the environment: no subprocess, D-Bus or `/proc` access at hook time.
 
-For nested terminals (tmux inside Konsole), `raise_window()` walks the process tree from the tmux client PID to detect the parent terminal and chains to its API.
+For nested terminals (tmux inside Konsole), `raise_window()` walks the process tree from the tmux client PID to the first name in `TERMINAL_PROCESS_NAMES` and routes through `parent.activate_parent()`. Terminator and Kitty stop the walk and report activation unsupported; screen is never a parent.
 
 ## Key Design Decisions
 

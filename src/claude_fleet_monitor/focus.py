@@ -3,8 +3,12 @@
 import sys
 
 from claude_fleet_monitor.discovery import read_session_records, resolve_session_process
-from claude_fleet_monitor.models import FocusResult
+from claude_fleet_monitor.models import FocusOperation, FocusResult
 from claude_fleet_monitor.terminal_apis import find_terminal_api
+
+_DETAILS_LIMIT = 120
+_GENERIC_DETAILS = frozenset({"tab or pane selection", "window activation"})
+_UNSUPPORTED_PREFIX = "backend does not support "
 
 
 def _public_record(record):
@@ -53,13 +57,59 @@ def get_pid(session):
     return process.pid if process else None
 
 
+def _collapsed(text) -> str:
+    return " ".join(str(text).replace("\0", "").split())
+
+
+def _bounded(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3].rstrip() + "..."
+
+
+def _operation_detail(operation: FocusOperation) -> str:
+    if operation.succeeded:
+        return "ok"
+    detail = _collapsed(operation.detail)
+    if not operation.attempted and detail.startswith(_UNSUPPORTED_PREFIX):
+        return "unsupported"
+    if operation.attempted and (not detail or detail in _GENERIC_DETAILS):
+        return "failed"
+    return detail or "unavailable"
+
+
+def _step_details(result: FocusResult) -> tuple[str, str]:
+    selection = _operation_detail(result.selection)
+    activation = _operation_detail(result.activation)
+    if result.selection.succeeded or result.activation.succeeded:
+        return (
+            _bounded(selection, _DETAILS_LIMIT),
+            _bounded(activation, _DETAILS_LIMIT),
+        )
+    # Share one budget so a long selection detail never hides activation.
+    half = _DETAILS_LIMIT // 2
+    return (
+        _bounded(selection, max(half, _DETAILS_LIMIT - len(activation))),
+        _bounded(activation, max(half, _DETAILS_LIMIT - len(selection))),
+    )
+
+
+def _details_suffix(result: FocusResult) -> str:
+    selection, activation = _step_details(result)
+    return f" (selection: {selection}; activation: {activation})"
+
+
 def focus_notification(result: FocusResult, repo: str) -> tuple[str, str]:
     if result.complete:
         return f"Focused: {repo}", "information"
     if result.successful:
-        return f"Partially focused: {repo}", "warning"
-    label = result.state.replace("-", " ").capitalize()
-    return f"Focus {label}: {repo}: {result.reason}", "error"
+        message, severity = f"Partially focused: {repo}", "warning"
+    else:
+        label = result.state.replace("-", " ").capitalize()
+        message, severity = f"Focus {label}: {repo}: {result.reason}", "error"
+    if result.successful or result.state == "failed":
+        message += _details_suffix(result)
+    return message, severity
 
 
 def focus_session(query) -> FocusResult:
@@ -120,11 +170,19 @@ def focus_session(query) -> FocusResult:
 
 def focus(query):
     result = focus_session(query)
-    if result.successful:
-        label = "Focused" if result.complete else "Partially focused"
-        print(f"{label} session via {result.backend} (PID {result.pid})")
+    if result.complete:
+        print(f"Focused session via {result.backend} (PID {result.pid})")
         return True
-    print(result.reason, file=sys.stderr)
+    if result.successful:
+        print(
+            f"Partially focused session via {result.backend} (PID {result.pid})"
+            + _details_suffix(result)
+        )
+        return True
+    message = result.reason
+    if result.state == "failed":
+        message += _details_suffix(result)
+    print(message, file=sys.stderr)
     return False
 
 

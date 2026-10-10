@@ -23,6 +23,14 @@ def process_identity(pid):
         return None
 
 
+def raise_failure(api, target, env):
+    try:
+        raised = api.raise_window(target, env)
+    except RuntimeError as error:
+        return str(error)
+    raise AssertionError(f"raise_window returned {raised!r} instead of a reason")
+
+
 def cleanup(run, identities, clients):
     try:
         run("kill-server", check=False)
@@ -146,6 +154,7 @@ def validate():
             calls = []
 
             class Parent:
+                name = "instrumented"
                 selection_supported = True
 
                 def find_tab(self, client_pid, terminal_env):
@@ -162,20 +171,24 @@ def validate():
 
             parent = Parent()
             parent.selected = True
+            not_activated = "parent terminal instrumented did not activate"
             with patch("claude_fleet_monitor.terminal_apis.tmux._detect_parent_terminal", return_value=parent):
-                assert not api.raise_window(target, env)
+                reason = raise_failure(api, target, env)
+            assert reason == not_activated, reason
             assert calls == [(operation, target_client) for operation in ("find", "select", "raise")], calls
             successful_routing = list(calls)
             calls.clear()
             parent.selected = False
             with patch("claude_fleet_monitor.terminal_apis.tmux._detect_parent_terminal", return_value=parent):
-                assert not api.raise_window(target, env)
+                reason = raise_failure(api, target, env)
+            assert reason == not_activated, reason
             assert calls == [(operation, target_client) for operation in ("find", "select")], calls
             tty = run("list-clients", "-t", session, "-F", "#{client_tty}")
             run("detach-client", "-t", tty)
             calls.clear()
             with patch("claude_fleet_monitor.terminal_apis.tmux._detect_parent_terminal", return_value=parent):
-                assert not api.raise_window(target, env)
+                reason = raise_failure(api, target, env)
+            assert reason == "no attached tmux client shows the pane", reason
             assert not calls, calls
             assert api.switch_tab(target, env)
             assert run(
@@ -190,7 +203,8 @@ def validate():
             assert run("display-message", "-p", "-t", session, "#{pane_id}") == identity
             run("kill-pane", "-t", identity)
             assert not api.switch_tab(relocated, env)
-            assert not api.raise_window(relocated, env)
+            reason = raise_failure(api, relocated, env)
+            assert reason == "no attached tmux client shows the pane", reason
             evidence = {
                 "result": "pass", "tmux_version": run("-V"),
                 "stable_target": target, "selected_window_and_pane": observed,

@@ -10,6 +10,9 @@ class TerminalAPI(ABC):
     selection_supported: bool = True
     activation_supported: bool = True
     activation_before_selection: bool = False
+    # switch_tab readback may stay stale until the window is active;
+    # verify_selection is authoritative after activation.
+    deferred_selection_readback: bool = False
 
     @staticmethod
     @abstractmethod
@@ -41,6 +44,10 @@ class TerminalAPI(ABC):
 
     def prepare_selection_after_activation(self) -> None:
         """Wait for an activated window when a backend requires settling."""
+
+    def verify_selection(self, tab_id: str, terminal_env: dict) -> bool:
+        """Confirm a selection that only becomes observable after activation."""
+        return False
 
     def focus(self, pid: int, terminal_env: dict) -> bool:
         """Preserve the legacy true-on-any-success focus contract."""
@@ -107,6 +114,19 @@ class TerminalAPI(ABC):
         else:
             selection = select_target()
             activation = activate_target()
+            if (
+                selection.attempted
+                and not selection.succeeded
+                and activation.succeeded
+            ):
+                try:
+                    confirmed = self.verify_selection(tab_id, terminal_env)
+                except Exception:
+                    confirmed = False
+                if confirmed:
+                    selection = FocusOperation(
+                        True, True, "tab or pane selection verified after activation"
+                    )
         successful = selection.succeeded or activation.succeeded
         complete = selection.succeeded and activation.succeeded
         target_found = bool(tab_id or activation_target)

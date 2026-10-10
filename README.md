@@ -50,33 +50,105 @@ The evidence behind this table has defined limits:
 
 ## Supported Terminals
 
-The table lists implemented backend capabilities. Runtime availability,
-selected-target proof and window activation vary by environment and are
-reported as structured focus outcomes; the harness evidence limits above do
-not turn this inventory into live acceptance on every operating system.
+The table lists implemented backend capabilities and the strongest evidence
+behind each claim. Runtime availability, selected-target proof and window
+activation vary by environment and are reported as structured focus outcomes;
+a successful command alone is never reported as focus. Evidence labels:
+**live** (real program observed on Fedora 44 KDE Plasma Wayland),
+**instrumented** (real program with Fleet calls recorded), **mocked** (pytest
+with substituted OS calls), **inspected** (source or documentation only) and
+**unverified** (not observed).
 
-| Terminal | Tab Switching | Window Raise | Nested Support |
-|----------|:---:|:---:|:---:|
-| **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6) | Best effort (KWin, unverified) | -- |
-| **tmux** | Yes (tmux CLI) | Via parent terminal | Yes |
-| **zellij** | No exact tab selection | Via parent terminal | Yes |
-| **Ghostty (Linux)** | Best effort (ydotool/xdotool) | GTK DBus / KWin | -- |
-| **GNOME Terminal** | No | Yes (xdotool) | -- |
-| **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
-| **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- |
-| **Windows Terminal** | No | Yes (pywinctl) | -- |
-| **Generic fallback** | No | Best effort | -- |
+| Terminal | Tab or pane selection | Window raise | Nested support | Evidence |
+|----------|:---:|:---:|:---:|---|
+| **KDE Konsole** | Yes (qdbus, qdbus6 or qdbus-qt6, D-Bus readback) | Yes (KWin, one unique owned window, readback) | -- | live: Konsole 26.08 tab selection ([JSON](validation/evidence/konsole-fedora44.json)); cross-window tab plus window confirmed hands-on through the TUI; mocked; as a tmux parent the Konsole service owned by the client's nearest ancestor is used (mocked) |
+| **tmux** | Yes (stable IDs, readback) | Via parent terminal, per attached client; failures name the reason (no attached client, no parent emulator, unsupported or unconfirmed parent) | Yes | live: tmux 3.7c selection ([JSON](validation/evidence/tmux-fedora44.json)); parent routing instrumented and mocked; failure details mocked |
+| **zellij** | Yes (`focus-pane-id`, `list-clients` before and after readback); needs an attached client and the monitor's zellij socket dir | No (parent emulator not reachable) | Yes | live: zellij 0.45.1 ([JSON](validation/evidence/zellij-fedora44.json)); moved-client rule mocked |
+| **Kitty** | Yes, opt-in remote control with a `unix:` listen_on socket (`kitten @ ls` readback) | No (not claimed) | -- | live: kitty 0.47.1 ([JSON](validation/evidence/kitty-fedora44.json)); window raise unverified |
+| **GNU screen** | Yes (`-X select`, `-Q number` readback); needs an attached display, and with several only the most recently attached one switches | No (no GUI window) | -- | live: screen 5.0.1 ([JSON](validation/evidence/screen-fedora44.json)) |
+| **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires exactly one window-manager-managed window (minimized or on another desktop counts) owned by the Ghostty process the session descends from; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
+| **GNOME Terminal** | No | Exact owner window only: the single window-manager-managed window (minimized or on another desktop counts) of the session's gnome-terminal-server, X11 only (xdotool readback) | -- | mocked; not live-validated |
+| **Terminator** | No (detection only, #47) | No | -- | detection live (terminator 2.1.5 [probe](validation/evidence/terminal-probe-fedora44.json)); mocked; #47 inspection |
+| **iTerm2** | Yes (osascript) | Yes (osascript) | -- | mocked and inspected; unvalidated on macOS |
+| **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- | mocked and inspected; unvalidated on macOS |
+| **Windows Terminal** | No (detection only) | No (owner window not identifiable) | -- | mocked; unvalidated on Windows |
+| **WezTerm** | No (no adapter) | No | -- | not validated (skipped); sessions fall back to generic |
+| **Generic fallback** | No | No | -- | mocked |
+
+"Yes" means the operation is attempted and reported as succeeded only after
+independent readback. Version support is the one version validated on the
+host; no older version floor is established.
 
 Nested terminals (e.g. tmux inside Konsole) are handled automatically: the
-focus command attempts exact pane selection, then attempts parent-terminal
-activation when that integration is available. The structured result reports
-partial or unavailable outcomes separately.
+focus command selects the exact pane, then routes window activation to the
+terminal emulator hosting a client that is attached to that pane. The
+structured result reports selection and activation separately, so a detached
+session or an unsupported parent gives an honest partial result. Kitty and
+Terminator stop the parent walk and report activation unsupported rather than
+climbing to whatever launched them. A zellij server is daemonized, so the
+emulator showing a zellij client is not reachable and zellij activation is
+reported unavailable.
 
 tmux selection uses stable session, window and pane IDs with selection readback.
 Parent-window routing considers only clients attached to the target session;
 detached sessions can still select their pane without activating a GUI window.
+When several attached clients show the target pane in different emulator
+windows, each client's parent is tried in turn until one reports success.
+Konsole, Ghostty and GNOME Terminal parents can raise their window and still
+report failure (selection or activation not confirmed), so that rare case can
+raise more than one window.
 See the [isolated tmux validation](validation/README.md#stable-tmux-selection-and-client-routing-on-linux)
 for the tested routing behavior and its GUI evidence limits.
+
+Terminator is detection only ([#47](https://github.com/andre-motta/claude-fleet-monitor/issues/47),
+reported by @EmilienM). Sessions are labelled `terminator` and capture
+`TERMINATOR_UUID`, `TERMINATOR_DBUS_NAME` and `TERMINATOR_DBUS_PATH`, but
+focus reports an honest unsupported failure: Terminator's D-Bus interface
+cannot select a terminal or raise a window.
+
+### Kitty remote control
+
+Kitty selection needs remote control, which Fleet never enables for you and
+never writes into `kitty.conf`. Add both settings yourself and restart kitty:
+
+```conf
+allow_remote_control socket-only
+listen_on unix:${XDG_RUNTIME_DIR}/kitty-{kitty_pid}
+```
+
+Kitty then exports `KITTY_LISTEN_ON`, which the hook captures with
+`KITTY_WINDOW_ID`. Only `unix:` socket addresses (an absolute path or an
+`@abstract` name) are used; `tcp:`, `fd:` and relative addresses are dropped
+at capture. Without remote control or a `unix:` listen_on socket, focus reports
+"kitty remote control unavailable: needs allow_remote_control and a unix:
+listen_on socket" and changes nothing.
+
+**Security warning:** with `allow_remote_control` enabled, any local process
+that can reach the socket can control kitty, including sending text to its
+windows and running commands. Prefer `socket-only` over `yes`, keep the socket
+in a directory only you can access (as `$XDG_RUNTIME_DIR` above), avoid
+abstract `@` sockets on shared hosts, and turn remote control off when you do
+not need it. Fleet only runs `ls` and `focus-window` and never sends a remote
+control password; if kitty requires one, focus reports the refusal instead of
+selecting.
+
+### Terminal detection limits
+
+Detection runs at hook time from environment variables only, and terminal
+markers leak into child processes. The fixed detection order therefore
+mislabels some combinations:
+
+- Kitty, Terminator or another emulator started from a Konsole or GNOME
+  Terminal shell inherits that terminal's markers and is labelled `konsole` or
+  `gnome`. Start emulators from the desktop launcher instead.
+- GNU screen or zellij running inside tmux is labelled `tmux`, and GNU screen
+  inside Konsole, GNOME Terminal or Kitty is labelled after that emulator.
+- WezTerm has no adapter, so its sessions are labelled `generic`. If a
+  multiplexer inside WezTerm reaches a known emulator that launched WezTerm,
+  the parent walk continues to it; that emulator then finds no matching tab.
+- Records captured before an upgrade keep their old label and environment;
+  start a fresh agent session to pick up new capture keys such as
+  `ZELLIJ_PANE_ID`.
 
 ## Install
 
@@ -138,9 +210,10 @@ hook paths.
 - `textual` >= 1.0
 
 Optional (for terminal focus):
-- `qdbus` -- Konsole tab switching (KDE)
+- `qdbus`, `qdbus6` or `qdbus-qt6` -- Konsole tab switching and KWin activation (KDE)
 - `xdotool` -- GNOME Terminal / X11 window focus
-- `pywinctl` -- Windows Terminal window focus
+- `kitten` or `kitty` with remote control enabled -- Kitty window selection
+- `zellij` and `screen` CLIs -- pane and window selection for those multiplexers
 - `notify-send` -- desktop notifications (Linux)
 
 Optional agent integration:
@@ -259,19 +332,32 @@ src/claude_fleet_monitor/
         konsole.py        # KDE Konsole
         tmux.py           # tmux
         zellij.py         # zellij
-        ghostty.py        # Ghostty (Linux GTK DBus)
+        ghostty.py        # Ghostty (Linux, owner-window KWin/X11)
         gnome.py          # GNOME Terminal
+        terminator.py     # Terminator (detection only)
         iterm2.py         # iTerm2
         macos_terminal.py # macOS Terminal.app
-        windows_terminal.py # Windows Terminal
-        generic.py        # Fallback
+        windows_terminal.py # Windows Terminal (detection only)
+        kitty.py          # Kitty (opt-in remote control)
+        screen.py         # GNU screen
+        generic.py        # Fallback (no target)
+        parent.py         # Nested parent-terminal routing
+        _env.py           # Env-only capture helpers
 ```
 
 ## Known Limitations
 
-- **Same-name tabs in different windows (Konsole/KDE):** When multiple sessions share the same repo name and live in different Konsole windows, the focus command will switch to the correct tab but may raise the wrong window. Workaround: keep same-name sessions grouped in the same Konsole window.
+- **Same-title tabs in different windows (Konsole/KDE):** Konsole window activation must match exactly one window of the owning Konsole process. When two windows show the same caption, focus selects the tab but reports activation as failed ("no unique Konsole window matched the tab title") instead of raising a guess.
 - **Wayland window activation:** On Wayland/KDE, window raising uses KWin scripting via DBus. Other Wayland compositors may not support programmatic window activation.
-- **GNOME Terminal / Windows Terminal:** No tab switching API available; window raise only.
+- **GNOME Terminal:** No tab switching API available; window raise only for the exact owning window on X11. A server with several windows, including minimized ones or ones on other desktops, reports activation unavailable.
+- **Ghostty:** Window activation requires a single managed Ghostty window (minimized and other-desktop windows count) and an X11 readback; with several windows, or on Wayland without xdotool readback, activation fails with a detail and no Alt+N keys are sent. This path is mocked only.
+- **Windows Terminal:** Detection only. Its window titles follow the active tab and all windows usually share one process, so the session window cannot be identified without Win32 enumeration validated on Windows.
+- **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
+- **Kitty, GNU screen and zellij windows:** Selection is read back, but no GUI window activation is claimed. Kitty offers no independent OS focus readback, a screen session owns no window, and a zellij client's emulator is not reachable from the daemonized server.
+- **GNU screen and zellij with several displays or clients:** GNU screen switches only the most recently attached display, and zellij moves only the client that most recently received input; other displays and clients keep their own window or pane. Both need an attached display or client: a detached session reports a failed selection.
+- **zellij socket directory:** Fleet runs `zellij --session` with its own environment, so it finds a session only when its `ZELLIJ_SOCKET_DIR` matches the session's. Sessions started with a custom `ZELLIJ_SOCKET_DIR` report a failed selection instead of a guess.
+- **zellij selection proof:** Selection succeeds only when a client that was elsewhere moves to the pane, or when every attached client already showed it ("pane already focused"). An idle client that already showed the pane while the active client did not move is a failure.
+- **Generic fallback:** Unknown terminals get no selection or window raise; the earlier best-effort raise could activate an unrelated window and was removed.
 
 ## Configuration
 
