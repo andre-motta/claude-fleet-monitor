@@ -8,7 +8,7 @@ from claude_fleet_monitor.terminal_apis import gnome, konsole, tmux
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.generic import GenericAPI
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
-from tests.test_konsole import _fake_konsole
+from tests.konsole_fakes import fake_konsole as _fake_konsole
 
 
 TMUX_ENV = {"TMUX": "/tmp/fleet,socket,4400,7"}

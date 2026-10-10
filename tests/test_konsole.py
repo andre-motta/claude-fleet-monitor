@@ -4,19 +4,19 @@ import shutil
 import stat
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from claude_fleet_monitor.focus import focus_notification
 from claude_fleet_monitor.terminal_apis import konsole
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
+from tests.konsole_fakes import fake_konsole, qdbus_result
 
 StepError = konsole.KonsoleFocusError
-
-
-def _result(returncode=0, stdout=""):
-    return SimpleNamespace(returncode=returncode, stdout=stdout)
+STALE_SELECTION = (
+    r"^tab 2 selection not confirmed \(Konsole reports tab 5;"
+    r" readback may be stale until activation\)$"
+)
 
 
 def _executable(directory: Path, name: str) -> Path:
@@ -83,7 +83,7 @@ def test_nonzero_qdbus_output_cannot_create_target_or_success(monkeypatch):
     monkeypatch.setattr(
         konsole.subprocess,
         "run",
-        lambda *args, **kwargs: _result(
+        lambda *args, **kwargs: qdbus_result(
             1, "org.kde.konsole-123\n/Sessions/2\n/Windows/3\n42\n17\n"
         ),
     )
@@ -119,13 +119,13 @@ def test_find_tab_selects_valid_pid_and_window(monkeypatch):
     def run(command, **kwargs):
         calls.append(command)
         if command == [executable, "org.kde.konsole-123"]:
-            return _result(0, "/Sessions/2\n/Windows/7\n")
+            return qdbus_result(0, "/Sessions/2\n/Windows/7\n")
         if command[-1] == "org.kde.konsole.Session.foregroundProcessId":
-            return _result(0, "99\n")
+            return qdbus_result(0, "99\n")
         if command[-1] == "org.kde.konsole.Session.processId":
-            return _result(0, "42\n")
+            return qdbus_result(0, "42\n")
         if command[-1] == "org.kde.konsole.Window.sessionList":
-            return _result(0, "2\n")
+            return qdbus_result(0, "2\n")
         raise AssertionError(command)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -145,9 +145,9 @@ def test_switch_tab_verifies_current_session(monkeypatch):
     def run(command, **kwargs):
         calls.append(command)
         if command[-2] == "org.kde.konsole.Window.setCurrentSession":
-            return _result(0)
+            return qdbus_result(0)
         if command[-1] == "org.kde.konsole.Window.currentSession":
-            return _result(0, "2\n")
+            return qdbus_result(0, "2\n")
         raise AssertionError(command)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -162,7 +162,12 @@ def test_switch_tab_verifies_current_session(monkeypatch):
 @pytest.mark.parametrize(
     ("returncode", "stdout", "detail"),
     [
-        (0, "99\n", "^Konsole reports tab 99 current, not 2$"),
+        (
+            0,
+            "99\n",
+            r"^tab 2 selection not confirmed \(Konsole reports tab 99;"
+            r" readback may be stale until activation\)$",
+        ),
         (0, "\n", "^Konsole did not report tab 2 as current$"),
         (1, "2\n", "^Konsole current tab could not be read$"),
     ],
@@ -175,93 +180,15 @@ def test_switch_tab_rejects_stale_or_failed_readback(
 
     def run(command, **kwargs):
         if command[-2] == "org.kde.konsole.Window.setCurrentSession":
-            return _result(0)
+            return qdbus_result(0)
         if command[-1] == "org.kde.konsole.Window.currentSession":
-            return _result(returncode, stdout)
+            return qdbus_result(returncode, stdout)
         raise AssertionError(command)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
 
     with pytest.raises(StepError, match=detail):
         konsole.KonsoleAPI().switch_tab("org.kde.konsole-123|7|2", {})
-
-
-class _FakeKonsole:
-    """Konsole and KWin D-Bus state where focus only follows activation."""
-
-    def __init__(self, executable, active=False):
-        self.executable = executable
-        self.visible = "5"
-        self.focused = "5"
-        self.active = active
-        self.activates = True
-        self.runs = True
-        self.calls = []
-        self.scripts = []
-        self.unloaded = []
-
-    def run(self, command, **kwargs):
-        assert command[0] == self.executable
-        self.calls.append(command)
-        args = command[1:]
-        if args[:1] == ["org.kde.KWin"]:
-            return self._kwin(args)
-        if args[:3] == [
-            "org.freedesktop.DBus",
-            "/org/freedesktop/DBus",
-            "org.freedesktop.DBus.GetConnectionUnixProcessID",
-        ]:
-            return _result(0, "4242\n")
-        if args == ["svc"]:
-            return _result(
-                0,
-                "/Windows/7\n/konsole/MainWindow_1\n/konsole/MainWindow_1/actions\n",
-            )
-        method = args[2] if len(args) > 2 else ""
-        if method == "org.kde.konsole.Window.setCurrentSession":
-            self.visible = args[3]
-            if self.active:
-                self.focused = self.visible
-            return _result(0)
-        if method == "org.kde.konsole.Window.currentSession":
-            return _result(0, f"{self.focused}\n")
-        if method == "org.kde.konsole.Session.title":
-            return _result(0, f"title {args[1].rsplit('/', 1)[1]}\n")
-        if method == "org.qtproject.Qt.QWidget.isActiveWindow":
-            return _result(0, "true\n" if self.active else "false\n")
-        if method == "org.qtproject.Qt.QWidget.windowTitle":
-            return _result(0, f"title {self.focused}\n")
-        raise AssertionError(command)
-
-    def _kwin(self, args):
-        method = args[2]
-        if method == "org.kde.kwin.Scripting.loadScript":
-            with open(args[3]) as script:
-                self.scripts.append((script.read(), args[4], args[3]))
-            return _result(0, "11\n")
-        if method == "org.kde.kwin.Script.run":
-            if not self.runs:
-                return _result(1)
-            if self.activates:
-                self.active = True
-                self.focused = self.visible
-            return _result(0)
-        if method == "org.kde.kwin.Scripting.unloadScript":
-            self.unloaded.append(args[3])
-            return _result(0, "true\n")
-        raise AssertionError(args)
-
-
-def _fake_konsole(monkeypatch, active=False):
-    executable = "/usr/bin/qdbus-qt6"
-    fake = _FakeKonsole(executable, active=active)
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: executable)
-    monkeypatch.setattr(konsole.subprocess, "run", fake.run)
-    monkeypatch.setattr(konsole, "_ACTIVATION_SETTLE_SECONDS", 0)
-    monkeypatch.setattr(
-        konsole.KonsoleAPI, "find_tab", lambda self, pid, env: "svc|7|2"
-    )
-    return fake
 
 
 def _script_titles(script):
@@ -272,7 +199,7 @@ def _script_titles(script):
 
 
 def test_inactive_window_selection_is_verified_after_activation(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
 
     result = konsole.KonsoleAPI().focus_result(42, {})
 
@@ -290,7 +217,7 @@ def test_inactive_window_selection_is_verified_after_activation(monkeypatch):
 
 
 def test_active_window_selects_directly(monkeypatch):
-    fake = _fake_konsole(monkeypatch, active=True)
+    fake = fake_konsole(monkeypatch, active=True)
 
     result = konsole.KonsoleAPI().focus_result(42, {})
 
@@ -302,10 +229,10 @@ def test_active_window_selects_directly(monkeypatch):
 def test_inactive_window_stale_readback_still_reaches_verification(
     monkeypatch,
 ):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     api = konsole.KonsoleAPI()
 
-    with pytest.raises(StepError, match="^Konsole reports tab 5 current, not 2$"):
+    with pytest.raises(StepError, match=STALE_SELECTION):
         api.switch_tab("svc|7|2", {})
     fake.visible = "5"
 
@@ -322,7 +249,7 @@ def test_konsole_declares_deferred_selection_readback():
 
 
 def test_unobserved_activation_reports_failure(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     fake.activates = False
 
     result = konsole.KonsoleAPI().focus_result(42, {})
@@ -330,7 +257,10 @@ def test_unobserved_activation_reports_failure(monkeypatch):
     assert result.state == "failed"
     assert result.selection.attempted and not result.selection.succeeded
     assert result.activation.attempted and not result.activation.succeeded
-    assert result.selection.detail == "Konsole reports tab 5 current, not 2"
+    assert result.selection.detail == (
+        "tab 2 selection not confirmed (Konsole reports tab 5;"
+        " readback may be stale until activation)"
+    )
     assert (
         result.activation.detail
         == "no unique Konsole window matched the tab title (0 found)"
@@ -338,14 +268,15 @@ def test_unobserved_activation_reports_failure(monkeypatch):
     assert fake.unloaded == [fake.scripts[0][1]]
     assert focus_notification(result, "repo") == (
         "Focus Failed: repo: terminal focus operations failed"
-        " (selection: Konsole reports tab 5 current, not 2;"
+        " (selection: tab 2 selection not confirmed (Konsole reports tab 5;"
+        " readbac...;"
         " activation: no unique Konsole window matched the tab title (0 found))",
         "error",
     )
 
 
 def test_inactive_titled_window_names_activation_timeout(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     fake.focused = "2"
     fake.activates = False
 
@@ -362,15 +293,15 @@ def test_inactive_titled_window_names_activation_timeout(monkeypatch):
 
 
 def test_active_window_with_other_tab_names_current_tab(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     original = fake.run
 
     def run(command, **kwargs):
         args = command[1:]
         if args[2:] == ["org.kde.konsole.Window.currentSession"]:
-            return _result(0, "5\n")
+            return qdbus_result(0, "5\n")
         if args[2:] == ["org.qtproject.Qt.QWidget.windowTitle"]:
-            return _result(0, "title 2\n")
+            return qdbus_result(0, "title 2\n")
         return original(command, **kwargs)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -382,7 +313,7 @@ def test_active_window_with_other_tab_names_current_tab(monkeypatch):
 
 
 def test_failed_kwin_run_is_named_and_cleaned_up(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     fake.runs = False
 
     result = konsole.KonsoleAPI().focus_result(42, {})
@@ -394,12 +325,12 @@ def test_failed_kwin_run_is_named_and_cleaned_up(monkeypatch):
 
 
 def test_failed_kwin_load_is_named_in_focus_result(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     original = fake.run
 
     def run(command, **kwargs):
         if command[3:4] == ["org.kde.kwin.Scripting.loadScript"]:
-            return _result(0, "-1\n")
+            return qdbus_result(0, "-1\n")
         return original(command, **kwargs)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -411,12 +342,12 @@ def test_failed_kwin_load_is_named_in_focus_result(monkeypatch):
 
 
 def test_unreadable_tab_title_is_named(monkeypatch):
-    fake = _fake_konsole(monkeypatch, active=True)
+    fake = fake_konsole(monkeypatch, active=True)
     original = fake.run
 
     def run(command, **kwargs):
         if command[-2:] == ["org.kde.konsole.Session.title", "1"]:
-            return _result(1)
+            return qdbus_result(1)
         return original(command, **kwargs)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -429,7 +360,7 @@ def test_unreadable_tab_title_is_named(monkeypatch):
 
 
 def test_missing_owner_pid_never_loads_kwin_script(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     original = fake.run
 
     def run(command, **kwargs):
@@ -437,7 +368,7 @@ def test_missing_owner_pid_never_loads_kwin_script(monkeypatch):
             "org.freedesktop.DBus.GetConnectionUnixProcessID",
             "svc",
         ]:
-            return _result(1)
+            return qdbus_result(1)
         return original(command, **kwargs)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -463,8 +394,8 @@ def test_kwin_script_embeds_titles_as_data(monkeypatch, title):
     def run(command, **kwargs):
         if command[3] == "org.kde.kwin.Scripting.loadScript":
             scripts.append(open(command[4]).read())
-            return _result(0, "3\n")
-        return _result(0)
+            return qdbus_result(0, "3\n")
+        return qdbus_result(0)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
 
@@ -475,7 +406,7 @@ def test_kwin_script_embeds_titles_as_data(monkeypatch, title):
 
 def test_failed_kwin_load_reports_no_activation(monkeypatch):
     monkeypatch.setattr(
-        konsole.subprocess, "run", lambda command, **kwargs: _result(0, "-1\n")
+        konsole.subprocess, "run", lambda command, **kwargs: qdbus_result(0, "-1\n")
     )
 
     with pytest.raises(StepError, match="^KWin script could not be loaded$"):
@@ -528,7 +459,7 @@ def test_kwin_script_activates_only_one_exact_caption(
 
 
 def test_other_active_window_with_same_title_is_not_activation(monkeypatch):
-    fake = _fake_konsole(monkeypatch)
+    fake = fake_konsole(monkeypatch)
     fake.focused = "2"
     fake.activates = False
     original = fake.run
@@ -536,12 +467,12 @@ def test_other_active_window_with_same_title_is_not_activation(monkeypatch):
     def run(command, **kwargs):
         args = command[1:]
         if args == ["svc"]:
-            return _result(0, "/konsole/MainWindow_1\n/konsole/MainWindow_2\n")
+            return qdbus_result(0, "/konsole/MainWindow_1\n/konsole/MainWindow_2\n")
         if args[2:] == ["org.qtproject.Qt.QWidget.windowTitle"]:
-            return _result(0, "title 2\n")
+            return qdbus_result(0, "title 2\n")
         if args[2:] == ["org.qtproject.Qt.QWidget.isActiveWindow"]:
             active = args[1] == "/konsole/MainWindow_2"
-            return _result(0, "true\n" if active else "false\n")
+            return qdbus_result(0, "true\n" if active else "false\n")
         return original(command, **kwargs)
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
@@ -570,7 +501,7 @@ def test_failed_kwin_load_cleans_up(monkeypatch):
 
     def run(command, **kwargs):
         calls.append(command)
-        return _result(0, "-1\n")
+        return qdbus_result(0, "-1\n")
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
 
