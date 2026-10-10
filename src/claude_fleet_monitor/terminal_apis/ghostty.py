@@ -3,9 +3,11 @@
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
+from claude_fleet_monitor.terminal_apis.konsole import _resolve_qdbus, _run_qdbus
 
 # ydotool evdev keycodes for number keys 1-9
 _YDOTOOL_NUM_KEYS = {
@@ -161,7 +163,6 @@ class GhosttyAPI(TerminalAPI):
 
     @staticmethod
     def _try_kwin_raise() -> bool:
-        import tempfile
         script = """
 var windows = workspace.windowList();
 for (var i = 0; i < windows.length; i++) {
@@ -171,25 +172,27 @@ for (var i = 0; i < windows.length; i++) {
     }
 }
 """
+        executable = _resolve_qdbus()
+        if not executable:
+            return False
         with tempfile.NamedTemporaryFile(suffix=".js", mode="w", delete=False) as f:
             f.write(script)
             f.flush()
             try:
-                r = subprocess.run(
-                    ["qdbus", "org.kde.KWin", "/Scripting",
+                r = _run_qdbus(
+                    executable,
+                    ["org.kde.KWin", "/Scripting",
                      "org.kde.kwin.Scripting.loadScript", f.name],
-                    capture_output=True, text=True, timeout=5
+                    timeout=5, text=True,
                 )
-                sid = r.stdout.strip()
+                sid = r.stdout.strip() if r else ""
                 if sid.isdigit():
-                    subprocess.run(
-                        ["qdbus", "org.kde.KWin", f"/Scripting/Script{sid}",
+                    _run_qdbus(
+                        executable,
+                        ["org.kde.KWin", f"/Scripting/Script{sid}",
                          "org.kde.kwin.Script.run"],
-                        capture_output=True, timeout=5
+                        timeout=5, text=False,
                     )
-                    return False
-            except (FileNotFoundError, subprocess.TimeoutExpired):
-                pass
             finally:
                 os.unlink(f.name)
         return False
