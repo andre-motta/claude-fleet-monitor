@@ -33,6 +33,10 @@ _KNOWN_ERRORS = (
         "remote control is allowed over a socket only",
     ),
     ("the user rejected this password", "remote control password was refused"),
+    (
+        "remote control disallowed by window specific password",
+        "remote control password was refused",
+    ),
     ("the user rejected this request", "remote control request was rejected"),
     ("no matching windows", "target window no longer exists"),
 )

@@ -304,6 +304,10 @@ def test_run_returns_nonzero_result_for_error_detail(monkeypatch):
             "kitty focus-window: remote control password was refused",
         ),
         (
+            "Error: Remote control disallowed by window specific password",
+            "kitty focus-window: remote control password was refused",
+        ),
+        (
             "Error: The user rejected this request",
             "kitty focus-window: remote control request was rejected",
         ),
