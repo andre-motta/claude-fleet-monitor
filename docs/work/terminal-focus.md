@@ -429,7 +429,18 @@ a `--start-as=hidden` kitty can report `is_focused` true with no window.
   Suspected cause: a late map or minimize of probe B, started just before,
   took focus after the raise. The validator now waits until the probes'
   focus state is unchanged for 0.5 s (at most 5 s) before alternating, and
-  activation requires a stable second readback; later runs passed.
+  activation requires a stable second readback.
+- Two more failed live runs, after that hardening (pre-rebase `7488b3c`, and
+  `8ed4ffc` on current main): in each, one or two of the six alternations
+  failed honestly. KWin accepted the activation (the script confirmed), but
+  kitty reported "lost focus after activation" or no focus within 1 s, and
+  the validator then saw neither probe focused, so a non-probe window had
+  focus. Probes had settled first. No run claimed a raise that the readback
+  did not show. Suspected cause: concurrent desktop activity on the shared
+  validation desktop; not proven, because identifying the active non-probe
+  window would mean reading it through KWin. The next run on `8ed4ffc`
+  passed and is the committed evidence. Live activation is therefore
+  sensitive to other focus changes while it runs.
 - Upgrade note: sessions recorded before this change have no `KITTY_PID` and
   lose kitty selection (and activation) until the agent session is
   restarted; kitty versions that do not export `KITTY_PID` lose selection.
