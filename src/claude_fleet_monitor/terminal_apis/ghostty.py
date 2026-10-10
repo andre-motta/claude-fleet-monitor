@@ -1,7 +1,8 @@
 """Ghostty terminal API.
 
-Activation targets only the single visible window owned by the Ghostty process
-hosting the session. KWin is asked first when available, but KWin cannot report
+Activation targets only the single window-manager-managed window owned by the
+Ghostty process that is an ancestor of the session, minimized or on another
+desktop included. KWin is asked first when available, but KWin cannot report
 back, so success needs xdotool to read the target as the active X11 window.
 Tab selection sends Alt+N and therefore runs only after confirmed activation.
 """
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import time
 
+from claude_fleet_monitor import discovery
+from claude_fleet_monitor.terminal_apis import _x11
 from claude_fleet_monitor.terminal_apis._env import is_decimal_id
 from claude_fleet_monitor.terminal_apis._qdbus import (
     KWinScriptError,
@@ -20,7 +23,9 @@ from claude_fleet_monitor.terminal_apis._qdbus import (
 )
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 
-_XDOTOOL_TIMEOUT = 2.0
+_PROCESS_NAME = "ghostty"
+_MAX_STEPS = 64
+_LOOKUP_DEADLINE = 3.0
 _KWIN_ACTIVATE_SCRIPT = """
 var owner = __OWNER__;
 var matches = [];
@@ -43,22 +48,6 @@ _YDOTOOL_NUM_KEYS = {
 }
 
 
-def _xdotool(args: list[str]) -> subprocess.CompletedProcess:
-    try:
-        return subprocess.run(
-            ["xdotool", *args],
-            capture_output=True,
-            text=True,
-            timeout=_XDOTOOL_TIMEOUT,
-        )
-    except FileNotFoundError:
-        raise RuntimeError("xdotool is not installed") from None
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f"xdotool {args[0]} timed out") from None
-    except OSError as error:
-        raise RuntimeError(f"xdotool {args[0]} failed: {error.strerror}") from None
-
-
 def _tab_pid(tab_id) -> int | None:
     if not isinstance(tab_id, str):
         return None
@@ -68,16 +57,40 @@ def _tab_pid(tab_id) -> int | None:
     return int(pid)
 
 
-def _find_ghostty_pid() -> int | None:
-    try:
-        result = subprocess.run(
-            ["pgrep", "-x", "ghostty"],
-            capture_output=True, text=True, timeout=5
-        )
-        pids = result.stdout.strip().split("\n")
-        return int(pids[0]) if pids and pids[0] else None
-    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
-        return None
+def _is_ghostty(process) -> bool:
+    names = [
+        process.name,
+        process.executable,
+        process.argv[0] if process.argv else "",
+    ]
+    return any(os.path.basename(value or "") == _PROCESS_NAME for value in names)
+
+
+def _find_ghostty(pid: int, deadline: float) -> tuple[int, int]:
+    """Return the Ghostty ancestor of pid and its direct child on that path."""
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 1:
+        raise LookupError("invalid agent process id")
+    visited = set()
+    child = None
+    current = pid
+    for _ in range(_MAX_STEPS):
+        if time.monotonic() > deadline:
+            raise LookupError("process ancestry walk timed out")
+        if current <= 1 or current in visited:
+            break
+        visited.add(current)
+        process = discovery.get_process_info(current)
+        if process is None:
+            break
+        if _is_ghostty(process):
+            if child is None:
+                break
+            return current, child
+        if process.ppid is None:
+            break
+        child = current
+        current = process.ppid
+    raise LookupError("no Ghostty ancestor found")
 
 
 def _get_ghostty_children(ghostty_pid: int) -> list[int]:
@@ -102,30 +115,6 @@ def _get_ghostty_children(ghostty_pid: int) -> list[int]:
     return children
 
 
-def _find_ancestor_child(pid: int, ghostty_pid: int) -> int | None:
-    """Walk up from pid to find which direct child of ghostty it descends from."""
-    check = pid
-    while check > 1:
-        try:
-            if sys.platform == "linux":
-                stat = open(f"/proc/{check}/stat").read()
-                ppid = int(stat.split(") ")[1].split()[1])
-            else:
-                ppid_str = subprocess.run(
-                    ["ps", "-o", "ppid=", "-p", str(check)],
-                    capture_output=True, text=True, timeout=2
-                ).stdout.strip()
-                ppid = int(ppid_str) if ppid_str else 0
-        except (OSError, ValueError, IndexError):
-            break
-        if ppid == ghostty_pid:
-            return check
-        if ppid <= 1:
-            break
-        check = ppid
-    return None
-
-
 class GhosttyAPI(TerminalAPI):
     name = "ghostty"
     activation_before_selection = True
@@ -145,16 +134,15 @@ class GhosttyAPI(TerminalAPI):
         }
 
     def find_tab(self, pid: int, terminal_env: dict) -> str | None:
-        ghostty_pid = _find_ghostty_pid()
-        if not ghostty_pid:
+        try:
+            ghostty_pid, ancestor = _find_ghostty(
+                pid, time.monotonic() + _LOOKUP_DEADLINE
+            )
+        except LookupError:
             return None
 
         children = _get_ghostty_children(ghostty_pid)
-        if not children:
-            return None
-
-        ancestor = _find_ancestor_child(pid, ghostty_pid)
-        if not ancestor or ancestor not in children:
+        if ancestor not in children:
             return None
 
         tab_index = children.index(ancestor) + 1
@@ -180,16 +168,20 @@ class GhosttyAPI(TerminalAPI):
         agent_pid = _tab_pid(tab_id)
         if agent_pid is None:
             raise RuntimeError("invalid Ghostty tab target")
-        ghostty_pid = _find_ghostty_pid()
-        if not ghostty_pid:
-            raise RuntimeError("Ghostty process not found")
-        if _find_ancestor_child(agent_pid, ghostty_pid) is None:
-            raise RuntimeError("session is not inside the running Ghostty process")
+        try:
+            ghostty_pid, _ = _find_ghostty(
+                agent_pid, time.monotonic() + _LOOKUP_DEADLINE
+            )
+        except LookupError as error:
+            raise RuntimeError(str(error)) from None
         kwin_note = None
         if sys.platform == "linux":
             kwin_note = self._try_kwin_raise(ghostty_pid)
         try:
-            return self._try_xdotool_raise(ghostty_pid)
+            window = _x11.managed_window(
+                ghostty_pid, "Ghostty", time.monotonic() + _LOOKUP_DEADLINE
+            )
+            return _x11.activate(window)
         except RuntimeError as error:
             if kwin_note:
                 raise RuntimeError(f"{error}; KWin: {kwin_note}") from None
@@ -243,38 +235,6 @@ class GhosttyAPI(TerminalAPI):
             run_kwin_script(executable, script, "claude-fleet-ghostty")
         except KWinScriptError as error:
             return str(error)
+        except OSError as error:
+            return f"KWin script could not be written: {error.strerror or error}"
         return "activation requested but unconfirmed"
-
-    @staticmethod
-    def _try_xdotool_raise(ghostty_pid: int) -> bool:
-        search = _xdotool(
-            ["search", "--onlyvisible", "--pid", str(ghostty_pid)]
-        )
-        if search.returncode not in (0, 1):
-            raise RuntimeError(f"xdotool search exited {search.returncode}")
-        windows = [
-            line.strip() for line in search.stdout.splitlines() if line.strip()
-        ]
-        if not windows:
-            raise RuntimeError("Ghostty owns no visible X11 window")
-        if len(windows) > 1:
-            raise RuntimeError(
-                f"Ghostty owns {len(windows)} visible windows;"
-                " exact window unknown"
-            )
-        window = windows[0]
-        if not is_decimal_id(window):
-            raise RuntimeError("xdotool returned an invalid window id")
-        activated = _xdotool(["windowactivate", "--sync", window])
-        if activated.returncode != 0:
-            raise RuntimeError(
-                f"xdotool windowactivate exited {activated.returncode}"
-            )
-        active = _xdotool(["getactivewindow"])
-        if active.returncode != 0:
-            raise RuntimeError(
-                f"xdotool getactivewindow exited {active.returncode}"
-            )
-        if active.stdout.strip() != window:
-            raise RuntimeError("active window readback did not match the target")
-        return True

@@ -423,6 +423,8 @@ def _route_tmux_and_xdotool(monkeypatch, xdotool):
         if command[0] == "tmux":
             return completed("200\t$7\t@12\t%34\t0\n")
         assert command[0] == "xdotool"
+        if command[1] == "get_desktop_for_window":
+            return completed("0\n")
         return xdotool[command[1]]
 
     monkeypatch.setattr(tmux.subprocess, "run", run)
@@ -445,11 +447,12 @@ def test_tmux_in_gnome_terminal_activates_owned_window(monkeypatch):
     assert TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
     assert [command[:2] for command in commands[1:]] == [
         ["xdotool", "search"],
+        ["xdotool", "get_desktop_for_window"],
         ["xdotool", "windowactivate"],
         ["xdotool", "getactivewindow"],
     ]
     assert commands[1][-1] == "100"
-    assert commands[2][-1] == "4194307"
+    assert commands[3][-1] == "4194307"
 
 
 def test_tmux_in_gnome_terminal_with_several_windows_is_not_raised(monkeypatch):
@@ -462,7 +465,7 @@ def test_tmux_in_gnome_terminal_with_several_windows_is_not_raised(monkeypatch):
 
     with pytest.raises(RuntimeError, match="^parent terminal gnome did not activate$"):
         TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
-    assert [command[:2] for command in commands[1:]] == [["xdotool", "search"]]
+    assert "windowactivate" not in [command[1] for command in commands]
 
 
 def test_tmux_in_background_konsole_window_is_raised_then_verified(monkeypatch):

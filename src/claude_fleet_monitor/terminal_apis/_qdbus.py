@@ -81,7 +81,12 @@ def run_kwin_script(executable: str, script: str, plugin_prefix: str) -> None:
     plugin = f"{plugin_prefix}-{uuid.uuid4().hex}"
     descriptor, path = tempfile.mkstemp(suffix=".js")
     try:
-        with os.fdopen(descriptor, "w") as script_file:
+        try:
+            script_file = os.fdopen(descriptor, "w")
+        except BaseException:
+            os.close(descriptor)
+            raise
+        with script_file:
             script_file.write(script)
         loaded = qdbus_text(
             executable,

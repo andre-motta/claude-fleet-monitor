@@ -136,8 +136,8 @@ def test_vte_alone_does_not_claim_gnome_terminal(monkeypatch):
 
 def test_ghostty_missing_ancestry_is_not_a_tab(monkeypatch):
     monkeypatch.setattr(
-        "claude_fleet_monitor.terminal_apis.ghostty._find_ghostty_pid",
-        lambda: None,
+        "claude_fleet_monitor.terminal_apis.ghostty.discovery.get_process_info",
+        lambda pid: None,
     )
     result = GhosttyAPI().focus_result(101, {})
     assert result.state == "failed"
