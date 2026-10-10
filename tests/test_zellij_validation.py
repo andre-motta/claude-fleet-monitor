@@ -9,6 +9,8 @@ import sys
 
 import pytest
 
+from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
+
 ROOT = Path(__file__).parents[1]
 
 linux_only = pytest.mark.skipif(sys.platform != "linux", reason="Linux-only validator")
@@ -126,6 +128,7 @@ def test_committed_evidence_is_live_and_complete():
     assert evidence["zero_clients"]["detail"] == "no attached zellij client"
     assert evidence["two_clients"]["selected"]
     assert evidence["injection_rejected_before_subprocess"]
+    # Recorded before F11 reworded the detail; the validator now expects the new text.
     assert evidence["pre_upgrade_record_detail"] == "record predates pane capture"
     assert evidence["focus_result"]["state"] == "partial"
     assert evidence["cleanup"]["survivors"] == 0
@@ -145,3 +148,10 @@ def test_committed_evidence_is_public_safe():
     assert "\u2014" not in text
     assert "fleet-z5-" not in text
     assert "<session>" in text
+
+
+@linux_only
+def test_validator_expects_the_current_pre_capture_detail():
+    with pytest.raises(LookupError) as raised:
+        ZellijAPI().find_tab(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "fleet"})
+    assert str(raised.value) == validator.LEGACY_DETAIL

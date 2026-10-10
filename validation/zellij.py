@@ -44,6 +44,10 @@ from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE = REPO_ROOT / "validation" / "evidence" / "zellij-fedora44.json"
+LEGACY_DETAIL = (
+    "session recorded before zellij pane capture; restart the agent"
+    " session to enable selection"
+)
 HASHED = ("src/claude_fleet_monitor/terminal_apis/zellij.py", "validation/zellij.py")
 PANES = ("0", "1", "2")
 SELECTION_ORDER = ("1", "2", "0", "1")
@@ -207,7 +211,7 @@ def exercise(root, session, decoy, tracker, observations):
     except LookupError as error:
         legacy_detail = str(error)
     observations["pre_upgrade_record_detail"] = legacy_detail
-    expect(legacy_detail == "record predates pane capture", "pre-upgrade record not reported")
+    expect(legacy_detail == LEGACY_DETAIL, "pre-upgrade record not reported")
 
     with patch.dict(os.environ, {**{key: env[key] for key in ISOLATION_KEYS},
                                  "ZELLIJ_SESSION_NAME": decoy}):
