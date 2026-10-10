@@ -188,6 +188,19 @@ def _single_os_window(listing, window_id: int) -> dict:
     return os_window
 
 
+def _require_owned(listing, window_id: int, kitty_pid: int) -> None:
+    """Refuse a socket served by another kitty, such as an inherited outer one."""
+    found = _locate(listing, window_id)
+    child = found[1].get("pid") if found else None
+    if not (
+        type(child) is int and child > 1 and _is_kitty_ancestor(child, kitty_pid)
+    ):
+        raise RuntimeError(
+            "kitty remote control socket does not belong to the captured kitty"
+            " process (KITTY_LISTEN_ON may be inherited from an outer kitty)"
+        )
+
+
 def _locate(listing, window_id: int):
     if not isinstance(listing, list):
         raise ValueError("listing is not a list")
@@ -283,7 +296,9 @@ class KittyAPI(TerminalAPI):
             )
         command = [*_remote_command(), "--to", address]
         try:
-            _single_os_window(_list(command, "ls"), int(window_id))
+            listing = _list(command, "ls")
+            _single_os_window(listing, int(window_id))
+            _require_owned(listing, int(window_id), int(kitty_pid))
         except RuntimeError as error:
             raise LookupError(str(error)) from None
         return f"{int(kitty_pid)}:{int(window_id)}"
@@ -298,7 +313,9 @@ class KittyAPI(TerminalAPI):
         if not executable:
             raise RuntimeError("qdbus is not available")
         command = [*_remote_command(), "--to", address]
-        _single_os_window(_list(command, "ls"), window_id)
+        listing = _list(command, "ls")
+        _single_os_window(listing, window_id)
+        _require_owned(listing, window_id, kitty_pid)
         try:
             confirmed = activate_owned_window(
                 executable,

@@ -4,8 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from claude_fleet_monitor.terminal_apis import kitty
+from claude_fleet_monitor.terminal_apis import kitty, tmux
 from claude_fleet_monitor.terminal_apis.kitty import KittyAPI
+from claude_fleet_monitor.terminal_apis.parent import activate_parent
+from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
 from tests.terminal_env import clear_terminal_markers
 
 ADDRESS = "unix:/tmp/fleet-kitty-test/rc.sock"
@@ -27,7 +29,8 @@ def _listing(active_window=2, active_tab=True, other_active=False):
                     "id": 2,
                     "is_active": active_tab,
                     "windows": [
-                        {"id": 2, "is_active": active_window == 2, "is_focused": False},
+                        {"id": 2, "pid": 9, "is_active": active_window == 2,
+                         "is_focused": False},
                         {"id": 3, "is_active": active_window == 3 or other_active},
                     ],
                 },
@@ -817,4 +820,72 @@ def test_remote_control_off_reports_activation_unavailable(desktop):
 
     assert not result.activation.attempted
     assert result.activation.detail == kitty.REMOTE_CONTROL_UNAVAILABLE
+    assert fake.calls == [] and fake.kwin == []
+
+
+@pytest.mark.parametrize(
+    "child",
+    [None, "9", True, 1, 4242],
+    ids=["missing", "string", "bool", "init", "outer-kitty-child"],
+)
+def test_socket_of_another_kitty_is_refused_before_kwin(desktop, child):
+    fake = desktop()
+    desktop.tree[4242] = _process(4242, 4000, "bash")
+    desktop.tree[4000] = _process(4000, 1, "kitty")
+    window = fake.listing[0]["tabs"][1]["windows"][0]
+    if child is None:
+        del window["pid"]
+    else:
+        window["pid"] = child
+
+    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+    with pytest.raises(RuntimeError, match="does not belong to the captured kitty"):
+        KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "kitty remote control socket does not belong to the captured kitty"
+        " process (KITTY_LISTEN_ON may be inherited from an outer kitty)"
+    )
+    assert fake.kwin == []
+
+
+def test_window_child_below_a_kitty_helper_is_accepted(desktop):
+    fake = desktop()
+    desktop.tree[9] = _process(9, 30, "bash")
+    desktop.tree[30] = _process(30, KITTY_PID, "kitty")
+
+    assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert len(fake.kwin) == 1
+
+
+def test_real_kitty_is_refused_as_a_nested_parent(desktop, monkeypatch):
+    fake = desktop()
+    chain = {
+        200: SimpleNamespace(pid=200, ppid=150, name="tmux: client",
+                             executable="tmux", argv=("tmux",)),
+        150: SimpleNamespace(pid=150, ppid=KITTY_PID, name="bash",
+                             executable="bash", argv=("bash",)),
+        KITTY_PID: SimpleNamespace(pid=KITTY_PID, ppid=1, name="kitty",
+                                   executable="kitty", argv=("kitty",)),
+    }
+    monkeypatch.setattr(tmux.discovery, "get_process_info", chain.get)
+    monkeypatch.setattr(
+        tmux.subprocess,
+        "run",
+        lambda command, **kwargs: SimpleNamespace(
+            stdout="200\t$7\t@12\t%34\t0\n", returncode=0
+        ),
+    )
+
+    outcome = activate_parent(KittyAPI(), 200)
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal kitty does not support window activation$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", {"TMUX": "/tmp/fleet,4400,7"})
+
+    assert not outcome.activated and not outcome.confirmed
+    assert outcome.detail == "parent terminal kitty does not support window activation"
+    assert isinstance(tmux._detect_parent_terminal(200), KittyAPI)
     assert fake.calls == [] and fake.kwin == []
