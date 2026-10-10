@@ -62,6 +62,7 @@ not turn this inventory into live acceptance on every operating system.
 | **zellij** | No exact tab selection | Via parent terminal | Yes |
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool) | GTK DBus / KWin | -- |
 | **GNOME Terminal** | No | Yes (xdotool) | -- |
+| **Terminator** (detection only; mocked, #47 inspection) | No | No | -- |
 | **iTerm2** | Yes (osascript) | Yes (osascript) | -- |
 | **macOS Terminal** | Yes (osascript) | Yes (osascript) | -- |
 | **Windows Terminal** | No | Yes (pywinctl) | -- |
@@ -71,6 +72,14 @@ Nested terminals (e.g. tmux inside Konsole) are handled automatically: the
 focus command attempts exact pane selection, then attempts parent-terminal
 activation when that integration is available. The structured result reports
 partial or unavailable outcomes separately.
+
+Terminator is detection only ([#47](https://github.com/andre-motta/claude-fleet-monitor/issues/47)).
+Sessions are labelled `terminator` and capture `TERMINATOR_UUID`,
+`TERMINATOR_DBUS_NAME` and `TERMINATOR_DBUS_PATH`, but focus reports an honest
+unsupported failure: Terminator's D-Bus interface cannot select a terminal or
+raise a window. Evidence: mocked tests plus the read-only inspection in #47.
+Markers inherited from the launching terminal keep precedence, so Terminator
+started from Konsole or GNOME Terminal is labelled as that terminal.
 
 tmux selection uses stable session, window and pane IDs with selection readback.
 Parent-window routing considers only clients attached to the target session;
@@ -261,10 +270,12 @@ src/claude_fleet_monitor/
         zellij.py         # zellij
         ghostty.py        # Ghostty (Linux GTK DBus)
         gnome.py          # GNOME Terminal
+        terminator.py     # Terminator (detection only)
         iterm2.py         # iTerm2
         macos_terminal.py # macOS Terminal.app
         windows_terminal.py # Windows Terminal
         generic.py        # Fallback
+        _env.py           # Env-only capture helpers
 ```
 
 ## Known Limitations
@@ -272,6 +283,7 @@ src/claude_fleet_monitor/
 - **Same-name tabs in different windows (Konsole/KDE):** When multiple sessions share the same repo name and live in different Konsole windows, the focus command will switch to the correct tab but may raise the wrong window. Workaround: keep same-name sessions grouped in the same Konsole window.
 - **Wayland window activation:** On Wayland/KDE, window raising uses KWin scripting via DBus. Other Wayland compositors may not support programmatic window activation.
 - **GNOME Terminal / Windows Terminal:** No tab switching API available; window raise only.
+- **Terminator:** Detection only. Its D-Bus interface has no select or raise method, so focus reports an unsupported failure until Terminator gains one (#47).
 
 ## Configuration
 

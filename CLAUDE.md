@@ -53,13 +53,15 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `zellij.py`: zellij via CLI. Detects parent terminal for window raising.
 - `ghostty.py`: Ghostty via GTK DBus. Window raise via `org.gtk.Application.Activate` + KWin fallback. Tab switching via ydotool/xdotool Alt+N (requires ydotoold on Wayland).
 - `gnome.py`: GNOME Terminal via xdotool (no tab switching API)
+- `terminator.py`: Terminator, detection only (#47). Captures `TERMINATOR_UUID`, `TERMINATOR_DBUS_NAME` and `TERMINATOR_DBUS_PATH`; claims no selection or activation because Terminator's D-Bus API cannot select or raise.
 - `iterm2.py`: iTerm2 via osascript
 - `macos_terminal.py`: macOS Terminal.app via osascript
 - `windows_terminal.py`: Windows Terminal via pywinctl (window raise only)
 - `generic.py`: Fallback using pywinctl/xdotool/osascript
+- `_env.py`: Env-only, never-raising capture helpers for adapters (`bounded_env`, `is_decimal_id`)
 - `__init__.py`: `detect_terminal()`, `capture_terminal_info()`, `get_terminal_api()`
 
-Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > windows_terminal > generic. tmux/zellij first because they run inside other terminals.
+Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > terminator > windows_terminal > generic. tmux/zellij first because they run inside other terminals.
 
 Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields.
 

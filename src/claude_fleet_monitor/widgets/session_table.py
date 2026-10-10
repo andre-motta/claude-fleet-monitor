@@ -31,9 +31,11 @@ TERMINAL_ABBREV = {
     "konsole": "KDE",
     "tmux": "tmx",
     "zellij": "zel",
+    "ghostty": "gho",
     "iterm2": "iTm",
     "macos_terminal": "mac",
     "gnome": "GTK",
+    "terminator": "trm",
     "windows_terminal": "win",
     "generic": "gen",
 }
