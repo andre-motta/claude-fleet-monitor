@@ -1,18 +1,20 @@
 """KDE Konsole terminal API via qdbus + KWin."""
 
-import json
 import os
 import re
 import time
 
 from claude_fleet_monitor import discovery
+from claude_fleet_monitor.terminal_apis._kwin import (
+    activate_owned_window,
+    activation_script,
+)
 from claude_fleet_monitor.terminal_apis._qdbus import (
     KWinScriptError,
     bus_owner_pid,
     is_number,
     qdbus_text,
     resolve_qdbus,
-    run_kwin_script,
     run_qdbus,
 )
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
@@ -21,30 +23,6 @@ _SERVICE_PREFIX = "org.kde.konsole"
 _MAX_ANCESTORS = 64
 _ACTIVATION_SETTLE_SECONDS = 1.0
 _ACTIVATION_POLL_SECONDS = 0.05
-_KWIN_ACTIVATE_SCRIPT = """
-var titles = __TITLES__;
-var owner = __OWNER__;
-var matches = [];
-var windows = workspace.windowList();
-for (var i = 0; i < windows.length; i++) {
-    var candidate = windows[i];
-    if (candidate.pid !== owner) {
-        continue;
-    }
-    for (var j = 0; j < titles.length; j++) {
-        var rest = candidate.caption.slice(titles[j].length);
-        var suffix = /^( \\u2014 [^\\u2014]+)?( <\\d+>)?$/;
-        if (candidate.caption.indexOf(titles[j]) === 0 && suffix.test(rest)) {
-            matches.push(candidate);
-            break;
-        }
-    }
-}
-if (matches.length === 1) {
-    matches[0].minimized = false;
-    workspace.activeWindow = matches[0];
-}
-"""
 
 
 def _nearest_owner_ancestor(pid: int, owners: set[int]) -> int | None:
@@ -355,19 +333,23 @@ def _activation_failure(
     return f"window activation was not confirmed within {settle}"
 
 
+# Konsole keeps its live-validated caption match without the window-type filter.
 def _kwin_activation_script(titles: list[str], owner_pid: int) -> str:
-    return _KWIN_ACTIVATE_SCRIPT.replace(
-        "__TITLES__", json.dumps(titles)
-    ).replace("__OWNER__", json.dumps(owner_pid))
+    return activation_script(owner_pid, titles, normal_only=False)
 
 
 def _activate_by_kwin_caption(
     titles: list[str], owner_pid: int, executable: str
 ) -> bool:
     """Activate the single Konsole window of owner_pid showing one of titles."""
-    script = _kwin_activation_script(titles, owner_pid)
     try:
-        run_kwin_script(executable, script, "claude-fleet-focus")
+        activate_owned_window(
+            executable,
+            owner_pid,
+            plugin_prefix="claude-fleet-focus",
+            titles=titles,
+            normal_only=False,
+        )
     except KWinScriptError as error:
         raise KonsoleFocusError(str(error)) from None
     return True

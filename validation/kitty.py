@@ -1,16 +1,21 @@
-"""Validate Kitty remote-control selection with disposable isolated instances.
+"""Validate Kitty selection and KWin activation with disposable instances.
 
-Local-only Linux helper; it is never run in CI. It starts one minimized kitty
-with --config NONE, allow_remote_control=socket-only and a temporary unix
-listen_on, plus one kitty with remote control off. Window environments are
-captured by the real KittyAPI inside each kitty window. Duplicate-title
-windows and tabs are selected through KittyAPI.focus_result and confirmed by
-an independent `kitten @ ls`. It never edits user config, never calls KWin,
-qdbus or xdotool, and only signals processes it started. The evidence JSON
-contains placeholders only, never home paths, user names or host names.
+Local-only Linux helper for KDE Plasma; it is never run in CI. It starts
+minimized kitty instances with --config NONE, allow_remote_control=socket-only
+and temporary unix listen_on sockets, one hidden kitty and one kitty with
+remote control off. Window environments are captured by the real KittyAPI
+inside each kitty window. Duplicate-title windows and tabs are selected, and
+the probe OS windows activated, through KittyAPI.focus_result and confirmed by
+an independent `kitten @ ls`. KWin scripts run only through KittyAPI, behind
+an interlock that refuses any owner pid other than a probe kitty it started,
+so only probe windows are ever activated; they briefly take focus. It never
+edits user config, never calls xdotool, and only signals processes it
+started. The evidence JSON contains placeholders only, never home paths, user
+names or host names.
 """
 
 import argparse
+import contextlib
 import datetime
 import hashlib
 import json
@@ -20,6 +25,7 @@ import secrets
 import subprocess
 import sys
 import tempfile
+import time
 from unittest.mock import patch
 
 from probe_terminals import (
@@ -34,12 +40,21 @@ from probe_terminals import (
     wait_until,
 )
 
+from claude_fleet_monitor.terminal_apis import _kwin
+from claude_fleet_monitor.terminal_apis import _qdbus
 from claude_fleet_monitor.terminal_apis import kitty as kitty_module
 from claude_fleet_monitor.terminal_apis.kitty import KittyAPI
 
 ROOT = Path(__file__).resolve().parents[1]
-OWNED = ("src/claude_fleet_monitor/terminal_apis/kitty.py", "validation/kitty.py")
+OWNED = (
+    "src/claude_fleet_monitor/terminal_apis/kitty.py",
+    "src/claude_fleet_monitor/terminal_apis/_kwin.py",
+    "src/claude_fleet_monitor/terminal_apis/_qdbus.py",
+    "validation/kitty.py",
+)
 real_which = kitty_module.shutil.which
+SETTLE_QUIET_SECONDS = 0.5
+SETTLE_LIMIT_SECONDS = 5.0
 DEFAULT_OUT = ROOT / "validation" / "evidence" / "kitty-fedora44.json"
 CAPTURE = (
     "import json, sys\n"
@@ -85,11 +100,12 @@ def child_env(work):
     return env
 
 
-def launch(work, env, tracker, address, remote_control, script, token):
+def launch(work, env, tracker, address, remote_control, script, token,
+           start_as="minimized"):
     process = subprocess.Popen(
         ["kitty", "--config", "NONE", "-o", f"allow_remote_control={remote_control}",
          "-o", "confirm_os_window_close=0", "--listen-on", address,
-         "--class", f"{token}-kitty", "--start-as=minimized",
+         "--class", f"{token}-kitty", f"--start-as={start_as}",
          "--directory", str(work / "cwd"), "sh", script],
         env=env, cwd=str(work / "cwd"), stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
@@ -104,6 +120,66 @@ def active_state(tree):
                     "window_active": window["is_active"]}
         for window_id, (_, tab, window) in tree.items()
     }
+
+
+class KWinGuard:
+    """Run KWin activation only for probe kitty pids and record every script."""
+
+    def __init__(self):
+        self.allowed = set()
+        self.owners = []
+        self.plugins = []
+        self.refused = []
+        self.real_activate = kitty_module.activate_owned_window
+        self.real_script = _kwin.run_kwin_script
+
+    def activate(self, executable, owner_pid, **kwargs):
+        if owner_pid not in self.allowed:
+            self.refused.append(owner_pid)
+            raise _qdbus.KWinScriptError("validator refused a non-probe owner pid")
+        self.owners.append(owner_pid)
+        return self.real_activate(executable, owner_pid, **kwargs)
+
+    def script(self, executable, script, prefix, **kwargs):
+        self.plugins.append(kwargs.get("plugin"))
+        return self.real_script(executable, script, prefix, **kwargs)
+
+    def left_loaded(self):
+        executable = _qdbus.resolve_qdbus()
+        return sum(
+            1 for plugin in self.plugins
+            if plugin is None or _qdbus.qdbus_text(executable, [
+                "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.isScriptLoaded",
+                plugin]) != "false")
+
+
+def wait_for_stable_focus(read):
+    """Return True once read() stays unchanged for SETTLE_QUIET_SECONDS."""
+    deadline = time.monotonic() + SETTLE_LIMIT_SECONDS
+    last = read()
+    since = time.monotonic()
+    while time.monotonic() < deadline:
+        time.sleep(0.1)
+        current = read()
+        if current != last:
+            last, since = current, time.monotonic()
+        elif time.monotonic() - since >= SETTLE_QUIET_SECONDS:
+            return True
+    return False
+
+
+def os_focus(listing, window_id):
+    for os_window in listing or []:
+        for tab in os_window.get("tabs", []):
+            if any(window.get("id") == window_id for window in tab.get("windows", [])):
+                return os_window.get("is_focused")
+    return None
+
+
+def operation(result_operation):
+    return {"attempted": result_operation.attempted,
+            "succeeded": result_operation.succeeded,
+            "detail": result_operation.detail}
 
 
 def file_digest(relative):
@@ -121,30 +197,51 @@ def repo_facts():
 
 
 def validate(work, token, redact):
-    for name in ("cfg", "cache", "cwd", "io", "off"):
+    for name in ("cfg", "cache", "cwd", "io", "off", "b", "hidden"):
         (work / name).mkdir(parents=True, mode=0o700)
     tracker = Tracker([str(work)])
     env = child_env(work)
     io = work / "io"
     address = f"unix:{work}/rc.sock"
     evidence = {}
+    guard = KWinGuard()
+    stack = contextlib.ExitStack()
 
     def kitten(*arguments, to=address):
         return run(["kitten", "@", "--to", to, *arguments], env=env)
 
-    def tree(to=address):
+    def listing(to=address):
         code, out, _ = kitten("ls", to=to)
         try:
-            return kitty_tree(json.loads(out)) if code == 0 else None
+            return json.loads(out) if code == 0 else None
         except ValueError:
             return None
 
+    def tree(to=address):
+        data = listing(to)
+        return kitty_tree(data) if data is not None else None
+
+    def probe(directory, process, key="1"):
+        capture = read_capture(directory, key)
+        shell = read_pid(directory / f"pid-{key}")
+        tracker.add(shell, "window shell")
+        if capture["env"].get("KITTY_PID") != str(process.pid):
+            raise RuntimeError("captured KITTY_PID is not the probe kitty")
+        guard.allowed.add(process.pid)
+        return capture, shell
+
+    def scripts_since(count):
+        return len(guard.plugins) - count
+
     api = KittyAPI()
     try:
+        stack.enter_context(patch.object(kitty_module, "activate_owned_window", guard.activate))
+        stack.enter_context(patch.object(_kwin, "run_kwin_script", guard.script))
         process = launch(work, env, tracker, address, "socket-only",
                          window_script(io), token)
         if not wait_until(lambda: tree() and read_capture(io, "1"), 20):
             raise RuntimeError("kitty remote control did not become ready")
+        probe(io, process)
         code, out, _ = kitten("launch", "--type=window", "--title", "dup", "--cwd",
                               str(work / "cwd"), "sh", str(io / "window.sh"))
         sibling = out if code == 0 and out.isdigit() else None
@@ -194,11 +291,9 @@ def validate(work, token, redact):
                 "active_before": [wid for wid, state in before.items()
                                   if state["tab_active"] and state["window_active"]],
                 "state": result.state,
-                "selection": {"attempted": result.selection.attempted,
-                              "succeeded": result.selection.succeeded,
-                              "detail": result.selection.detail},
-                "activation": {"attempted": result.activation.attempted,
-                               "detail": result.activation.detail},
+                "selection": operation(result.selection),
+                "activation": operation(result.activation),
+                "readback_os_window_focused": os_focus(listing(), int(key)),
                 "readback_target_tab_active": target["tab_active"],
                 "readback_target_window_active": target["window_active"],
                 "readback_same_tab_others_active": [s["window_active"] for s in same_tab],
@@ -206,8 +301,8 @@ def validate(work, token, redact):
             })
         evidence["selections"] = selections
         selected_ok = all(
-            item["selection"]["succeeded"] and item["state"] == "partial"
-            and not item["activation"]["attempted"]
+            item["selection"]["succeeded"] and item["state"] == "complete"
+            and item["activation"]["succeeded"] and item["readback_os_window_focused"] is True
             and item["readback_target_tab_active"] and item["readback_target_window_active"]
             and not any(item["readback_same_tab_others_active"])
             and not any(item["readback_other_tabs_active"])
@@ -243,7 +338,8 @@ def validate(work, token, redact):
             "active_unchanged": active_state(tree()) == before,
         }
 
-        missing_env = {"KITTY_WINDOW_ID": "1", "KITTY_LISTEN_ON": f"unix:{work}/missing.sock"}
+        missing_env = {"KITTY_WINDOW_ID": "1", "KITTY_LISTEN_ON": f"unix:{work}/missing.sock",
+                       "KITTY_PID": str(process.pid)}
         missing = api.focus_result(shells["1"], missing_env)
         evidence["missing_socket"] = {
             "state": missing.state, "selection_attempted": missing.selection.attempted,
@@ -279,9 +375,159 @@ def validate(work, token, redact):
                 "listen, which the remote_control_off case observes live"),
         }
         off = evidence["remote_control_off"]
+
+        b_dir = work / "b"
+        b_address = f"unix:@{token}-b"
+        b_process = launch(work, env, tracker, b_address, "socket-only",
+                           window_script(b_dir), token)
+        if not wait_until(lambda: tree(b_address) and read_capture(b_dir, "1"), 20):
+            raise RuntimeError("second kitty instance did not become ready")
+        b_capture, b_shell = probe(b_dir, b_process)
+        instances = {
+            "A": (shells["1"], captures["1"]["env"], address),
+            "B": (b_shell, b_capture["env"], b_address),
+        }
+
+        def focus_state():
+            return {name: os_focus(listing(to), int(target_env["KITTY_WINDOW_ID"]))
+                    for name, (_, target_env, to) in instances.items()}
+
+        # A just-started probe can still be mapped or minimized and take focus,
+        # so wait until the probes' focus state stops changing.
+        settle_started = time.monotonic()
+        evidence["probe_focus_settled"] = {
+            "settled": wait_for_stable_focus(focus_state),
+            "seconds": round(time.monotonic() - settle_started, 1),
+        }
+        alternations = []
+        for name in ("A", "B", "A", "B", "A", "B"):
+            shell, target_env, _ = instances[name]
+            before = focus_state()
+            count = len(guard.plugins)
+            started = time.monotonic()
+            result = api.focus_result(shell, target_env)
+            alternations.append({
+                "target": name,
+                "os_focus_before": before,
+                "state": result.state,
+                "selection": operation(result.selection),
+                "activation": operation(result.activation),
+                "seconds": round(time.monotonic() - started, 2),
+                "kwin_scripts": scripts_since(count),
+                "os_focus_after": focus_state(),
+            })
+        activation_ok = all(
+            item["state"] == "complete" and item["activation"]["succeeded"]
+            and item["kwin_scripts"] == 1
+            and item["os_focus_after"] == {name: name == item["target"] for name in instances}
+            for item in alternations)
+
+        count = len(guard.plugins)
+        code, out, _ = kitten("launch", "--type=os-window", "--cwd", str(work / "cwd"),
+                              "sh", str(b_dir / "window.sh"), to=b_address)
+        extra = out if code == 0 and out.isdigit() else None
+        if not extra or not wait_until(lambda: read_pid(b_dir / f"pid-{extra}"), 10):
+            raise RuntimeError("second OS window did not start")
+        tracker.add(read_pid(b_dir / f"pid-{extra}"), "window shell")
+        os_windows = len(listing(b_address) or [])
+        ambiguous = api.focus_result(b_shell, b_capture["env"])
+        evidence["two_os_windows_one_process"] = {
+            "os_windows": os_windows,
+            "selection_succeeded": ambiguous.selection.succeeded,
+            "activation": operation(ambiguous.activation),
+            "kwin_scripts": scripts_since(count),
+        }
+        kitten("close-window", "--match", f"id:{extra}", to=b_address)
+        wait_until(lambda: len(listing(b_address) or []) == 1, 10)
+
+        count = len(guard.plugins)
+        remote = []
+        real_run = kitty_module._run
+
+        def recording_run(argv):
+            remote.append(argv[4] if len(argv) > 4 else argv[-1])
+            return real_run(argv)
+
+        a_before = active_state(tree())
+        with patch.object(kitty_module, "_run", recording_run):
+            no_pid = {key: value for key, value in b_capture["env"].items()
+                      if key != "KITTY_PID"}
+            missing_pid = api.focus_result(b_shell, no_pid)
+            leaked = api.focus_result(
+                b_shell, {**b_capture["env"], "KITTY_PID": str(process.pid)})
+            inherited = api.focus_result(
+                b_shell, {**b_capture["env"], "KITTY_LISTEN_ON": address,
+                          "KITTY_WINDOW_ID": "1"})
+        evidence["preconditions"] = {
+            "kitty_pid_missing": {"selection": operation(missing_pid.selection),
+                                  "activation": operation(missing_pid.activation)},
+            "kitty_pid_not_an_ancestor": {"selection": operation(leaked.selection),
+                                          "activation": operation(leaked.activation)},
+            "inherited_outer_socket": {"selection": operation(inherited.selection),
+                                       "activation": operation(inherited.activation),
+                                       "outer_active_unchanged": active_state(tree())
+                                       == a_before},
+            "remote_control_commands": sorted(set(remote)),
+            "kwin_scripts": scripts_since(count),
+        }
+
+        hidden_dir = work / "hidden"
+        hidden_address = f"unix:@{token}-hidden"
+        hidden_process = launch(work, env, tracker, hidden_address, "socket-only",
+                                window_script(hidden_dir), token, start_as="hidden")
+        if not wait_until(lambda: tree(hidden_address) and read_capture(hidden_dir, "1"),
+                          20):
+            raise RuntimeError("hidden kitty did not become ready")
+        hidden_capture, hidden_shell = probe(hidden_dir, hidden_process)
+        count = len(guard.plugins)
+        hidden_before = os_focus(listing(hidden_address), 1)
+        hidden = api.focus_result(hidden_shell, hidden_capture["env"])
+        evidence["hidden_os_window"] = {
+            "os_focus_before": hidden_before,
+            "selection_succeeded": hidden.selection.succeeded,
+            "activation": {
+                **operation(hidden.activation),
+                "detail": hidden.activation.detail.replace(
+                    str(hidden_process.pid), "<kitty_pid>"),
+            },
+            "kwin_scripts": scripts_since(count),
+            "os_focus_after": os_focus(listing(hidden_address), 1),
+            "meaning": ("a hidden kitty may report is_focused true; activation must not be "
+                        "claimed unless KWin itself found and activated one window"),
+        }
+        evidence["activation_alternations"] = alternations
+        two = evidence["two_os_windows_one_process"]
+        pre = evidence["preconditions"]
+        refusals_ok = (
+            two["os_windows"] == 2 and not two["activation"]["attempted"]
+            and "2 OS windows" in two["activation"]["detail"] and two["kwin_scripts"] == 0
+            and all(not pre[case][step]["attempted"]
+                    for case in ("kitty_pid_missing", "kitty_pid_not_an_ancestor",
+                                 "inherited_outer_socket")
+                    for step in ("selection", "activation"))
+            and pre["kitty_pid_missing"]["selection"]["detail"]
+            == kitty_module.KITTY_PID_MISSING
+            and pre["kitty_pid_missing"]["activation"]["detail"]
+            == kitty_module.KITTY_PID_MISSING
+            and "not an ancestor" in pre["kitty_pid_not_an_ancestor"]["selection"]["detail"]
+            and "not an ancestor" in pre["kitty_pid_not_an_ancestor"]["activation"]["detail"]
+            and "does not belong" in pre["inherited_outer_socket"]["selection"]["detail"]
+            and "does not belong" in pre["inherited_outer_socket"]["activation"]["detail"]
+            and pre["inherited_outer_socket"]["outer_active_unchanged"]
+            and "focus-window" not in pre["remote_control_commands"]
+            and pre["kwin_scripts"] == 0
+        )
+        hidden_record = evidence["hidden_os_window"]
+        hidden_ok = (
+            hidden_record["kwin_scripts"] == 1
+            and hidden_record["activation"]["attempted"]
+            and not hidden_record["activation"]["succeeded"]
+            and "KWin did not confirm" in hidden_record["activation"]["detail"]
+        )
+        for to in (b_address, hidden_address):
+            kitten("close-window", "--match", "all", to=to)
         rejected = (
-            stale.state == "failed" and stale.selection.attempted
-            and "no longer exists" in stale.selection.detail
+            stale.state == "failed" and "no longer exists" in stale.selection.detail
             and evidence["stale_target"]["active_unchanged"]
             and missing.state == "failed" and "socket refused or missing" in
             missing.selection.detail
@@ -293,7 +539,8 @@ def validate(work, token, redact):
                        and evidence["kitty_at_fallback"]["readback_active"])
         capture_ok = (evidence["capture"]["detect"] and evidence["capture"]["window_ids_match"]
                       and evidence["capture"]["listen_on_equals_given_address"]
-                      and evidence["capture"]["keys"] == ["KITTY_LISTEN_ON", "KITTY_WINDOW_ID"])
+                      and evidence["capture"]["keys"]
+                      == ["KITTY_LISTEN_ON", "KITTY_PID", "KITTY_WINDOW_ID"])
         duplicates = evidence["duplicate_targets"]
         duplicates_ok = (duplicates["window_titles"] == ["dup"]
                          and duplicates["tab_titles"] == ["dup"] and duplicates["same_cwd"]
@@ -302,6 +549,8 @@ def validate(work, token, redact):
         evidence["checks"] = {
             "capture": capture_ok, "duplicates": duplicates_ok, "selections": selected_ok,
             "failures_rejected": rejected, "kitty_at_fallback": fallback_ok,
+            "activation_alternations": activation_ok,
+            "activation_refusals": refusals_ok, "hidden_not_claimed": hidden_ok,
         }
         kitten("close-window", "--match", "all")
         try:
@@ -311,7 +560,14 @@ def validate(work, token, redact):
     except Exception as error:
         evidence["error"] = redact(f"{type(error).__name__}: {error}")[:300]
     finally:
+        stack.close()
         evidence["cleanup"] = tracker.terminate()
+        evidence["kwin"] = {
+            "scripts_run": len(guard.plugins),
+            "owner_pids_all_probe_kitty": set(guard.owners) <= guard.allowed,
+            "non_probe_owner_refusals": len(guard.refused),
+            "scripts_left_loaded": guard.left_loaded(),
+        }
     return evidence
 
 
@@ -338,21 +594,26 @@ def main(argv=None):
         "error" not in evidence and all(evidence.get("checks", {}).values())
         and bool(evidence.get("checks"))
         and evidence["cleanup"]["survivors"] == 0 and not strays and user_config_unchanged
+        and evidence["kwin"]["scripts_left_loaded"] == 0
+        and evidence["kwin"]["owner_pids_all_probe_kitty"]
+        and evidence["kwin"]["non_probe_owner_refusals"] == 0
     )
     record = {
         "result": "pass" if passed else "fail",
         "kitty_version": " ".join(version.split()[:2]) if version else None,
         "install_source": source,
         "remote_control": ("kitty --config NONE, allow_remote_control=socket-only, temporary "
-                           "unix listen_on; Fleet never edits kitty.conf"),
+                           "unix listen_on (path and abstract); Fleet never edits kitty.conf"),
         **evidence,
-        "provenance": ("live: disposable minimized kitty instances; env captured by KittyAPI "
-                       "inside each kitty window; selection by KittyAPI.focus_result; "
-                       "independent readback by kitten @ ls (tab and window is_active)"),
+        "provenance": ("live: disposable minimized and hidden kitty instances; env captured "
+                       "by KittyAPI inside each kitty window; selection and KWin activation "
+                       "by KittyAPI.focus_result; independent readback by kitten @ ls (tab "
+                       "and window is_active, OS window is_focused)"),
         "evidence_kind": "live",
-        "gui_activation": ("unverified: not claimed (activation_supported is False); no KWin, "
-                           "qdbus or xdotool calls"),
-        "kwin_calls": 0,
+        "gui_activation": ("verified on KDE Plasma: KWin activates the single normal window "
+                           "owned by the captured KITTY_PID, confirmed by the script's own "
+                           "unload signal and kitty's OS window is_focused readback; KWin "
+                           "scripts ran only for probe kitty pids; no xdotool calls"),
         "user_config_unchanged": user_config_unchanged,
         "marker_strays_after_run": len(strays),
         "validation_date": datetime.date.today().isoformat(),

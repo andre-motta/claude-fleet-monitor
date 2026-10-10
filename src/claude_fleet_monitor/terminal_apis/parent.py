@@ -33,6 +33,17 @@ class ParentActivation:
         return self.confirmed
 
 
+def parent_activation_supported(parent) -> bool:
+    """Whether parent can activate from a multiplexer client pid alone."""
+    return bool(
+        getattr(
+            parent,
+            "parent_activation_supported",
+            getattr(parent, "activation_supported", True),
+        )
+    )
+
+
 def _name(parent) -> str:
     return getattr(parent, "name", "unknown")
 
@@ -119,7 +130,7 @@ def activate_parent(parent: TerminalAPI | None, client_pid: int) -> ParentActiva
     """Activate the parent window and report what was verifiably achieved."""
     if parent is None:
         return ParentActivation(detail="no parent terminal emulator found")
-    if not getattr(parent, "activation_supported", True):
+    if not parent_activation_supported(parent):
         return ParentActivation(
             detail=_describe(parent, "does not support window activation")
         )
