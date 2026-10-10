@@ -69,8 +69,8 @@ with substituted OS calls), **inspected** (source or documentation only) and
 | **Ghostty (Linux)** | Best effort (ydotool/xdotool Alt+N), only after confirmed activation | Requires exactly one window-manager-managed window (minimized or on another desktop counts) owned by the Ghostty process the session descends from; KWin is asked first but success needs xdotool `getactivewindow` readback, so X11 only | -- | mocked and inspected; unvalidated on this branch (Ghostty not installed on the validation host) |
 | **GNOME Terminal** | No | Exact owner window only: the single window-manager-managed window (minimized or on another desktop counts) of the session's gnome-terminal-server, X11 only (xdotool readback) | -- | mocked; not live-validated |
 | **Terminator** | No (detection only, #47) | No | -- | detection live (terminator 2.1.5 [probe](validation/evidence/terminal-probe-fedora44.json)); mocked; #47 inspection |
-| **iTerm2** | Yes (osascript; session `unique ID` from a well-formed `ITERM_SESSION_ID`, readback of the current window's current session) | Yes (the target's own window; readback that iTerm2 is frontmost and its current window holds the session) | -- | mocked and inspected (iTerm2 source); unvalidated on macOS ([#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55)); not reachable as a tmux parent (no session ID for the client) |
-| **macOS Terminal** | Yes (osascript; tab matched by the agent's controlling tty from `ps`, readback of the front window's selected tab) | Yes (the target's own window; readback that Terminal is frontmost and its front window holds the tab) | -- | mocked and inspected; unvalidated on macOS ([#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55)); as a tmux parent the client's tty is matched (mocked) |
+| **iTerm2** | Yes (osascript; the session whose `unique ID` (from a well-formed `ITERM_SESSION_ID`) and `tty` both match the agent, readback of the current window's current session) | Yes (the target's own window, un-minimized; readback that iTerm2 is frontmost and its current window holds the session) | -- | mocked and inspected (iTerm2 source); unvalidated on macOS ([#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55)); as a tmux parent the single session using the client's tty is matched (mocked) |
+| **macOS Terminal** | Yes (osascript; tab matched by the agent's controlling tty from `ps`, readback of the front window's selected tab) | Yes (the target's own window, un-minimized; readback that Terminal is frontmost and its front window holds the tab) | -- | mocked and inspected; unvalidated on macOS ([#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55)); as a tmux parent the client's tty is matched (mocked) |
 | **Windows Terminal** | No (detection only) | No (owner window not identifiable) | -- | mocked; unvalidated on Windows |
 | **WezTerm** | No (no adapter) | No | -- | not validated (skipped); sessions fall back to generic |
 | **Generic fallback** | No | No | -- | mocked |
@@ -84,9 +84,12 @@ selection reports a failure instead of a guess.
 
 On macOS, captured identifiers are validated (`ITERM_SESSION_ID` must be
 `w<N>t<N>p<N>:<UUID>`) and reach `osascript` only as arguments to the
-script's run handler, never as AppleScript source. Terminal.app's AppleScript
-exposes no session ID, so its tab is matched by tty; an agent without a
-controlling tty has no target. Readback is part of the design, but neither
+script's run handler, never as AppleScript source. Both adapters match the
+agent's controlling tty, read with `ps` at focus time; an agent without one has
+no target. iTerm2 also requires the session ID, so an `ITERM_SESSION_ID`
+inherited by a program launched from an iTerm2 shell cannot select the wrong
+session. Terminal.app's AppleScript exposes no session ID, so its tab is
+matched by tty alone. Readback is part of the design, but neither
 adapter has been run on a Mac yet; see
 [#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55).
 
@@ -376,6 +379,7 @@ src/claude_fleet_monitor/
         parent.py         # Nested parent-terminal routing
         _env.py           # Env-only capture helpers
         _ancestry.py      # Linux hook-time ancestry walk (comm and ppid only)
+        _applescript.py   # macOS osascript runner (argv-only data) and tty lookup
 ```
 
 ## Known Limitations
