@@ -332,7 +332,7 @@ src/claude_fleet_monitor/
         konsole.py        # KDE Konsole
         tmux.py           # tmux
         zellij.py         # zellij
-        ghostty.py        # Ghostty (Linux GTK DBus)
+        ghostty.py        # Ghostty (Linux, owner-window KWin/X11)
         gnome.py          # GNOME Terminal
         terminator.py     # Terminator (detection only)
         iterm2.py         # iTerm2
