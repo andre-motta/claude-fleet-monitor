@@ -1,10 +1,13 @@
 """Tests for the SessionTable widget using Textual's pilot."""
 
+import dataclasses
+
 import pytest
 from textual.app import App, ComposeResult
 
 from claude_fleet_monitor.models import FleetSession, SessionStatus
-from claude_fleet_monitor.widgets.session_table import SessionTable
+from claude_fleet_monitor.terminal_apis import TERMINALS
+from claude_fleet_monitor.widgets.session_table import TERMINAL_ABBREV, SessionTable
 
 
 def _session(
@@ -129,6 +132,22 @@ async def test_various_terminal_types():
             sessions.append(s)
         table.set_sessions(sessions)
         assert table.row_count == 4
+
+
+def test_every_registered_terminal_has_an_abbreviation():
+    assert {cls.name for cls in TERMINALS} <= set(TERMINAL_ABBREV)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("terminal", "label"),
+    [("terminator", "trm"), ("ghostty", "gho"), ("konsole", "KDE")],
+)
+async def test_terminal_column_uses_abbreviation(terminal, label):
+    async with TableApp().run_test() as pilot:
+        table = pilot.app.query_one("#table", SessionTable)
+        table.set_sessions([dataclasses.replace(_session(), terminal=terminal)])
+        assert str(table.get_row_at(0)[5]) == label
 
 
 @pytest.mark.asyncio

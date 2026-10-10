@@ -8,6 +8,7 @@ from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
 from claude_fleet_monitor.terminal_apis.gnome import GnomeAPI
 from claude_fleet_monitor.terminal_apis.iterm2 import ITerm2API
 from claude_fleet_monitor.terminal_apis.macos_terminal import MacOSTerminalAPI
+from claude_fleet_monitor.terminal_apis.terminator import TerminatorAPI
 from claude_fleet_monitor.terminal_apis.windows_terminal import WindowsTerminalAPI
 from claude_fleet_monitor.terminal_apis.generic import GenericAPI
 
@@ -19,6 +20,7 @@ TERMINALS: list[type[TerminalAPI]] = [
     ITerm2API,
     MacOSTerminalAPI,
     GnomeAPI,
+    TerminatorAPI,
     WindowsTerminalAPI,
     GenericAPI,
 ]

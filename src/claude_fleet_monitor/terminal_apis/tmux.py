@@ -12,6 +12,7 @@ TERMINAL_PROCESS_NAMES = {
     "ghostty": "ghostty",
     "gnome-terminal": "gnome",
     "gnome-terminal-server": "gnome",
+    "terminator": "terminator",
     "iTerm2": "iterm2",
     "Terminal": "macos_terminal",
     "WindowsTerminal": "windows_terminal",
