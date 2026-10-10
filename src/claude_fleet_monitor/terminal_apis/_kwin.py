@@ -1,8 +1,8 @@
 """Activate the single KWin window owned by one process.
 
 Values reach the script only as JSON literals. A reporting script unloads its
-own plugin after activating, which is the only result KWin lets a caller
-observe; the unload is visible through isScriptLoaded.
+own plugin once KWin accepted the activation, which is the only result KWin
+lets a caller observe; the unload is visible through isScriptLoaded.
 """
 
 import json
@@ -48,8 +48,10 @@ __REPORT__}
 """
 _PLACEHOLDER = re.compile(r"__(TITLES|OWNER|NORMAL_ONLY|REPORT)__")
 _REPORT = (
-    '    callDBus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting",'
+    "    if (workspace.activeWindow === matches[0]) {\n"
+    '        callDBus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting",'
     ' "unloadScript", __PLUGIN__);\n'
+    "    }\n"
 )
 
 
@@ -117,8 +119,8 @@ def activate_owned_window(
     """Activate the one window of owner_pid matching titles, if exactly one.
 
     Raises KWinScriptError when the script cannot be loaded or run. With
-    report, returns whether KWin confirmed it found and activated exactly one
-    window; otherwise returns True once the script ran.
+    report, returns whether KWin confirmed it found exactly one window and
+    made it the active window; otherwise returns True once the script ran.
     """
     if not report:
         script = activation_script(owner_pid, titles, normal_only=normal_only)

@@ -303,3 +303,37 @@ def test_script_matches_marker_titles_literally(marker):
 
     assert result["active"] == "literal"
     assert result["calls"] == []
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+@pytest.mark.parametrize("report", [True, False])
+def test_refused_activation_is_not_reported(report):
+    plugin = "claude-fleet-kitty-0123"
+    script = _kwin.activation_script(
+        500, report_plugin=plugin if report else None
+    )
+    harness = (
+        "const fakeWindows = " + json.dumps([_window("a")]) + ";\n"
+        "const calls = [];\n"
+        "function callDBus() { calls.push(Array.from(arguments)); }\n"
+        "let requested = null;\n"
+        "const workspace = {windowList: () => fakeWindows,"
+        " get activeWindow() { return null; },"
+        " set activeWindow(w) { requested = w; }};\n"
+        + script
+        + "\nconsole.log(JSON.stringify({requested: requested && requested.id,"
+        " calls: calls}));"
+    )
+    result = subprocess.run(
+        [NODE, "-e", harness], capture_output=True, text=True, timeout=10
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"requested": "a", "calls": []}
+
+
+def test_report_block_is_absent_without_report_plugin():
+    script = _kwin.activation_script(7, ["t"], normal_only=False)
+
+    assert "callDBus" not in script
+    assert "workspace.activeWindow === matches[0]" not in script

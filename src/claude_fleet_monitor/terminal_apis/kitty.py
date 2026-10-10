@@ -32,6 +32,7 @@ ENV_KEYS = ("KITTY_WINDOW_ID", "KITTY_LISTEN_ON", "KITTY_PID")
 TIMEOUT = 5
 ACTIVATION_SETTLE_SECONDS = 1.0
 ACTIVATION_POLL_SECONDS = 0.05
+ACTIVATION_STABLE_SECONDS = 0.2
 _MAX_ANCESTORS = 64
 _ACTIVATION_TARGET = re.compile(r"^(\d{1,12}):(\d{1,12})$")
 KITTY_PID_MISSING = (
@@ -220,6 +221,11 @@ def _require_owned(listing, window_id: int, kitty_pid: int) -> None:
         )
 
 
+def _is_focused(command: list[str], window_id: int) -> bool:
+    os_window = _single_os_window(_list(command, "ls readback"), window_id)
+    return os_window.get("is_focused") is True
+
+
 def _locate(listing, window_id: int):
     if not isinstance(listing, list):
         raise ValueError("listing is not a list")
@@ -260,13 +266,14 @@ class KittyAPI(TerminalAPI):
             return None
         address = _address(terminal_env)
         kitty_pid = _kitty_pid(terminal_env)
+        # Leaked variables must never send ls to a foreign kitty.
+        if not _is_kitty_ancestor(pid, kitty_pid):
+            raise LookupError(NOT_AN_ANCESTOR)
         command = [*_remote_command(), "--to", address]
         try:
             _require_owned(_list(command, "ls"), int(window_id), kitty_pid)
         except RuntimeError as error:
             raise LookupError(str(error)) from None
-        if not _is_kitty_ancestor(pid, kitty_pid):
-            raise LookupError(NOT_AN_ANCESTOR)
         return window_id
 
     def switch_tab(self, tab_id: str, terminal_env: dict) -> bool:
@@ -357,13 +364,19 @@ class KittyAPI(TerminalAPI):
                 f" process {kitty_pid}"
             )
         deadline = time.monotonic() + ACTIVATION_SETTLE_SECONDS
+        focused_once = False
         while True:
-            os_window = _single_os_window(_list(command, "ls readback"), window_id)
-            if os_window.get("is_focused") is True:
-                return True
+            if _is_focused(command, window_id):
+                focused_once = True
+                # A late map of another window can take focus straight back.
+                time.sleep(ACTIVATION_STABLE_SECONDS)
+                if _is_focused(command, window_id):
+                    return True
             if time.monotonic() >= deadline:
                 break
             time.sleep(ACTIVATION_POLL_SECONDS)
+        if focused_once:
+            raise RuntimeError("kitty OS window lost focus after activation")
         raise RuntimeError(
             f"kitty did not report its OS window focused within"
             f" {ACTIVATION_SETTLE_SECONDS:g}s (KWin focus stealing prevention"

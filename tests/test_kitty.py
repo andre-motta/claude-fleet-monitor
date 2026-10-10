@@ -622,6 +622,7 @@ def desktop(monkeypatch, tools, processes):
     monkeypatch.setattr(kitty, "resolve_qdbus", lambda: QDBUS)
     monkeypatch.setattr(kitty, "kwin_available", lambda executable: True)
     monkeypatch.setattr(kitty, "ACTIVATION_SETTLE_SECONDS", 0)
+    monkeypatch.setattr(kitty, "ACTIVATION_STABLE_SECONDS", 0)
     install.tree = tree
     return install
 
@@ -637,7 +638,7 @@ def test_activation_confirmed_by_kitty_focus_readback(desktop):
     assert result.activation.succeeded
     assert result.activation.detail == "window activation"
     assert fake.order == [
-        "ls", "ls", "ls", "focus-window", "ls", "ls", "kwin", "ls"
+        "ls", "ls", "ls", "focus-window", "ls", "ls", "kwin", "ls", "ls"
     ]
     assert api.raise_requested
     assert fake.kwin == [
@@ -651,7 +652,7 @@ def test_activation_waits_for_late_focus(desktop, monkeypatch):
     fake = desktop(focus_delay=2)
 
     assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
-    assert fake.order == ["ls", "kwin", "ls", "ls", "ls"]
+    assert fake.order == ["ls", "kwin", "ls", "ls", "ls", "ls"]
 
 
 def test_refused_activation_times_out_with_detail(desktop):
@@ -992,3 +993,72 @@ def test_selection_rechecks_ownership_before_focus_window(monkeypatch, tools, pr
     with pytest.raises(RuntimeError, match="does not belong to the captured kitty"):
         api.switch_tab("2", dict(KITTY_ENV))
     assert all("focus-window" not in call for call in fake.calls)
+
+
+class FlakyFocus(FakeDesktop):
+    """Reports the OS window focused only on the listed readback calls."""
+
+    def __init__(self, focused_reads):
+        super().__init__()
+        self.focused_reads = focused_reads
+        self.reads = 0
+
+    def __call__(self, argv):
+        if argv[-1] == "ls" and self.kwin:
+            self.reads += 1
+            self.listing[0]["is_focused"] = self.reads in self.focused_reads
+            self.order.append("ls")
+            return FakeKitty.__call__(self, argv)
+        return super().__call__(argv)
+
+
+def _flaky(monkeypatch, focused_reads, settle=0):
+    fake = FlakyFocus(focused_reads)
+    _fake(monkeypatch, fake)
+    monkeypatch.setattr(kitty, "activate_owned_window", fake.activate)
+    monkeypatch.setattr(kitty, "ACTIVATION_SETTLE_SECONDS", settle)
+    monkeypatch.setattr(kitty, "ACTIVATION_POLL_SECONDS", 0)
+    return fake
+
+
+def test_focus_lost_after_activation_fails(desktop, monkeypatch):
+    fake = _flaky(monkeypatch, {1})
+
+    with pytest.raises(RuntimeError, match="^kitty OS window lost focus after activation$"):
+        KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert fake.reads == 2
+
+
+def test_focus_regained_and_stable_within_deadline_succeeds(desktop, monkeypatch):
+    fake = _flaky(monkeypatch, {1, 3, 4}, settle=5)
+
+    assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert fake.reads == 4
+
+
+def test_already_focused_still_needs_stable_readback(desktop, monkeypatch):
+    fake = _flaky(monkeypatch, {1, 2})
+
+    assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert fake.reads == 2
+
+
+def test_stability_wait_uses_the_configured_delay(desktop, monkeypatch):
+    sleeps = []
+    _flaky(monkeypatch, {1, 2})
+    monkeypatch.setattr(kitty, "ACTIVATION_STABLE_SECONDS", 0.2)
+    monkeypatch.setattr(kitty.time, "sleep", sleeps.append)
+
+    assert KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert sleeps == [0.2]
+
+
+def test_leaked_variables_never_list_a_foreign_kitty(monkeypatch, tools, processes):
+    fake = _fake(monkeypatch, FakeKitty())
+    processes[10] = _process(10, 77, "claude")
+    processes[77] = _process(77, 1, "wezterm-gui")
+
+    assert KittyAPI().focus_result(10, dict(KITTY_ENV)).selection.detail == (
+        kitty.NOT_AN_ANCESTOR
+    )
+    assert fake.calls == []
