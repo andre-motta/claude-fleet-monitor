@@ -173,7 +173,7 @@ def test_kwin_available_reads_bus_ownership(monkeypatch):
 
 @pytest.mark.parametrize(
     "title",
-    ['a"); callDBus("x"); //', "quote \" and \\", "line\nbreak", "  "],
+    ['a"); callDBus("x"); //', "quote \" and \\", "line\nbreak", "\u2028\u2029"],
 )
 def test_values_are_embedded_as_json_data(title):
     script = _kwin.activation_script(7, [title], report_plugin='p"); evil(); ("')
@@ -252,8 +252,8 @@ def test_script_without_report_never_calls_dbus():
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_title_filter_keeps_kde_caption_rule():
     windows = [
-        _window("a", caption="repo — Konsole"),
-        _window("b", caption="repo-other — Konsole"),
+        _window("a", caption="repo \u2014 Konsole"),
+        _window("b", caption="repo-other \u2014 Konsole"),
     ]
 
     assert _run(_kwin.activation_script(500, ["repo"]), windows)["active"] == "a"

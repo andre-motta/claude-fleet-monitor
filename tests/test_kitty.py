@@ -575,14 +575,16 @@ def desktop(monkeypatch, tools):
 
 def test_activation_confirmed_by_kitty_focus_readback(desktop):
     fake = desktop()
+    api = KittyAPI()
 
-    result = KittyAPI().focus_result(10, dict(ACTIVATION_ENV))
+    result = api.focus_result(10, dict(ACTIVATION_ENV))
 
     assert result.state == "complete"
     assert result.selection.succeeded
     assert result.activation.succeeded
     assert result.activation.detail == "window activation"
     assert fake.order == ["ls", "focus-window", "ls", "ls", "kwin", "ls"]
+    assert api.raise_requested
     assert fake.kwin == [
         (QDBUS, KITTY_PID, {"plugin_prefix": "claude-fleet-kitty", "report": True})
     ]
@@ -613,12 +615,26 @@ def test_refused_activation_times_out_with_detail(desktop):
 
 def test_unconfirmed_kwin_activation_fails_without_readback(desktop):
     fake = desktop(confirms=False)
+    api = KittyAPI()
 
     with pytest.raises(RuntimeError, match=(
         "^KWin did not confirm a single normal window owned by kitty process 500$"
     )):
-        KittyAPI().raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+        api.raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
     assert fake.order == ["ls", "kwin"]
+    assert api.raise_requested
+
+
+def test_failed_kwin_script_or_precheck_is_no_raise_request(desktop):
+    fake = desktop(confirms=kitty.KWinScriptError("KWin script could not be run"))
+    api = KittyAPI()
+
+    with pytest.raises(RuntimeError, match="could not be run"):
+        api.raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    fake.listing.append({"id": 9, "is_focused": False, "tabs": []})
+    with pytest.raises(RuntimeError, match="2 OS windows"):
+        api.raise_window(f"{KITTY_PID}:2", dict(ACTIVATION_ENV))
+    assert not api.raise_requested
 
 
 def test_stale_focus_without_kwin_window_is_not_activation(desktop):

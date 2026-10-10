@@ -308,6 +308,7 @@ class KittyAPI(TerminalAPI):
             )
         except KWinScriptError as error:
             raise RuntimeError(str(error)) from None
+        self._mark_raise_requested()
         if not confirmed:
             raise RuntimeError(
                 f"KWin did not confirm a single normal window owned by kitty"
