@@ -9,6 +9,7 @@ import sys
 
 import pytest
 
+from claude_fleet_monitor.terminal_apis import zellij
 from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
 
 ROOT = Path(__file__).parents[1]
@@ -111,7 +112,31 @@ def test_committed_evidence_is_live_and_complete():
     assert evidence["zellij_version"] == "zellij 0.45.1"
     assert evidence["validated_versions"] == ["0.45.1"]
     assert evidence["version_floor"].startswith("not established")
-    assert evidence["gui_activation"].startswith("unavailable")
+    assert evidence["gui_activation"].startswith("Linux only, exactly one attached client")
+    single = evidence["single_client_activation"]
+    assert single["mapped_client_is_pty_client"] and single["derived_socket_dir_matches"]
+    assert single["succeeded"] and single["client_tty_nonzero"]
+    assert single["parent_calls"] == [
+        ["detect", "client"], ["target", "client"], ["raise", "window"]
+    ]
+    assert single["server_socket_path"] == "<tmp>/sock/contract_version_1/<session>"
+    for key, detail in (
+        ("two_clients_activation", zellij.SEVERAL_CLIENTS),
+        ("watcher_activation", zellij.WATCHER),
+    ):
+        refused = evidence[key]
+        assert not refused["attempted"] and refused["detail"] == detail
+        assert refused["parent_calls"] == [] and refused["peer_processes"] == 2
+    assert evidence["watcher_activation"]["list_clients_rows"] == 1
+    socket_dir = evidence["socket_dir"]
+    assert socket_dir["monitor_socket_dir_unset"]
+    assert not socket_dir["bare_record_control"]["selected"]
+    assert "default socket dir" in socket_dir["bare_record_control"]["detail"]
+    assert socket_dir["captured_custom_dir"]["selected"]
+    assert socket_dir["captured_custom_dir"]["keystroke_routed_to"] == ["1"]
+    derived = socket_dir["derived_from_server_argv"]
+    assert derived["selected"] and derived["activation_succeeded"]
+    assert derived["keystroke_routed_to"] == ["0"]
     assert evidence["duplicate_targets"]["titles"] == ["dup"]
     assert evidence["duplicate_targets"]["tabs"] == 2
     steps = evidence["selections"]

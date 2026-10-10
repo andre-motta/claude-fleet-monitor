@@ -141,17 +141,21 @@ python validation/zellij.py --no-write
 ```
 
 This starts a uniquely named zellij session in a private `ZELLIJ_SOCKET_DIR`
-with temporary config, cache and data directories, drives it through private
+with temporary config, cache, data, runtime and temp directories, drives it through private
 PTY clients, and selects duplicate-title panes across two tabs through
 `ZellijAPI`. Each selection is read back with `list-clients` and confirmed by
 keystroke routing. It also checks that `--session` overrides an inherited
 `ZELLIJ_SESSION_NAME`, that unknown and closed pane IDs fail without moving any
 client, that zero attached clients is a failure, that selection before any
 client sent input is not reported as success, and that a second client keeps
-its own pane. Without `--no-write` it updates
-[the evidence](evidence/zellij-fedora44.json) (zellij 0.45.1). GUI activation
-is reported unavailable: client PIDs are not exposed and the server is
-daemonized.
+its own pane. Parent activation maps the pane's server to the one attached
+PTY client through socket peers and routes to an instrumented parent (no KWin,
+qdbus or xdotool call); a second client and a `zellij watch` client must be
+refused. Selection is then repeated with the monitor's own `ZELLIJ_SOCKET_DIR`
+unset: a record without the dir must fail against an empty private default
+dir, while the captured dir and the dir derived from the server argv must both
+select. Without `--no-write` it updates
+[the evidence](evidence/zellij-fedora44.json) (zellij 0.45.1).
 
 ### zellij version floor
 

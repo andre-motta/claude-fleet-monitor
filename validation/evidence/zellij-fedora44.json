@@ -25,7 +25,8 @@
     "list-clients"
   ],
   "multi_client_rule": "success requires list-clients to show the target pane for at least one client; focus-pane-id moves only the client that most recently sent input",
-  "gui_activation": "unavailable: client PIDs are not discoverable through the zellij CLI and the agent PID ancestry ends at the daemonized server, so no parent emulator is reachable; no KWin, qdbus or xdotool calls were made",
+  "gui_activation": "Linux only, exactly one attached client: the agent's ancestry reaches the daemonized server, whose accepted sockets are mapped to client PIDs with a sock_diag netlink dump plus /proc/<pid>/fd links; the one interactive client's ancestry gives the parent emulator. Validated against an instrumented parent; no KWin, qdbus or xdotool calls were made",
+  "parent_activation_rule": "activation is claimed only when list-clients shows one client, the server socket name matches the session, and exactly one interactive peer (plain zellij or attach after global options, with a controlling tty) is connected; action peers are ignored, any other peer (web, watch, pipe, subscribe, run, edit, plugin, unknown), several clients or a mismatch is refused, and the client's start time must be unchanged before and after parent activation",
   "duplicate_targets": {
     "terminal_panes": 3,
     "titles": [
@@ -40,7 +41,8 @@
   "capture_env_keys": [
     "ZELLIJ",
     "ZELLIJ_PANE_ID",
-    "ZELLIJ_SESSION_NAME"
+    "ZELLIJ_SESSION_NAME",
+    "ZELLIJ_SOCKET_DIR"
   ],
   "pre_upgrade_record_detail": "session recorded before zellij pane capture; restart the agent session to enable selection",
   "injection_rejected_before_subprocess": true,
@@ -105,6 +107,32 @@
       "detail": "no parent terminal emulator found for zellij"
     }
   },
+  "single_client_activation": {
+    "server_socket_path": "<tmp>/sock/contract_version_1/<session>",
+    "server_argv_flag": "--server",
+    "derived_socket_dir_matches": true,
+    "mapped_client_is_pty_client": true,
+    "mapping_ms": 5.7,
+    "client_tty_nonzero": true,
+    "client_ancestry_parent_detected": "konsole",
+    "attempted": true,
+    "succeeded": true,
+    "detail": "window activation",
+    "parent_calls": [
+      [
+        "detect",
+        "client"
+      ],
+      [
+        "target",
+        "client"
+      ],
+      [
+        "raise",
+        "window"
+      ]
+    ]
+  },
   "two_clients": {
     "selected": true,
     "detail": null,
@@ -127,6 +155,13 @@
       "0"
     ]
   },
+  "two_clients_activation": {
+    "attempted": false,
+    "succeeded": false,
+    "detail": "several zellij clients attached; cannot tell which one shows the pane",
+    "parent_calls": [],
+    "peer_processes": 2
+  },
   "stale_ids": {
     "unknown_pane": {
       "selected": false,
@@ -145,8 +180,38 @@
     "decoy_clients_before": {},
     "decoy_clients_after": {}
   },
+  "watcher_activation": {
+    "attempted": false,
+    "succeeded": false,
+    "detail": "a zellij watch client is attached; cannot tell which window shows the pane",
+    "parent_calls": [],
+    "list_clients_rows": 1,
+    "peer_processes": 2
+  },
+  "socket_dir": {
+    "monitor_socket_dir_unset": true,
+    "bare_record_control": {
+      "selected": false,
+      "detail": "zellij reports no active session in the default socket dir; the session may use a custom ZELLIJ_SOCKET_DIR"
+    },
+    "captured_custom_dir": {
+      "selected": true,
+      "detail": null,
+      "keystroke_routed_to": [
+        "1"
+      ]
+    },
+    "derived_from_server_argv": {
+      "selected": true,
+      "selection_detail": "tab or pane selection",
+      "activation_succeeded": true,
+      "keystroke_routed_to": [
+        "0"
+      ]
+    }
+  },
   "cleanup": {
-    "tracked": 8,
+    "tracked": 9,
     "survivors": 0,
     "marker_strays": 0,
     "temp_dir_removed": true,
@@ -154,9 +219,9 @@
   },
   "user_config_unchanged": true,
   "user_zellij_cache_entries_for_run": 0,
-  "socket_dir": "private temporary ZELLIJ_SOCKET_DIR for every zellij invocation",
+  "socket_dir_isolation": "private temporary ZELLIJ_SOCKET_DIR, XDG_RUNTIME_DIR and TMPDIR for every zellij invocation; the default-dir control resolves inside the private XDG_RUNTIME_DIR",
   "kwin_calls": 0,
-  "duration_seconds": 2.4,
+  "duration_seconds": 7.9,
   "platform": {
     "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
     "kernel_release": "7.2.7-200.fc44.x86_64",
@@ -164,10 +229,11 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "e63a63430926fb2b730bb354969acf1580ce3c37",
+  "tested_commit": "3cff7921bd982974cffa4856781a1e3af54be533",
   "modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/zellij.py": "d5e0f0831ebc0f8f51fe064a507c30de4bcaf6e80cf99d8d104adef32faba4be",
-    "validation/zellij.py": "4692b47c97378a1b3ffe29d93877938eb435fd4bc649b80295ed0c8ecc222c2f"
+    "src/claude_fleet_monitor/terminal_apis/zellij.py": "51ca90d00d1e147298bead26252b75b7baede00bd5e1ed4d4837091f679793d9",
+    "src/claude_fleet_monitor/terminal_apis/_unix_peers.py": "3502975ed4e14a09d4c93d96a5273fa1ecba00c91bd6a6654d86208a90dffbc3",
+    "validation/zellij.py": "110ec389120b7e639838f891cefc5aa8f6f8d61d03bdf9987a3dfb68e8e17bdb"
   }
 }

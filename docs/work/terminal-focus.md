@@ -329,6 +329,42 @@ Residual: a KWin `Script.run` call that fails or times out is treated as no
 request (Konsole and Ghostty set the flag only after it returns), so in that rare
 case a second client can still be tried.
 
+### Zellij parent activation and socket dirs
+
+[#50](https://github.com/andre-motta/claude-fleet-monitor/issues/50), after a
+live probe on zellij 0.45.1 (Linux):
+
+- The agent's ancestry ends at the daemonized server, whose argv is
+  `zellij --server <socket dir>/contract_version_N/<session>`. Every zellij
+  CLI call now sets `ZELLIJ_SOCKET_DIR`: derived from that argv (only when the
+  parent directory starts with `contract_version_`), else the absolute
+  `ZELLIJ_SOCKET_DIR` captured at hook time (env-only), else zellij's own
+  default. "There is no active session" names the socket dir searched.
+- `list-clients` IDs are reused lowest-free and carry no PID, so the client is
+  found through sockets instead: a `sock_diag` netlink dump maps the server's
+  accepted sockets to peer inodes, and `/proc/<pid>/fd` links of same-UID
+  `zellij` processes map them to PIDs (`terminal_apis/_unix_peers.py`, stdlib
+  only, never raising, Linux only, about 5-10 ms, one 2 s total deadline,
+  keeping only the server's own inodes). The dump is not an atomic snapshot:
+  under heavy socket churn it can miss entries, which only lowers the peer
+  count, so the result is a refusal or the one real client, never a wrong one.
+- Activation is claimed only when `list-clients` shows one client, the
+  server's socket name matches the captured session (not renamed) and exactly
+  one interactive peer is connected: argv parsed past global options to a
+  plain `zellij` or `attach`/`a` subcommand, with a controlling tty.
+  `action`/`ac` peers are transient and ignored; any other peer (`web`,
+  `watch`/`w`, `pipe`, `subscribe`, `run`, `edit`, `plugin`, unknown shapes)
+  is refused, as are several clients or a mismatch. The parent is then never
+  called. The client's emulator comes
+  from its own ancestry and is raised through `parent.activate_parent`; its
+  start time is checked before and after so a reused PID is never trusted.
+- Live: `validation/zellij.py` maps the PTY client, routes to an instrumented
+  parent, refuses two clients and a watcher, and selects with the monitor's
+  own `ZELLIJ_SOCKET_DIR` unset through both the captured and the derived dir
+  ([JSON](../../validation/evidence/zellij-fedora44.json)). No KWin, qdbus or
+  xdotool call was made; real GUI activation through the client's emulator is
+  covered by the existing parent adapters and still needs a hands-on check.
+
 ### R9 combined local acceptance
 
 Run on 2026-10-09 in the R9 worktree on the integrated tree plus the R9
@@ -374,7 +410,8 @@ change, Fedora 44 KDE Plasma Wayland:
 - Kitty and WezTerm GUI activation through the shared KWin helper in
   `terminal_apis/_qdbus.py` (extracted in F11; using it for Kitty or WezTerm
   is not done and needs its own high-risk review).
-- Zellij parent GUI activation: client PIDs are not obtainable from the CLI.
+- Zellij parent activation off Linux (no client PID route) and with several
+  attached clients (no way to tell which window shows the pane).
 - Version floors: only one version of kitty and screen was validated;
   adapters gate on behavior, not on a version number. zellij: see #52 below.
 - Leaked-marker misclassification on macOS and Windows (env-only detection).

@@ -1,5 +1,6 @@
 import ast
 import io
+from dataclasses import replace
 import re
 import subprocess
 from pathlib import Path
@@ -17,6 +18,7 @@ from claude_fleet_monitor.terminal_apis import (
     get_terminal_api,
     kitty,
     tmux,
+    zellij,
 )
 from claude_fleet_monitor.terminal_apis import _ancestry as ancestry
 from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
@@ -442,32 +444,62 @@ def test_tmux_in_kitty_reports_activation_failed_without_kitty_calls(monkeypatch
     assert [command[3] for command in commands] == ["list-clients"]
 
 
-def test_zellij_in_kitty_reports_unsupported_parent(monkeypatch):
-    _ancestry(
+ZELLIJ_SOCKET = "/run/user/1000/zellij/contract_version_1/s"
+
+
+def _zellij_host(monkeypatch, *client_chain):
+    """Agent under a daemonized server; one attached client under an emulator."""
+    monkeypatch.setattr(zellij.sys, "platform", "linux")
+    visited = _ancestry(
         monkeypatch,
         (101, 90, "bash"),
-        (90, 80, "zellij"),
-        (80, 50, "kitty"),
-        (50, 1, "konsole"),
+        (90, 1, "zellij"),
+        (300, 250, "zellij"),
+        *client_chain,
+    )
+    processes = {90: ("zellij", "--server", ZELLIJ_SOCKET), 300: ("zellij", "attach")}
+    lookup = tmux.discovery.get_process_info
+
+    def with_argv(pid):
+        process = lookup(pid)
+        if process is not None and pid in processes:
+            process = replace(process, argv=processes[pid])
+        return process
+
+    monkeypatch.setattr(tmux.discovery, "get_process_info", with_argv)
+    monkeypatch.setattr(
+        zellij._unix_peers, "peer_owners", lambda *args: {9: frozenset({300})}
+    )
+    monkeypatch.setattr(zellij._unix_peers, "controlling_tty", lambda pid: 34816)
+    monkeypatch.setattr(
+        zellij,
+        "_run",
+        lambda argv, env=None: subprocess.CompletedProcess(
+            argv, 0, "CLIENT_ID ZELLIJ_PANE_ID RUNNING_COMMAND\n1 terminal_0 sh\n", ""
+        ),
+    )
+    return visited
+
+
+def test_zellij_in_kitty_reports_unsupported_parent(monkeypatch):
+    visited = _zellij_host(
+        monkeypatch, (250, 200, "bash"), (200, 50, "kitty"), (50, 1, "konsole")
     )
     _forbid_kitty(monkeypatch)
 
     result = ZellijAPI().focus_result(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "s"})
 
     assert result.state == "failed"
+    assert result.activation.attempted
     assert not result.activation.succeeded
     assert result.activation.detail == (
         "parent terminal kitty does not support window activation"
     )
+    assert 50 not in visited
 
 
 def test_zellij_in_wezterm_reports_no_parent(monkeypatch):
-    _ancestry(
-        monkeypatch,
-        (101, 90, "bash"),
-        (90, 80, "zellij"),
-        (80, 1, "wezterm-gui"),
-    )
+    _zellij_host(monkeypatch, (250, 200, "bash"), (200, 1, "wezterm-gui"))
 
     result = ZellijAPI().focus_result(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "s"})
 
