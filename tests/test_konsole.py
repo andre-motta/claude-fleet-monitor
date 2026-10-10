@@ -1,5 +1,8 @@
+import json
 import os
+import shutil
 import stat
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -43,7 +46,7 @@ def test_missing_qdbus_is_safe_for_all_operations(monkeypatch):
     assert api.find_tab(42, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole"}) is None
     assert not api.switch_tab("org.kde.konsole|1|2", {})
     assert not api.raise_window("org.kde.konsole|1|2", {})
-    assert not api._raise_by_kwin_title("Konsole")
+    assert not api.verify_selection("org.kde.konsole|1|2", {})
 
 
 def test_disappearing_qdbus_is_safe(monkeypatch):
@@ -58,7 +61,7 @@ def test_disappearing_qdbus_is_safe(monkeypatch):
     assert api.find_tab(42, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole"}) is None
     assert not api.switch_tab("org.kde.konsole|1|2", {})
     assert not api.raise_window("org.kde.konsole|1|2", {})
-    assert not api._raise_by_kwin_title("Konsole")
+    assert not konsole._activate_by_kwin_caption(["Konsole"], 7, "/bin/qdbus-qt6")
 
 
 def test_nonzero_qdbus_output_cannot_create_target_or_success(monkeypatch):
@@ -92,7 +95,7 @@ def test_qdbus_timeout_cannot_create_target_or_success(monkeypatch):
     assert api.find_tab(42, {"KONSOLE_DBUS_SERVICE": "org.kde.konsole"}) is None
     assert not api.switch_tab("org.kde.konsole|1|2", {})
     assert not api.raise_window("org.kde.konsole|1|2", {})
-    assert not api._raise_by_kwin_title("Konsole")
+    assert not konsole._activate_by_kwin_caption(["Konsole"], 7, "/bin/qdbus-qt6")
 
 
 def test_find_tab_selects_valid_pid_and_window(monkeypatch):
@@ -166,37 +169,271 @@ def test_switch_tab_rejects_stale_or_failed_readback(
     )
 
 
-def test_kwin_uses_one_resolved_binary_and_cleans_script(monkeypatch):
+class _FakeKonsole:
+    """Konsole and KWin D-Bus state where focus only follows activation."""
+
+    def __init__(self, executable, active=False):
+        self.executable = executable
+        self.visible = "5"
+        self.focused = "5"
+        self.active = active
+        self.activates = True
+        self.calls = []
+        self.scripts = []
+        self.unloaded = []
+
+    def run(self, command, **kwargs):
+        assert command[0] == self.executable
+        self.calls.append(command)
+        args = command[1:]
+        if args[:1] == ["org.kde.KWin"]:
+            return self._kwin(args)
+        if args[:3] == [
+            "org.freedesktop.DBus",
+            "/org/freedesktop/DBus",
+            "org.freedesktop.DBus.GetConnectionUnixProcessID",
+        ]:
+            return _result(0, "4242\n")
+        if args == ["svc"]:
+            return _result(
+                0,
+                "/Windows/7\n/konsole/MainWindow_1\n/konsole/MainWindow_1/actions\n",
+            )
+        method = args[2] if len(args) > 2 else ""
+        if method == "org.kde.konsole.Window.setCurrentSession":
+            self.visible = args[3]
+            if self.active:
+                self.focused = self.visible
+            return _result(0)
+        if method == "org.kde.konsole.Window.currentSession":
+            return _result(0, f"{self.focused}\n")
+        if method == "org.kde.konsole.Session.title":
+            return _result(0, f"title {args[1].rsplit('/', 1)[1]}\n")
+        if method == "org.qtproject.Qt.QWidget.isActiveWindow":
+            return _result(0, "true\n" if self.active else "false\n")
+        if method == "org.qtproject.Qt.QWidget.windowTitle":
+            return _result(0, f"title {self.focused}\n")
+        raise AssertionError(command)
+
+    def _kwin(self, args):
+        method = args[2]
+        if method == "org.kde.kwin.Scripting.loadScript":
+            with open(args[3]) as script:
+                self.scripts.append((script.read(), args[4], args[3]))
+            return _result(0, "11\n")
+        if method == "org.kde.kwin.Script.run":
+            if self.activates:
+                self.active = True
+                self.focused = self.visible
+            return _result(0)
+        if method == "org.kde.kwin.Scripting.unloadScript":
+            self.unloaded.append(args[3])
+            return _result(0, "true\n")
+        raise AssertionError(args)
+
+
+def _fake_konsole(monkeypatch, active=False):
     executable = "/usr/bin/qdbus-qt6"
-    which_calls = []
+    fake = _FakeKonsole(executable, active=active)
+    monkeypatch.setattr(konsole.shutil, "which", lambda name: executable)
+    monkeypatch.setattr(konsole.subprocess, "run", fake.run)
+    monkeypatch.setattr(konsole, "_ACTIVATION_SETTLE_SECONDS", 0)
     monkeypatch.setattr(
-        konsole.shutil,
-        "which",
-        lambda name: which_calls.append(name) or (
-            executable if name == "qdbus-qt6" else None
-        ),
+        konsole.KonsoleAPI, "find_tab", lambda self, pid, env: "svc|7|2"
     )
+    return fake
+
+
+def _script_titles(script):
+    line = next(
+        line for line in script.splitlines() if line.startswith("var titles")
+    )
+    return json.loads(line.removeprefix("var titles = ").rstrip(";"))
+
+
+def test_inactive_window_selection_is_verified_after_activation(monkeypatch):
+    fake = _fake_konsole(monkeypatch)
+
+    result = konsole.KonsoleAPI().focus_result(42, {})
+
+    assert result.state == "complete"
+    assert (
+        result.selection.detail
+        == "tab or pane selection verified after activation"
+    )
+    assert result.activation.succeeded
+    script, plugin, path = fake.scripts[0]
+    assert _script_titles(script) == ["title 2", "title 5"]
+    assert "var owner = 4242;" in script
+    assert fake.unloaded == [plugin]
+    assert not os.path.exists(path)
+
+
+def test_active_window_selects_directly(monkeypatch):
+    fake = _fake_konsole(monkeypatch, active=True)
+
+    result = konsole.KonsoleAPI().focus_result(42, {})
+
+    assert result.state == "complete"
+    assert result.selection.detail == "tab or pane selection"
+    assert _script_titles(fake.scripts[0][0]) == ["title 2"]
+
+
+def test_unobserved_activation_reports_failure(monkeypatch):
+    fake = _fake_konsole(monkeypatch)
+    fake.activates = False
+
+    result = konsole.KonsoleAPI().focus_result(42, {})
+
+    assert result.state == "failed"
+    assert result.selection.attempted and not result.selection.succeeded
+    assert result.activation.attempted and not result.activation.succeeded
+    assert fake.unloaded == [fake.scripts[0][1]]
+
+
+def test_missing_owner_pid_never_loads_kwin_script(monkeypatch):
+    fake = _fake_konsole(monkeypatch)
+    original = fake.run
+
+    def run(command, **kwargs):
+        if command[-2:] == [
+            "org.freedesktop.DBus.GetConnectionUnixProcessID",
+            "svc",
+        ]:
+            return _result(1)
+        return original(command, **kwargs)
+
+    monkeypatch.setattr(konsole.subprocess, "run", run)
+
+    assert not konsole.KonsoleAPI().raise_window("svc|7|2", {})
+    assert not fake.scripts
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "a\\'); callDBus('x'); //",
+        'quote " and \\',
+        "line\nbreak",
+        "</script> ",
+    ],
+)
+def test_kwin_script_embeds_titles_as_data(monkeypatch, title):
+    executable = "/usr/bin/qdbus-qt6"
+    scripts = []
+
+    def run(command, **kwargs):
+        if command[3] == "org.kde.kwin.Scripting.loadScript":
+            scripts.append(open(command[4]).read())
+            return _result(0, "3\n")
+        return _result(0)
+
+    monkeypatch.setattr(konsole.subprocess, "run", run)
+
+    assert konsole._activate_by_kwin_caption([title], 7, executable)
+    assert _script_titles(scripts[0]) == [title]
+    assert "callDBus" not in scripts[0].replace(json.dumps(title), "")
+
+
+def test_failed_kwin_load_reports_no_activation(monkeypatch):
+    monkeypatch.setattr(
+        konsole.subprocess, "run", lambda command, **kwargs: _result(0, "-1\n")
+    )
+
+    assert not konsole._activate_by_kwin_caption(
+        ["t"], 7, "/usr/bin/qdbus-qt6"
+    )
+
+
+NODE = shutil.which("node")
+
+
+def _run_kwin_script(titles, windows):
+    script = konsole._kwin_activation_script(titles, 7)
+    harness = (
+        "const fakeWindows = " + json.dumps(windows) + ";\n"
+        "const workspace = {activeWindow: null, windowList: () => fakeWindows};\n"
+        + script
+        + "\nconst active = workspace.activeWindow;"
+        "\nconsole.log(JSON.stringify(active && active.caption));"
+    )
+    result = subprocess.run(
+        [NODE, "-e", harness], capture_output=True, text=True, timeout=10
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+@pytest.mark.parametrize(
+    ("titles", "captions", "activated"),
+    [
+        (
+            ["repo : claude"],
+            ["repo : claude \u2014 Konsole", "repo : claude-fleet \u2014 Konsole"],
+            "repo : claude \u2014 Konsole",
+        ),
+        (["t"], ["t \u2014 Konsole <2>"], "t \u2014 Konsole <2>"),
+        (["a"], ["a \u2014 b \u2014 Konsole"], None),
+        (["t"], ["t \u2014 Konsole", "t \u2014 Konsole <2>"], None),
+        (["t"], ["t2 \u2014 Konsole"], None),
+    ],
+)
+def test_kwin_script_activates_only_one_exact_caption(
+    titles, captions, activated
+):
+    windows = [
+        {"pid": 7, "caption": caption, "minimized": True} for caption in captions
+    ]
+    windows.append({"pid": 8, "caption": titles[0], "minimized": False})
+
+    assert _run_kwin_script(titles, windows) == activated
+
+
+def test_other_active_window_with_same_title_is_not_activation(monkeypatch):
+    fake = _fake_konsole(monkeypatch)
+    fake.focused = "2"
+    fake.activates = False
+    original = fake.run
+
+    def run(command, **kwargs):
+        args = command[1:]
+        if args == ["svc"]:
+            return _result(0, "/konsole/MainWindow_1\n/konsole/MainWindow_2\n")
+        if args[2:] == ["org.qtproject.Qt.QWidget.windowTitle"]:
+            return _result(0, "title 2\n")
+        if args[2:] == ["org.qtproject.Qt.QWidget.isActiveWindow"]:
+            active = args[1] == "/konsole/MainWindow_2"
+            return _result(0, "true\n" if active else "false\n")
+        return original(command, **kwargs)
+
+    monkeypatch.setattr(konsole.subprocess, "run", run)
+
+    result = konsole.KonsoleAPI().focus_result(42, {})
+
+    assert result.state == "partial"
+    assert result.selection.succeeded
+    assert not result.activation.succeeded
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_kwin_script_runs_malicious_title_as_data():
+    title = "x\\'); workspace.activeWindow = fakeWindows[0]; //"
+    windows = [{"pid": 7, "caption": "other \u2014 Konsole", "minimized": True}]
+
+    assert _run_kwin_script([title], windows) is None
+
+
+def test_failed_kwin_load_cleans_up(monkeypatch):
     calls = []
-    script_paths = []
 
     def run(command, **kwargs):
         calls.append(command)
-        if command[-1] == "1":
-            return _result(0, "Konsole\n")
-        if command[-2] == "org.kde.kwin.Scripting.loadScript":
-            script_paths.append(command[-1])
-            assert os.path.exists(command[-1])
-            return _result(0, "11\n")
-        if command[-1] == "org.kde.kwin.Script.run":
-            return _result(0)
-        raise AssertionError(command)
+        return _result(0, "-1\n")
 
     monkeypatch.setattr(konsole.subprocess, "run", run)
-    assert not konsole.KonsoleAPI().raise_window(
-        "org.kde.konsole-123|7|2", {}
-    )
 
-    assert which_calls == ["qdbus", "qdbus6", "qdbus-qt6"]
-    assert len(calls) == 3
-    assert all(command[0] == executable for command in calls)
-    assert script_paths and not os.path.exists(script_paths[0])
+    assert not konsole._activate_by_kwin_caption(["t"], 7, "/usr/bin/qdbus-qt6")
+    path = calls[0][4]
+    assert calls[-1][3:] == ["org.kde.kwin.Scripting.unloadScript", calls[0][5]]
+    assert not os.path.exists(path)
