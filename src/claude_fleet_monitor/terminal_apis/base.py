@@ -10,6 +10,9 @@ class TerminalAPI(ABC):
     selection_supported: bool = True
     activation_supported: bool = True
     activation_before_selection: bool = False
+    # switch_tab readback may stay stale until the window is active;
+    # verify_selection is authoritative after activation.
+    deferred_selection_readback: bool = False
 
     @staticmethod
     @abstractmethod

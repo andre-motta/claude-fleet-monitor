@@ -1,6 +1,11 @@
 import json
 import os
 
+import pytest
+
+from claude_fleet_monitor.focus import focus_notification
+from claude_fleet_monitor.models import FocusOperation, FocusResult
+from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from tests.conftest import write_session
 
 
@@ -81,3 +86,175 @@ def test_get_pid_dead_stored_pid(fleet_dir, monkeypatch):
     session = {"session_id": "abc-123", "pid": "999999", "cwd": "/tmp/myrepo"}
     result = get_pid(session)
     assert result is None
+
+
+def _operation(succeeded, detail, attempted=True):
+    return FocusOperation(attempted, succeeded, detail)
+
+
+@pytest.mark.parametrize(
+    ("result", "message", "severity"),
+    [
+        (
+            FocusResult(
+                state="complete",
+                reason="target selected and window activated",
+                target_found=True,
+                selection=_operation(True, "tab or pane selection"),
+                activation=_operation(True, "window activation"),
+            ),
+            "Focused: repo",
+            "information",
+        ),
+        (
+            FocusResult(
+                state="partial",
+                reason="only some terminal focus operations failed",
+                target_found=True,
+                selection=FocusOperation.unavailable(
+                    "backend does not support exact tab or pane selection"
+                ),
+                activation=_operation(True, "window activation"),
+            ),
+            "Partially focused: repo (selection: backend does not support"
+            " exact tab or pane selection; activation: ok)",
+            "warning",
+        ),
+        (
+            FocusResult(
+                state="partial",
+                reason="only some terminal focus operations failed",
+                target_found=True,
+                selection=_operation(True, "tab or pane selection"),
+                activation=_operation(False, "window activation"),
+            ),
+            "Partially focused: repo (selection: ok; activation: failed)",
+            "warning",
+        ),
+        (
+            FocusResult(
+                state="failed",
+                reason="terminal focus operations failed",
+                target_found=True,
+                selection=_operation(False, "Konsole could not select tab 2"),
+                activation=_operation(False, "KWin script could not be loaded"),
+            ),
+            "Focus Failed: repo: terminal focus operations failed"
+            " (selection: Konsole could not select tab 2;"
+            " activation: KWin script could not be loaded)",
+            "error",
+        ),
+        (
+            FocusResult(
+                state="failed",
+                reason="terminal focus operations failed",
+                selection=FocusOperation.unavailable(
+                    "exact tab or pane target was not found"
+                ),
+                activation=FocusOperation.unavailable(
+                    "window activation target was not found"
+                ),
+            ),
+            "Focus Failed: repo: terminal focus operations failed"
+            " (selection: exact tab or pane target was not found;"
+            " activation: window activation target was not found)",
+            "error",
+        ),
+        (
+            FocusResult(
+                state="unavailable",
+                reason="stored process identity is unavailable or stale",
+            ),
+            "Focus Unavailable: repo: stored process identity is unavailable"
+            " or stale",
+            "error",
+        ),
+        (
+            FocusResult(state="not-found", reason="no session matching 'repo'"),
+            "Focus Not found: repo: no session matching 'repo'",
+            "error",
+        ),
+    ],
+)
+def test_focus_notification_names_failed_steps(result, message, severity):
+    assert focus_notification(result, "repo") == (message, severity)
+
+
+def test_focus_notification_bounds_and_strips_details():
+    result = FocusResult(
+        state="partial",
+        reason="only some terminal focus operations failed",
+        target_found=True,
+        selection=_operation(False, "line\nbreak\0 \u2014 " + "x" * 300),
+        activation=_operation(True, "window activation"),
+    )
+
+    message, severity = focus_notification(result, "repo")
+
+    assert severity == "warning"
+    assert "\n" not in message and "\0" not in message
+    prefix = "Partially focused: repo (selection: "
+    assert message.startswith(prefix + "line break \u2014 x")
+    detail = message.removeprefix(prefix)
+    detail = detail.split("; activation:")[0]
+    assert len(detail) == 120 and detail.endswith("...")
+    assert message.endswith("; activation: ok)")
+
+
+def test_focus_notification_caps_total_length():
+    long_detail = "y" * 200
+    result = FocusResult(
+        state="failed",
+        reason="terminal focus operations failed",
+        selection=_operation(False, long_detail),
+        activation=_operation(False, long_detail),
+    )
+
+    message, _ = focus_notification(result, "repo")
+
+    assert len(message) == 200
+    assert message.endswith("...")
+
+
+class _RaisingSelectionAPI(TerminalAPI):
+    name = "stub"
+
+    def __init__(self, verified):
+        self.verified = verified
+
+    @staticmethod
+    def detect():
+        return False
+
+    @staticmethod
+    def capture_env():
+        return {}
+
+    def find_tab(self, pid, terminal_env):
+        return "tab"
+
+    def switch_tab(self, tab_id, terminal_env):
+        raise RuntimeError("readback is stale until activation")
+
+    def raise_window(self, tab_id, terminal_env):
+        return True
+
+    def verify_selection(self, tab_id, terminal_env):
+        return self.verified
+
+
+@pytest.mark.parametrize(
+    ("verified", "state", "detail"),
+    [
+        (True, "complete", "tab or pane selection verified after activation"),
+        (False, "partial", "readback is stale until activation"),
+    ],
+)
+def test_raising_selection_step_still_reaches_verification(
+    verified, state, detail
+):
+    result = _RaisingSelectionAPI(verified).focus_result(42, {})
+
+    assert result.state == state
+    assert result.selection.attempted
+    assert result.selection.detail == detail

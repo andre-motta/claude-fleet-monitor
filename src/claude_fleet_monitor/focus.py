@@ -3,8 +3,12 @@
 import sys
 
 from claude_fleet_monitor.discovery import read_session_records, resolve_session_process
-from claude_fleet_monitor.models import FocusResult
+from claude_fleet_monitor.models import FocusOperation, FocusResult
 from claude_fleet_monitor.terminal_apis import find_terminal_api
+
+_DETAIL_LIMIT = 120
+_MESSAGE_LIMIT = 200
+_GENERIC_DETAILS = frozenset({"tab or pane selection", "window activation"})
 
 
 def _public_record(record):
@@ -53,13 +57,36 @@ def get_pid(session):
     return process.pid if process else None
 
 
+def _bounded(text, limit: int) -> str:
+    text = " ".join(str(text).replace("\0", "").split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3].rstrip() + "..."
+
+
+def _operation_detail(operation: FocusOperation) -> str:
+    if operation.succeeded:
+        return "ok"
+    detail = _bounded(operation.detail, _DETAIL_LIMIT)
+    if operation.attempted and (not detail or detail in _GENERIC_DETAILS):
+        return "failed"
+    return detail or "unavailable"
+
+
 def focus_notification(result: FocusResult, repo: str) -> tuple[str, str]:
     if result.complete:
-        return f"Focused: {repo}", "information"
-    if result.successful:
-        return f"Partially focused: {repo}", "warning"
-    label = result.state.replace("-", " ").capitalize()
-    return f"Focus {label}: {repo}: {result.reason}", "error"
+        message, severity = f"Focused: {repo}", "information"
+    elif result.successful:
+        message, severity = f"Partially focused: {repo}", "warning"
+    else:
+        label = result.state.replace("-", " ").capitalize()
+        message, severity = f"Focus {label}: {repo}: {result.reason}", "error"
+    if not result.complete and (result.successful or result.state == "failed"):
+        message += (
+            f" (selection: {_operation_detail(result.selection)};"
+            f" activation: {_operation_detail(result.activation)})"
+        )
+    return _bounded(message, _MESSAGE_LIMIT), severity
 
 
 def focus_session(query) -> FocusResult:

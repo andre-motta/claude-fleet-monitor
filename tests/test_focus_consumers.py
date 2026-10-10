@@ -23,6 +23,16 @@ def _result(state):
             selection=FocusOperation.unavailable("unsupported"),
             activation=FocusOperation(True, True, "ok"),
         )
+    if state == "failed":
+        return FocusResult(
+            state=state,
+            reason="terminal focus operations failed",
+            target_found=True,
+            selection=FocusOperation(True, False, "Konsole could not select tab 2"),
+            activation=FocusOperation(
+                True, False, "window did not become active within 1s"
+            ),
+        )
     return FocusResult(state=state, reason="no safe target")
 
 
@@ -30,8 +40,20 @@ def _result(state):
     ("state", "message", "severity"),
     [
         ("complete", "Focused: repo", "information"),
-        ("partial", "Partially focused: repo", "warning"),
+        (
+            "partial",
+            "Partially focused: repo (selection: unsupported; activation: ok)",
+            "warning",
+        ),
+        (
+            "failed",
+            "Focus Failed: repo: terminal focus operations failed"
+            " (selection: Konsole could not select tab 2;"
+            " activation: window did not become active within 1s)",
+            "error",
+        ),
         ("unavailable", "Focus Unavailable: repo: no safe target", "error"),
+        ("not-found", "Focus Not found: repo: no safe target", "error"),
     ],
 )
 @pytest.mark.parametrize(
