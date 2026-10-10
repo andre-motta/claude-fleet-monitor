@@ -1,5 +1,6 @@
 """Terminal API auto-detection and dispatch."""
 
+from claude_fleet_monitor.terminal_apis import _ancestry
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.konsole import KonsoleAPI
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
@@ -31,6 +32,15 @@ TERMINALS: list[type[TerminalAPI]] = [
 
 
 def detect_terminal() -> TerminalAPI:
+    nearest = _ancestry.nearest_terminal()
+    if nearest:
+        terminal = find_terminal_api(nearest)
+        if terminal is not None:
+            return terminal
+    return detect_terminal_from_env()
+
+
+def detect_terminal_from_env() -> TerminalAPI:
     for cls in TERMINALS:
         if cls.detect():
             return cls()

@@ -1,6 +1,18 @@
 import json
 import pytest
 
+from claude_fleet_monitor.terminal_apis import _ancestry
+
+
+@pytest.fixture(autouse=True)
+def _no_real_process_ancestry(monkeypatch):
+    """Keep terminal detection independent of the terminal running pytest."""
+
+    def unreadable(pid):
+        raise OSError("process ancestry is mocked in tests")
+
+    monkeypatch.setattr(_ancestry, "_read_stat", unreadable)
+
 
 @pytest.fixture
 def fleet_dir(tmp_path, monkeypatch):

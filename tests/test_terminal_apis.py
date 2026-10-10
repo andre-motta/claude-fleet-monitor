@@ -1,3 +1,5 @@
+import ast
+import io
 import re
 import subprocess
 from pathlib import Path
@@ -16,6 +18,7 @@ from claude_fleet_monitor.terminal_apis import (
     kitty,
     tmux,
 )
+from claude_fleet_monitor.terminal_apis import _ancestry as ancestry
 from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
 from claude_fleet_monitor.terminal_apis.kitty import KittyAPI
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
@@ -499,3 +502,359 @@ def test_screen_is_never_a_parent_terminal():
     assert "SCREEN" not in tmux.TERMINAL_PROCESS_NAMES
     assert "wezterm-gui" not in tmux.TERMINAL_PROCESS_NAMES
     assert tmux.TERMINAL_PROCESS_NAMES["kitty"] == "kitty"
+
+
+REAL_READ_STAT = ancestry._read_stat
+HOOK_PID = 900
+
+
+def _stat(pid, comm, ppid):
+    return f"{pid} ({comm}) S {ppid} {pid} {pid} 0 -1 4194560 0 0 0 0 1 2 0 0 20 0"
+
+
+def _proc(monkeypatch, *chain, platform="linux"):
+    """Install a fake /proc: chain is (pid, comm, ppid) from the hook upward."""
+    table = {pid: _stat(pid, comm, ppid) for pid, comm, ppid in chain}
+    reads = []
+
+    def read_stat(pid):
+        reads.append(pid)
+        if pid not in table:
+            raise FileNotFoundError(pid)
+        return table[pid]
+
+    monkeypatch.setattr(ancestry, "_read_stat", read_stat)
+    monkeypatch.setattr(ancestry, "os", SimpleNamespace(getpid=lambda: HOOK_PID))
+    monkeypatch.setattr(ancestry, "sys", SimpleNamespace(platform=platform))
+    _forbid_subprocess(monkeypatch)
+    return reads
+
+
+def _agent_under(*ancestors):
+    """Hook, agent and shell, then the given comm names, then systemd as pid 1."""
+    names = ["claude-fleet-ho", "claude", "bash", *ancestors]
+    pids = [HOOK_PID - index * 10 for index in range(len(names))] + [1]
+    chain = [(pid, comm, ppid) for pid, comm, ppid in zip(pids, names, pids[1:])]
+    return [*chain, (1, "systemd", 0)]
+
+
+LEAK_CASES = [
+    pytest.param(
+        {**ADAPTER_MARKERS["konsole"], **ADAPTER_MARKERS["kitty"]},
+        ("kitty", "bash", "konsole"),
+        "kitty",
+        id="kitty-launched-from-konsole",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["konsole"], **ADAPTER_MARKERS["screen"]},
+        ("screen", "screen", "bash", "konsole"),
+        "screen",
+        id="screen-inside-konsole",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["konsole"], **ADAPTER_MARKERS["tmux"]},
+        ("tmux: server",),
+        "tmux",
+        id="tmux-inside-konsole",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["tmux"], **ADAPTER_MARKERS["konsole"]},
+        ("konsole", "bash", "tmux: server"),
+        "konsole",
+        id="konsole-with-leaked-tmux",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["konsole"], **ADAPTER_MARKERS["terminator"]},
+        ("terminator", "bash", "terminator"),
+        "terminator",
+        id="terminator-from-terminator-shell",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["terminator"], **ADAPTER_MARKERS["kitty"]},
+        ("kitty", "bash", "terminator"),
+        "kitty",
+        id="kitty-with-leaked-terminator",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["tmux"], "ZELLIJ": "0", "ZELLIJ_PANE_ID": "4"},
+        ("zellij",),
+        "zellij",
+        id="zellij-inside-tmux",
+    ),
+    pytest.param(
+        {**ADAPTER_MARKERS["konsole"], **ADAPTER_MARKERS["gnome"]},
+        ("gnome-terminal-", "bash", "konsole"),
+        "gnome",
+        id="gnome-terminal-server-truncated-comm",
+    ),
+]
+
+
+@pytest.mark.parametrize("markers, ancestors, expected", LEAK_CASES)
+def test_nearest_ancestor_beats_leaked_markers(
+    monkeypatch, markers, ancestors, expected
+):
+    _set_markers(monkeypatch, markers)
+    _proc(monkeypatch, *_agent_under(*ancestors))
+
+    info = capture_terminal_info()
+
+    assert info["terminal"] == expected
+    assert info["terminal_env"] == get_terminal_api(expected).capture_env()
+
+
+def test_matching_ancestor_keeps_env_detection(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["konsole"])
+    expected = capture_terminal_info()
+    _proc(monkeypatch, *_agent_under("konsole"))
+
+    assert capture_terminal_info() == expected
+    assert expected["terminal"] == "konsole"
+    assert expected["terminal_env"]["KONSOLE_DBUS_SESSION"] == "/Sessions/3"
+
+
+def test_ancestor_without_markers_captures_what_is_present(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["konsole"])
+    _proc(monkeypatch, *_agent_under("kitty", "bash", "konsole"))
+
+    info = capture_terminal_info()
+
+    assert info["terminal"] == "kitty"
+    assert info["terminal_env"] == KittyAPI.capture_env()
+    assert not any(name.startswith("KONSOLE_") for name in info["terminal_env"])
+
+
+def test_no_known_ancestor_uses_env_detection(monkeypatch):
+    _set_markers(
+        monkeypatch, {**ADAPTER_MARKERS["konsole"], **ADAPTER_MARKERS["kitty"]}
+    )
+    reads = _proc(monkeypatch, *_agent_under("sshd-session", "sshd"))
+
+    assert detect_terminal().name == "konsole"
+    assert reads == [900, 890, 880, 870, 860, 1]
+
+
+def test_hook_process_itself_is_not_an_ancestor(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["konsole"])
+    _proc(monkeypatch, (900, "screen", 890), (890, "bash", 1), (1, "systemd", 0))
+
+    assert detect_terminal().name == "konsole"
+
+
+def test_walk_stops_at_the_nearest_terminal(monkeypatch):
+    _set_markers(monkeypatch, {})
+    reads = _proc(monkeypatch, *_agent_under("zellij", "kitty", "konsole"))
+
+    assert detect_terminal().name == "zellij"
+    assert reads == [900, 890, 880, 870]
+
+
+@pytest.mark.parametrize(
+    "comm, expected",
+    [
+        ("tmux", "tmux"),
+        ("tmux: server", "tmux"),
+        ("tmux: client", "tmux"),
+        ("tmuxinator", None),
+        ("zellij", "zellij"),
+        ("screen", "screen"),
+        ("SCREEN", "screen"),
+        ("konsole", "konsole"),
+        ("ghostty", "ghostty"),
+        ("gnome-terminal-", "gnome"),
+        ("terminator", "terminator"),
+        ("kitty", "kitty"),
+        ("wezterm-gui", None),
+        ("bash", None),
+        ("", None),
+    ],
+)
+def test_comm_terminal_mapping(comm, expected):
+    assert ancestry.comm_terminal(comm) == expected
+
+
+def test_process_names_are_registered_adapters_within_comm_length():
+    registered = {cls.name for cls in TERMINALS}
+    for comm, terminal in ancestry.PROCESS_TERMINALS.items():
+        assert len(comm) <= ancestry.COMM_LENGTH
+        assert terminal in registered
+    for name, terminal in tmux.TERMINAL_PROCESS_NAMES.items():
+        assert ancestry.comm_terminal(name[: ancestry.COMM_LENGTH]) == terminal
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("10 (bash) S 9 10 10", ("bash", 9)),
+        ("10 (tmux: server) S 1 10 10", ("tmux: server", 1)),
+        ("10 (a) b (c) S 7 1", ("a) b (c", 7)),
+        ("10 () S 7", ("", 7)),
+        ("10 (bash) S", None),
+        ("10 (bash) S x", None),
+        ("10 (bash) S -3", None),
+        ("10 (bash) S ٣", None),
+        ("10 bash S 9", None),
+        ("10 )bash( S 9", None),
+        ("", None),
+    ],
+)
+def test_parse_stat(text, expected):
+    assert ancestry._parse_stat(text) == expected
+
+
+@pytest.mark.parametrize(
+    "chain",
+    [
+        pytest.param([(900, "claude-fleet-ho", 890)], id="unreadable-parent"),
+        pytest.param(
+            [(900, "claude-fleet-ho", 890), (890, "claude", 880), (880, "bash", 890)],
+            id="cycle",
+        ),
+        pytest.param(
+            [(900, "claude-fleet-ho", 900)],
+            id="self-parent",
+        ),
+        pytest.param(
+            [(900, "claude-fleet-ho", 0)],
+            id="no-parent",
+        ),
+    ],
+)
+def test_incomplete_ancestry_uses_env_detection(monkeypatch, chain):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["tmux"])
+    reads = _proc(monkeypatch, *chain)
+
+    assert capture_terminal_info()["terminal"] == "tmux"
+    assert len(reads) == len(set(reads)) <= 3
+
+
+def test_unreadable_proc_falls_back_to_env(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["kitty"])
+    _proc(monkeypatch)
+
+    assert capture_terminal_info() == {
+        "terminal": "kitty",
+        "terminal_env": KittyAPI.capture_env(),
+    }
+
+
+def test_malformed_stat_falls_back_to_env(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["screen"])
+    _proc(monkeypatch, *_agent_under("konsole"))
+    table = {870: "870 konsole S 860"}
+    original = ancestry._read_stat
+    monkeypatch.setattr(
+        ancestry, "_read_stat", lambda pid: table.get(pid) or original(pid)
+    )
+
+    assert detect_terminal().name == "screen"
+
+
+def test_walk_is_bounded(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["screen"])
+    chain = [(pid, "bash", pid - 1) for pid in range(900, 600, -1)]
+    reads = _proc(monkeypatch, *chain, (600, "konsole", 1))
+
+    assert detect_terminal().name == "screen"
+    assert len(reads) == ancestry.MAX_STEPS
+
+
+def test_terminal_at_the_last_step_is_found(monkeypatch):
+    _set_markers(monkeypatch, {})
+    last = HOOK_PID - (ancestry.MAX_STEPS - 1)
+    chain = [(pid, "bash", pid - 1) for pid in range(HOOK_PID, last, -1)]
+    _proc(monkeypatch, *chain, (last, "kitty", 1))
+
+    assert detect_terminal().name == "kitty"
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        PermissionError("hidepid"),
+        ValueError("bad"),
+        RuntimeError("boom"),
+        MemoryError(),
+    ],
+    ids=lambda error: type(error).__name__,
+)
+def test_reader_errors_never_raise(monkeypatch, error):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["konsole"])
+    _proc(monkeypatch)
+
+    def failing(pid):
+        raise error
+
+    monkeypatch.setattr(ancestry, "_read_stat", failing)
+
+    assert ancestry.nearest_terminal() is None
+    assert capture_terminal_info()["terminal"] == "konsole"
+
+
+def test_non_text_stat_never_raises(monkeypatch):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["konsole"])
+    _proc(monkeypatch)
+    monkeypatch.setattr(ancestry, "_read_stat", lambda pid: None)
+
+    assert detect_terminal().name == "konsole"
+
+
+@pytest.mark.parametrize("platform", ["darwin", "win32", "freebsd14"])
+def test_non_linux_reads_no_ancestry(monkeypatch, platform):
+    _set_markers(monkeypatch, ADAPTER_MARKERS["konsole"])
+    reads = _proc(monkeypatch, *_agent_under("kitty"), platform=platform)
+
+    assert detect_terminal().name == "konsole"
+    assert reads == []
+
+
+def test_real_reader_opens_only_proc_stat(monkeypatch):
+    opened = []
+
+    def fake_open(path, mode="r", *args, **kwargs):
+        opened.append((path, mode))
+        return io.BytesIO(b"42 (kitty) S 1 42 42")
+
+    monkeypatch.setattr(ancestry, "open", fake_open, raising=False)
+
+    assert REAL_READ_STAT(42) == "42 (kitty) S 1 42 42"
+    assert opened == [("/proc/42/stat", "rb")]
+
+
+def test_real_reader_decodes_invalid_utf8(monkeypatch):
+    monkeypatch.setattr(
+        ancestry,
+        "open",
+        lambda path, mode="r": io.BytesIO(b"42 (\xff\xfe) S 1"),
+        raising=False,
+    )
+
+    assert ancestry._parse_stat(REAL_READ_STAT(42)) == ("��", 1)
+
+
+def test_ancestry_never_reads_environ_or_cmdline():
+    tree = ast.parse(Path(ancestry.__file__).read_text(encoding="utf-8"))
+    docstring = ast.get_docstring(tree, clean=False)
+    strings = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and node.value != docstring
+    ]
+    fstrings = [
+        part.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.JoinedStr)
+        for part in node.values
+        if isinstance(part, ast.Constant)
+    ]
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+    assert "/stat" in fstrings
+    assert not any("environ" in text or "cmdline" in text for text in strings)
+    assert "subprocess" not in imported

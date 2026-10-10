@@ -1,11 +1,14 @@
 import io
 import json
 import threading
+from types import SimpleNamespace
 
 import pytest
 
 from claude_fleet_monitor.discovery import ProcessInfo
+from claude_fleet_monitor.terminal_apis import _ancestry
 from tests.conftest import write_session
+from tests.terminal_env import clear_terminal_markers
 
 
 def read_new_record(fleet_dir):
@@ -302,7 +305,6 @@ def test_windows_native_event_without_ancestry_never_signals_pid(
     fleet_dir, monkeypatch
 ):
     import os
-    from types import SimpleNamespace
 
     import claude_fleet_monitor.hook as hook
 
@@ -430,3 +432,38 @@ def test_identified_migration_serializes_inflight_unresolved_write(
     ]
     list(fleet_dir.glob("*.json"))[0].unlink()
     assert read_session_records() == []
+
+
+def test_session_start_labels_nearest_ancestor_over_leaked_markers(
+    fleet_dir, monkeypatch
+):
+    clear_terminal_markers(monkeypatch)
+    monkeypatch.setenv("KONSOLE_VERSION", "260402")
+    monkeypatch.setenv("KONSOLE_DBUS_SERVICE", "org.kde.konsole-12345")
+    monkeypatch.setenv("STY", "4242.pts-3.fleet")
+    monkeypatch.setenv("WINDOW", "2")
+    stats = {
+        900: "900 (claude-fleet-ho) S 890",
+        890: "890 (claude) S 880",
+        880: "880 (bash) S 870",
+        870: "870 (screen) S 860",
+        860: "860 (konsole) S 1",
+    }
+    monkeypatch.setattr(_ancestry, "_read_stat", stats.__getitem__)
+    monkeypatch.setattr(_ancestry, "os", SimpleNamespace(getpid=lambda: 900))
+    monkeypatch.setattr(_ancestry, "sys", SimpleNamespace(platform="linux"))
+    process = ProcessInfo(12345, 1, "claude", "claude", ("claude",), "/tmp/r", "1")
+    monkeypatch.setattr(
+        "claude_fleet_monitor.hook.resolve_process_identity",
+        lambda value, supplied=None: process,
+    )
+    monkeypatch.setattr(
+        "sys.stdin",
+        io.StringIO(json.dumps({"session_id": "leak", "cwd": "/tmp/r"})),
+    )
+    from claude_fleet_monitor.hook import handle
+
+    assert handle("session-start", "claude")
+    data = read_new_record(fleet_dir)
+    assert data["terminal"] == "screen"
+    assert data["terminal_env"] == {"STY": "4242.pts-3.fleet", "WINDOW": "2"}

@@ -375,7 +375,46 @@ change, Fedora 44 KDE Plasma Wayland:
   `terminal_apis/_qdbus.py` (extracted in F11; using it for Kitty or WezTerm
   is not done and needs its own high-risk review).
 - Zellij parent GUI activation: client PIDs are not obtainable from the CLI.
-- Version floors: only one version of zellij, kitty and screen was validated;
-  adapters gate on behavior, not on a version number.
-- Leaked-marker misclassification (for example Kitty started from Konsole is
-  labelled `konsole`) remains a documented limitation.
+- Version floors: only one version of kitty and screen was validated;
+  adapters gate on behavior, not on a version number. zellij floors: see #52
+  below.
+- Leaked-marker misclassification on macOS and Windows (env-only detection).
+  Linux uses the #52 ancestry walk below.
+
+## #52 follow-up: leaked markers and version floors
+
+Issue: [#52](https://github.com/andre-motta/claude-fleet-monitor/issues/52),
+branch `fix/52-ancestry-floors` from `main` at `47a0cbc`.
+
+### Ancestry-based labels (Linux)
+
+Andre approved on 2026-10-10 a change to the env-only hook rule: on Linux,
+terminal capture may walk the hook's process ancestry reading only
+`/proc/<pid>/stat`. `terminal_apis/_ancestry.py` parses comm (between the
+first `(` and the last `)`) and ppid, starting at the hook's parent, for at
+most 64 steps, stopping on a repeated PID, PID 0, an unreadable or malformed
+entry or any exception. comm names map through `tmux.TERMINAL_PROCESS_NAMES`
+truncated to the kernel's 15 characters (`gnome-terminal-server` becomes
+`gnome-terminal-`) plus `tmux` / `tmux:*`, `zellij`, `screen` and `SCREEN`.
+The nearest match wins over env detection and its adapter's env-only
+`capture_env()` records whatever markers are present; no match or any failure
+keeps the env order. `/proc/<pid>/environ` and `cmdline` are never read, and
+non-Linux platforms are unchanged.
+
+Evidence:
+
+- mocked: a fake `/proc` seam covers Kitty from Konsole, screen inside
+  Konsole, tmux inside Konsole, Konsole with a leaked `TMUX`, Terminator from a
+  Terminator shell, Kitty with a leaked `TERMINATOR_UUID`, zellij inside tmux,
+  the truncated GNOME comm, no known ancestor, unreadable `/proc`, cycles,
+  self-parenting, the 64-step bound, malformed stat lines, reader exceptions
+  and non-Linux platforms; plus one hook-level record. An autouse fixture in
+  `tests/conftest.py` makes the real `/proc` unreadable for every test, so
+  results do not depend on the terminal running pytest.
+- synthetic live (real kernel comm, wrapper scripts named after terminals, an
+  isolated `FLEET_DIR`): under Konsole on Fedora 44 the hook labelled
+  `konsole`; wrappers named `kitty`, `zellij` and `gnome-terminal-server`
+  produced `kitty`, `zellij` and `gnome` despite the leaked `KONSOLE_*`; a
+  `wezterm-gui` wrapper stayed `konsole` (documented WezTerm limit).
+- cost: the real walk took about 21 us per call for a five-process chain,
+  against roughly 20 ms of hook start-up.

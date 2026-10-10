@@ -141,16 +141,29 @@ selecting.
 
 ### Terminal detection limits
 
-Detection runs at hook time from environment variables only, and terminal
-markers leak into child processes. The fixed detection order therefore
-mislabels some combinations:
+Terminal markers leak into child processes: Kitty started from a Konsole
+shell inherits `KONSOLE_*`, anything started from a Terminator shell inherits
+`TERMINATOR_UUID`, and a terminal launched from a tmux pane inherits `TMUX`.
+On Linux the hook therefore first walks its own process ancestry, reading only
+the process name and parent PID from `/proc/<pid>/stat` (never the environment
+or command line of another process, at most 64 steps). The nearest Konsole,
+Ghostty, GNOME Terminal, Terminator, Kitty, tmux, zellij or GNU screen ancestor
+sets the label, and that adapter records whichever of its markers are present.
+So Kitty started from Konsole is labelled `kitty`, GNU screen or zellij inside
+tmux or Konsole is labelled `screen` or `zellij`, and a Konsole window opened
+from a tmux pane is labelled `konsole`. When the walk finds no known terminal
+or cannot read `/proc`, detection falls back to the fixed environment-variable
+order. Remaining limits:
 
-- Kitty, Terminator or another emulator started from a Konsole or GNOME
-  Terminal shell inherits that terminal's markers and is labelled `konsole` or
-  `gnome`. Start emulators from the desktop launcher instead.
-- GNU screen or zellij running inside tmux is labelled `tmux`, and GNU screen
-  inside Konsole, GNOME Terminal or Kitty is labelled after that emulator.
-- WezTerm has no adapter, so its sessions are labelled `generic`. If a
+- On macOS and Windows detection uses environment variables only, so the
+  leaked-marker cases above keep the label of the launching terminal.
+- A terminal adapter selected by ancestry can lack its own markers (for
+  example Kitty without remote control), so focus reports its usual
+  unavailable or unsupported failure rather than using the leaked markers.
+- WezTerm has no adapter. Its sessions are labelled `generic`, or after a
+  known terminal that launched WezTerm (for example `konsole`): the ancestry
+  walk passes WezTerm and reaches the launcher, matching the leaked markers.
+  If a
   multiplexer inside WezTerm reaches a known emulator that launched WezTerm,
   the parent walk continues to it; that emulator then finds no matching tab.
 - Records captured before an upgrade keep their old label and environment;
@@ -294,7 +307,8 @@ Pi sessions ------------|
 
 ```
 Hook fires inside session
-  --> detect terminal via env vars (TMUX, KONSOLE_VERSION, ITERM_SESSION_ID, ...)
+  --> Linux: nearest known terminal or multiplexer ancestor (/proc/<pid>/stat only)
+  --> otherwise detect terminal via env vars (TMUX, KONSOLE_VERSION, ITERM_SESSION_ID, ...)
   --> capture terminal-specific env (socket paths, DBus service, session IDs)
   --> store in fleet JSON: {"terminal": "tmux", "terminal_env": {"TMUX": "..."}}
 
@@ -350,6 +364,7 @@ src/claude_fleet_monitor/
         generic.py        # Fallback (no target)
         parent.py         # Nested parent-terminal routing
         _env.py           # Env-only capture helpers
+        _ancestry.py      # Linux hook-time ancestry walk (comm and ppid only)
 ```
 
 ## Known Limitations

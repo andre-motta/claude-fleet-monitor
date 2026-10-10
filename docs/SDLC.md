@@ -73,6 +73,12 @@ live evidence explicitly.
 - Hooks stay fast, with no network or heavy imports. Ordinary imports remain
   module-level except optional/circular cases. No shell scripts; hook/discovery
   writes stay within FLEET_DIR.
+- Hook-time terminal capture reads the environment only, with one exception
+  Andre approved on 2026-10-10 (#52): on Linux, a bounded (64 steps),
+  cycle-safe, never-raising walk of the hook's ancestors that reads only
+  `/proc/<pid>/stat` (comm and ppid). It never reads `/proc/<pid>/environ` or
+  `cmdline`, starts no subprocess and uses no D-Bus; any failure falls back to
+  env detection. Other platforms stay env-only.
 - The approved design permits a small dependency-free optional Pi JavaScript
   extension packaged with the Python distribution. The core remains Python.
   Concrete ChatGPT desktop routing still requires accepted C1 evidence.

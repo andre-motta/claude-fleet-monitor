@@ -62,11 +62,12 @@ Pluggable terminal abstraction. Each terminal has a class implementing `Terminal
 - `generic.py`: Fallback that identifies no target and never selects or activates
 - `parent.py`: `activate_parent()`, the one nested-parent routing helper used by tmux and zellij. Delegates to the parent's own `focus_result()` for activation-first, selection-less or deferred-readback parents; otherwise a failed selection never raises the window.
 - `_env.py`: Env-only, never-raising capture helpers for adapters (`bounded_env`, `is_decimal_id`)
+- `_ancestry.py`: Linux-only hook-time ancestry walk (`nearest_terminal()`). Reads only `/proc/<pid>/stat` (comm, ppid), at most 64 steps, cycle-safe and never raising. Maps comm names through `tmux.TERMINAL_PROCESS_NAMES` (truncated to 15 characters) plus the tmux, zellij and screen multiplexers.
 - `__init__.py`: `detect_terminal()`, `capture_terminal_info()`, `get_terminal_api()`
 
-Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > terminator > windows_terminal > kitty > screen > generic. tmux/zellij first because they run inside other terminals. Kitty and screen sit immediately before generic so every earlier result is unchanged; markers leaked from a launching terminal keep precedence (screen inside Konsole is labelled konsole).
+Detection order: tmux > zellij > konsole > ghostty > iterm2 > macos_terminal > gnome > terminator > windows_terminal > kitty > screen > generic. tmux/zellij first because they run inside other terminals. Kitty and screen sit immediately before generic so every earlier result is unchanged. This env order applies only when the Linux ancestry walk finds no known terminal: on Linux the nearest known terminal or multiplexer ancestor wins over leaked markers (screen inside Konsole is labelled screen), and its adapter's `capture_env()` records whatever markers are present. Elsewhere leaked markers keep precedence (screen inside Konsole is labelled konsole).
 
-Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields. Capture reads only the environment: no subprocess, D-Bus or `/proc` access at hook time.
+Terminal info is captured per-session in the hook (not guessed at focus time). Each session's fleet JSON stores `terminal` and `terminal_env` fields. Capture reads the environment plus, on Linux only, `/proc/<pid>/stat` of the hook's ancestors (approved 2026-10-10, #52). Never `/proc/<pid>/environ` or `cmdline`, no subprocess and no D-Bus at hook time; any walk failure falls back to env detection.
 
 For nested terminals (tmux inside Konsole), `raise_window()` walks the process tree from the tmux client PID to the first name in `TERMINAL_PROCESS_NAMES` and routes through `parent.activate_parent()`. Terminator and Kitty stop the walk and report activation unsupported; screen is never a parent.
 
