@@ -294,9 +294,9 @@ def test_placeholder_names_in_values_stay_literal(marker):
 @pytest.mark.parametrize("marker", MARKERS)
 def test_script_matches_marker_titles_literally(marker):
     windows = [
-        _window("literal", caption=f"{marker} — Konsole"),
-        _window("rewritten", caption="500 — Konsole"),
-        _window("rewritten-bool", caption="false — Konsole"),
+        _window("literal", caption=f"{marker} \u2014 Konsole"),
+        _window("rewritten", caption="500 \u2014 Konsole"),
+        _window("rewritten-bool", caption="false \u2014 Konsole"),
     ]
 
     result = _run(_kwin.activation_script(500, [marker], normal_only=False), windows)
