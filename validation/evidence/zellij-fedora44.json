@@ -221,7 +221,7 @@
   "user_zellij_cache_entries_for_run": 0,
   "socket_dir_isolation": "private temporary ZELLIJ_SOCKET_DIR, XDG_RUNTIME_DIR and TMPDIR for every zellij invocation; the default-dir control resolves inside the private XDG_RUNTIME_DIR",
   "kwin_calls": 0,
-  "duration_seconds": 8.0,
+  "duration_seconds": 7.9,
   "platform": {
     "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
     "kernel_release": "7.2.7-200.fc44.x86_64",
@@ -229,10 +229,10 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "61c00b2851707e6d98e3fc054f035cff607a1f86",
+  "tested_commit": "3cff7921bd982974cffa4856781a1e3af54be533",
   "modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/zellij.py": "c4fb8f45388ee3aba4ee6b3a1c05b8485b329d38698057f2f6a3d1aaa6e3ea60",
+    "src/claude_fleet_monitor/terminal_apis/zellij.py": "51ca90d00d1e147298bead26252b75b7baede00bd5e1ed4d4837091f679793d9",
     "src/claude_fleet_monitor/terminal_apis/_unix_peers.py": "3502975ed4e14a09d4c93d96a5273fa1ecba00c91bd6a6654d86208a90dffbc3",
     "validation/zellij.py": "110ec389120b7e639838f891cefc5aa8f6f8d61d03bdf9987a3dfb68e8e17bdb"
   }
