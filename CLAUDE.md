@@ -4,7 +4,7 @@ Fleet monitoring for Claude Code and Codex sessions. The core is pure Python and
 The approved Pi integration may package an optional dependency-free JavaScript extension.
 
 See [docs/SDLC.md](docs/SDLC.md) for the adopted agent workflow, approval gates
-and [active planning](docs/work/harnesses-desktop.md).
+and [active planning](docs/work/terminal-focus.md).
 
 ## Architecture
 
