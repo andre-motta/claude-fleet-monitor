@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+from collections.abc import Callable
 
 QDBUS_CANDIDATES = ("qdbus", "qdbus6", "qdbus-qt6")
 
@@ -72,13 +73,22 @@ def bus_owner_pid(executable: str, service: str) -> int | None:
     return int(owner) if is_number(owner) else None
 
 
-def run_kwin_script(executable: str, script: str, plugin_prefix: str) -> None:
+def run_kwin_script(
+    executable: str,
+    script: str,
+    plugin_prefix: str,
+    *,
+    plugin: str | None = None,
+    after_run: Callable[[], object] | None = None,
+) -> object:
     """Load, run and always unload script under a unique KWin plugin name.
 
     KWin offers no result channel, so returning only means the script ran;
-    callers must confirm any effect independently.
+    callers must confirm any effect independently. after_run runs before the
+    unload and its value is returned.
     """
-    plugin = f"{plugin_prefix}-{uuid.uuid4().hex}"
+    if plugin is None:
+        plugin = f"{plugin_prefix}-{uuid.uuid4().hex}"
     descriptor, path = tempfile.mkstemp(suffix=".js")
     try:
         try:
@@ -112,6 +122,7 @@ def run_kwin_script(executable: str, script: str, plugin_prefix: str) -> None:
         )
         if ran is None:
             raise KWinScriptError("KWin script could not be run")
+        return after_run() if after_run is not None else None
     finally:
         run_qdbus(
             executable,
