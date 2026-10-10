@@ -160,6 +160,10 @@ def test_tmux_raise_window_in_terminator_calls_no_other_backend(monkeypatch):
             lambda *args, **kwargs: pytest.fail("Terminator cannot focus"),
         )
 
-    assert not TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal terminator does not support window activation$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
     assert len(commands) == 1
     assert commands[0][-5:] == ["list-clients", "-t", "$7", "-F", tmux._CLIENT_FORMAT]

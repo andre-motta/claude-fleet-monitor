@@ -452,9 +452,11 @@ def test_tmux_in_kitty_reports_activation_failed_without_kitty_calls(monkeypatch
         or SimpleNamespace(stdout="200\t$7\t@12\t%34\t0\n", returncode=0),
     )
 
-    assert not TmuxAPI().raise_window(
-        "$7:@12.%34", {"TMUX": "/tmp/fleet,socket,4400,7"}
-    )
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal kitty does not support window activation$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", {"TMUX": "/tmp/fleet,socket,4400,7"})
     assert [command[3] for command in commands] == ["list-clients"]
 
 
