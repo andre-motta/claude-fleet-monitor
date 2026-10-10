@@ -203,7 +203,7 @@ So Kitty started from Konsole is labelled `kitty`, GNU screen or zellij inside
 tmux or Konsole is labelled `screen` or `zellij`, and a Konsole window opened
 from a tmux pane is labelled `konsole`. A known emulator without a Fleet
 adapter also stops the walk and labels the session `generic`, which never
-selects or activates: Alacritty, foot, xterm, urxvt, WezTerm, xfce4-terminal,
+selects or activates: Alacritty, foot, xterm, rxvt-unicode, WezTerm, xfce4-terminal,
 MATE Terminal, LXTerminal, QTerminal, Tilix, Ptyxis, GNOME Console (kgx),
 Terminology, Sakura, Tilda, Guake, cool-retro-term, Contour and the VS Code,
 VSCodium and Cursor terminals. So Alacritty launched from a tmux pane, foot
@@ -221,7 +221,9 @@ to the fixed environment-variable order. Remaining limits:
 - The same list stops the tmux and zellij parent walk: a multiplexer client
   inside one of these emulators reports that its parent terminal emulator has
   no Fleet adapter instead of raising the emulator that launched it. On macOS
-  and Windows only the parent walk uses the list.
+  and Windows only the parent walk uses the list, and only names that match
+  there (for example Alacritty and WezTerm; the VS Code family runs under
+  different process names on macOS).
 - An emulator missing from both lists is passed over, so the walk and the
   leaked markers can still reach the terminal that launched it.
 - Records captured before an upgrade keep their old label and environment;
