@@ -48,14 +48,16 @@ _FIND_UNIQUE_SESSION = """    set matchCount to 0
     repeat with w in windows
         repeat with t in tabs of w
             repeat with s in sessions of t
-                if (tty of s) is targetTty then
-                    if targetId is "" or (unique ID of s) is targetId then
-                        set matchCount to matchCount + 1
-                        set targetWindow to contents of w
-                        set targetTab to contents of t
-                        set targetSession to contents of s
+                try
+                    if (tty of s) is targetTty then
+                        if targetId is "" or (unique ID of s) is targetId then
+                            set matchCount to matchCount + 1
+                            set targetWindow to contents of w
+                            set targetTab to contents of t
+                            set targetSession to contents of s
+                        end if
                     end if
-                end if
+                end try
             end repeat
         end repeat
     end repeat

@@ -644,3 +644,19 @@ def test_terminal_parent_unconfirmed_raise_still_counts(monkeypatch, darwin):
     outcome = activate_parent(MacOSTerminalAPI(), 777)
     assert outcome.activated and not outcome.confirmed
     assert "not the frontmost application" in outcome.detail
+
+
+def test_runner_rejects_non_tuple_arguments(monkeypatch):
+    monkeypatch.setattr(_applescript.sys, "platform", "darwin")
+    monkeypatch.setattr(
+        _applescript.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail("osascript must not run"),
+    )
+    for arguments in ("/dev/ttys003", ["/dev/ttys003"], None):
+        with pytest.raises(_applescript.AppleScriptError):
+            _applescript.run("iTerm2", "on run argv\nend run", arguments)
+
+
+def test_iterm2_session_checks_tolerate_unresponsive_sessions():
+    assert "try\n                    if (tty of s) is targetTty" in iterm2.SELECT_SCRIPT

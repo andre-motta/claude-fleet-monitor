@@ -86,9 +86,10 @@ On macOS, captured identifiers are validated (`ITERM_SESSION_ID` must be
 `w<N>t<N>p<N>:<UUID>`) and reach `osascript` only as arguments to the
 script's run handler, never as AppleScript source. Both adapters match the
 agent's controlling tty, read with `ps` at focus time; an agent without one has
-no target. iTerm2 also requires the session ID, so an `ITERM_SESSION_ID`
-inherited by a program launched from an iTerm2 shell cannot select the wrong
-session. Terminal.app's AppleScript exposes no session ID, so its tab is
+no target. When a session ID was captured, iTerm2 also requires it to match,
+so an `ITERM_SESSION_ID` inherited by a program launched from an iTerm2 shell
+cannot select the wrong session; without one (nested tmux parent routing) the
+tty alone must identify exactly one session. Terminal.app's AppleScript exposes no session ID, so its tab is
 matched by tty alone. Readback is part of the design, but neither
 adapter has been run on a Mac yet; see
 [#55](https://github.com/andre-motta/claude-fleet-monitor/issues/55).

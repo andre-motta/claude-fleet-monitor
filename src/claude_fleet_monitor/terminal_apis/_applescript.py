@@ -83,7 +83,7 @@ def _first_line(text) -> str:
 
 def run(app: str, script: str, arguments: tuple[str, ...]) -> str:
     """Run ``script`` with ``arguments`` as its argv list; return stdout."""
-    if not arguments or not all(
+    if not isinstance(arguments, tuple) or not arguments or not all(
         isinstance(argument, str) and _SAFE_ARGUMENT.fullmatch(argument)
         for argument in arguments
     ):
