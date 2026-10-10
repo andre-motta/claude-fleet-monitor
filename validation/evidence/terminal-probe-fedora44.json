@@ -1,0 +1,712 @@
+{
+  "zellij": {
+    "installed": true,
+    "version": "zellij 0.45.1",
+    "install_source": "unpackaged binary at <home>/.local/bin/zellij",
+    "select_argv": [
+      "zellij",
+      "--session",
+      "<session>",
+      "action",
+      "focus-pane-id",
+      "terminal_<ZELLIJ_PANE_ID>"
+    ],
+    "readback_argv": [
+      "zellij",
+      "--session",
+      "<session>",
+      "action",
+      "list-clients"
+    ],
+    "version_floor": "not established: 0.45.1 is the only version probed; it provides action focus-pane-id, list-clients with a ZELLIJ_PANE_ID column, list-panes and dump-layout. Treat a nonzero exit or unknown subcommand as unavailable.",
+    "env_markers": {
+      "own": {
+        "ZELLIJ": {
+          "shape": "<digits>",
+          "length": 1
+        },
+        "ZELLIJ_PANE_ID": {
+          "shape": "<digits>",
+          "length": 1
+        },
+        "ZELLIJ_SESSION_NAME": {
+          "shape": "<session>",
+          "length": 26
+        }
+      },
+      "probe_set": [
+        "ZELLIJ_CONFIG_DIR",
+        "ZELLIJ_SOCKET_DIR"
+      ],
+      "foreign_markers_in_child": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "leaked_from_launcher": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "launcher_terminal": "konsole"
+    },
+    "process_comm": {
+      "gui": null,
+      "server": {
+        "comm": "zellij",
+        "exe": "zellij"
+      },
+      "client": {
+        "comm": "zellij",
+        "exe": "zellij"
+      }
+    },
+    "ancestry": [
+      {
+        "comm": "sh",
+        "exe": "bash",
+        "role": "pane shell"
+      },
+      {
+        "comm": "zellij",
+        "exe": "zellij",
+        "role": "server"
+      },
+      {
+        "comm": "systemd",
+        "exe": null,
+        "role": "other"
+      }
+    ],
+    "ancestry_reaches_gui": false,
+    "readback_proven": true,
+    "multi_client_behavior": "focus-pane-id applies only to the most recently active client (the last one that sent input); other clients keep their own focused pane; before any client sends input the action moved no attached client; with zero clients the action exits 0 and list-clients has no rows, so selection cannot be read back",
+    "pid_only_find_tab": {
+      "viable": false,
+      "method": "not viable through the CLI: list-panes and list-clients expose no PIDs. The session name is recoverable on Linux from the server argv (--server <socket dir>/<contract>/<session>) reached by ancestry, but the pane ID needs ZELLIJ_PANE_ID from the captured env (or /proc/<pid>/environ, Linux only)"
+    },
+    "activation_readback": {
+      "status": "blocked",
+      "method": "no GUI window: zellij ran in a private PTY and the pane ancestry ends at the daemonized server, so the emulator hosting a client is not reachable from the agent PID; not exercised: the probe makes no KWin, qdbus or xdotool calls (CTO decision)"
+    },
+    "cleanup": {
+      "tracked": 6,
+      "survivors": 0,
+      "marker_strays": 0
+    },
+    "observations": {
+      "server_daemonized": true,
+      "server_parent_comm": "systemd",
+      "duplicate_targets": {
+        "titles": [
+          "dup"
+        ],
+        "terminal_panes": 3,
+        "same_cwd": true,
+        "list_panes_has_pid_field": false
+      },
+      "pane_id_env_is_decimal": true,
+      "list_clients_columns": [
+        "CLIENT_ID",
+        "ZELLIJ_PANE_ID",
+        "RUNNING_COMMAND"
+      ],
+      "one_client_before_any_input": {
+        "exit": 0,
+        "client_pane": {
+          "1": "terminal_0"
+        },
+        "moved": false,
+        "keystroke_pane_after": [
+          "0"
+        ]
+      },
+      "one_client": [
+        {
+          "target": "1",
+          "argument": "terminal_1",
+          "exit": 0,
+          "list_clients_matches": true,
+          "keystroke_matches": true
+        },
+        {
+          "target": "2",
+          "argument": "terminal_2",
+          "exit": 0,
+          "list_clients_matches": true,
+          "keystroke_matches": true
+        },
+        {
+          "target": "0",
+          "argument": "0",
+          "exit": 0,
+          "list_clients_matches": true,
+          "keystroke_matches": true
+        },
+        {
+          "target": "1",
+          "argument": "terminal_1",
+          "exit": 0,
+          "list_clients_matches": true,
+          "keystroke_matches": true
+        }
+      ],
+      "error_unknown_pane": {
+        "exit": 2,
+        "stderr": "Pane with id Terminal(99) not found"
+      },
+      "error_malformed_pane": {
+        "exit": 2,
+        "stderr": "Malformed pane id: x1, expecting either a bare integer (eg. 1), a terminal pane id (eg. terminal_1) or a plugin pane id (eg. plugin_1)"
+      },
+      "two_clients": [
+        {
+          "target": "2",
+          "last_input_client": "c1",
+          "exit": 0,
+          "list_clients": {
+            "1": "terminal_2",
+            "2": "terminal_1"
+          },
+          "clients_moved": [
+            "c1"
+          ]
+        },
+        {
+          "target": "0",
+          "last_input_client": "c2",
+          "exit": 0,
+          "list_clients": {
+            "1": "terminal_2",
+            "2": "terminal_0"
+          },
+          "clients_moved": [
+            "c2"
+          ]
+        }
+      ],
+      "zero_clients": {
+        "focus_exit": 0,
+        "list_clients_rows": {},
+        "session_survives": true
+      },
+      "client_pid_discoverable": "no: list-clients reports CLIENT_ID only; the pane ancestry reaches the daemonized server, never the client; an argv scan finds clients only when the session name is on their command line"
+    },
+    "recommendation": "adapter",
+    "evidence_kind": "live",
+    "provenance": "live: real zellij server and two PTY clients with an isolated socket dir; readback by list-clients plus keystroke routing"
+  },
+  "wezterm": {
+    "installed": false,
+    "version": null,
+    "install_source": null,
+    "env_markers": {},
+    "process_comm": {},
+    "ancestry_reaches_gui": null,
+    "select_argv": null,
+    "readback_argv": null,
+    "readback_proven": false,
+    "multi_client_behavior": "not probed",
+    "pid_only_find_tab": {
+      "viable": false,
+      "method": "not probed"
+    },
+    "activation_readback": {
+      "status": "unverified",
+      "method": "not probed"
+    },
+    "version_floor": "not probed",
+    "recommendation": "none",
+    "evidence_kind": "unverified",
+    "reason": "skipped by CTO decision",
+    "candidate_commands": "unverified candidates from the plan: wezterm cli activate-pane --pane-id N; readback wezterm cli list-clients --format json focused_pane_id or wezterm cli list --format json"
+  },
+  "kitty": {
+    "installed": true,
+    "version": "kitty 0.47.1",
+    "install_source": "rpm kitty-0.47.1-1.fc44.x86_64",
+    "select_argv": [
+      "kitten",
+      "@",
+      "--to",
+      "<KITTY_LISTEN_ON>",
+      "focus-window",
+      "--match",
+      "id:<KITTY_WINDOW_ID>"
+    ],
+    "readback_argv": [
+      "kitten",
+      "@",
+      "--to",
+      "<KITTY_LISTEN_ON>",
+      "ls"
+    ],
+    "multi_client_behavior": "single GUI process per instance and no attached-client concept; remote control clients are stateless; selection changes the active tab and window of the one instance named by KITTY_LISTEN_ON",
+    "version_floor": "not established: 0.47.1 is the only version probed; needs remote control enabled (allow_remote_control socket-only or yes) and listen_on",
+    "env_markers": {
+      "own": {
+        "KITTY_WINDOW_ID": {
+          "shape": "<digits>",
+          "length": 1
+        },
+        "KITTY_PID": {
+          "shape": "<digits>",
+          "length": 7
+        },
+        "KITTY_LISTEN_ON": {
+          "shape": "unix:<probe_tmp>/kitty/rc.sock",
+          "length": 52
+        },
+        "KITTY_PUBLIC_KEY": {
+          "shape": "<opaque>",
+          "length": 42
+        },
+        "KITTY_INSTALLATION_DIR": {
+          "shape": "/usr/lib<digits>/kitty",
+          "length": 16
+        }
+      },
+      "probe_set": [
+        "KITTY_CACHE_DIRECTORY",
+        "KITTY_CONFIG_DIRECTORY"
+      ],
+      "foreign_markers_in_child": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "leaked_from_launcher": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "launcher_terminal": "konsole",
+      "term_in_child": "xterm-kitty"
+    },
+    "ancestry": [
+      {
+        "comm": "sh",
+        "exe": "bash",
+        "role": "window shell"
+      },
+      {
+        "comm": "kitty",
+        "exe": "kitty",
+        "role": "gui"
+      }
+    ],
+    "ancestry_reaches_gui": true,
+    "process_comm": {
+      "gui": {
+        "comm": "kitty",
+        "exe": "kitty"
+      },
+      "server": null,
+      "client": null
+    },
+    "readback_proven": true,
+    "pid_only_find_tab": {
+      "viable": false,
+      "method": "not viable with an empty env: the socket address comes only from KITTY_LISTEN_ON. With the address, ls --match pid:<shell pid> returned window ids [1], and ls lists each window's pid and foreground_processes"
+    },
+    "activation_readback": {
+      "status": "unverified",
+      "method": "kitty activation reported unverified by CTO decision; focus-window did not change os_window is_focused on the minimized probe window; not exercised: the probe makes no KWin, qdbus or xdotool calls (CTO decision)"
+    },
+    "cleanup": {
+      "tracked": 4,
+      "survivors": 0,
+      "marker_strays": 0
+    },
+    "observations": {
+      "listen_on_equals_given_address": true,
+      "listen_on_shape": "unix:<socket>",
+      "listen_on_length": 52,
+      "kitty_pid_env_is_gui": true,
+      "duplicate_targets": {
+        "titles": [
+          "dup"
+        ],
+        "same_cwd": true,
+        "separate_tabs": true
+      },
+      "selections": [
+        {
+          "target": "1",
+          "exit": 0,
+          "target_tab_active": true,
+          "target_window_active": true,
+          "other_tabs_active": [
+            false
+          ],
+          "os_window_is_focused": false,
+          "target_window_is_focused": false
+        },
+        {
+          "target": "2",
+          "exit": 0,
+          "target_tab_active": true,
+          "target_window_active": true,
+          "other_tabs_active": [
+            false
+          ],
+          "os_window_is_focused": false,
+          "target_window_is_focused": false
+        },
+        {
+          "target": "1",
+          "exit": 0,
+          "target_tab_active": true,
+          "target_window_active": true,
+          "other_tabs_active": [
+            false
+          ],
+          "os_window_is_focused": false,
+          "target_window_is_focused": false
+        }
+      ],
+      "inactive_readback": "tab and window is_active followed every selection; the OS window started minimized reported is_focused [False], which the probe cannot attribute to KWin without a KWin call; selection readback should use is_active and never treat is_focused as activation proof",
+      "ls_match_pid": {
+        "exit": 0,
+        "window_ids": [
+          1
+        ]
+      },
+      "error_unknown_window": {
+        "exit": 1,
+        "stderr": "Error: No matching windows for expression: id:99999"
+      },
+      "error_missing_socket": {
+        "exit": 1,
+        "stderr": "Error: Failed to connect to unix:<socket> with error: dial unix <socket>: connect: no such file or directory"
+      },
+      "error_tty_route_with_socket_only": {
+        "exit": 137,
+        "output": "",
+        "meaning": "kitten @ without --to inside a socket-only window; exit 124 or 137 means it hung until timeout killed it, with no error text"
+      },
+      "error_remote_control_off": "inferred, not run: kitty ignores listen_on unless allow_remote_control is socket, socket-only or yes, so --to then fails with the missing-socket shape",
+      "headless_is_focused": {
+        "os_window_is_focused": true,
+        "window_is_focused": true,
+        "note": "with --start-as=hidden no window is visible yet is_focused can be true, so is_focused is not evidence of OS activation"
+      }
+    },
+    "recommendation": "adapter",
+    "evidence_kind": "live",
+    "provenance": "live: one minimized and one headless disposable kitty with --config NONE and a temporary socket; readback by kitten @ ls"
+  },
+  "screen": {
+    "installed": true,
+    "version": "Screen version 5.0.1",
+    "install_source": "rpm screen-5.0.1-6.fc44.x86_64",
+    "select_argv": [
+      "screen",
+      "-S",
+      "<STY>",
+      "-X",
+      "select",
+      "<WINDOW>"
+    ],
+    "readback_argv": [
+      "screen",
+      "-S",
+      "<STY>",
+      "-Q",
+      "number"
+    ],
+    "version_floor": "not established: 5.0.1 is the only version probed; the -Q query option is required for readback",
+    "env_markers": {
+      "own": {
+        "STY": {
+          "shape": "<digits>.<session>",
+          "length": 34
+        },
+        "WINDOW": {
+          "shape": "<digits>",
+          "length": 1
+        }
+      },
+      "probe_set": [],
+      "foreign_markers_in_child": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "leaked_from_launcher": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "launcher_terminal": "konsole",
+      "term_in_child": "screen"
+    },
+    "ancestry": [
+      {
+        "comm": "sh",
+        "exe": "bash",
+        "role": "window shell"
+      },
+      {
+        "comm": "screen",
+        "exe": null,
+        "role": "server"
+      },
+      {
+        "comm": "systemd",
+        "exe": null,
+        "role": "other"
+      }
+    ],
+    "readback_proven": true,
+    "multi_client_behavior": "-X select and -Q number both act on the most recently attached display only, whichever display last received input; -Q number agrees with the selected window of that display, so equality cannot prove what another display shows; with zero displays select exits 0 and changes nothing, and -Q number still answers with the stale window",
+    "process_comm": {
+      "gui": null,
+      "server": {
+        "comm": "screen",
+        "exe": null
+      },
+      "client": {
+        "comm": "screen",
+        "exe": null
+      }
+    },
+    "ancestry_reaches_gui": false,
+    "pid_only_find_tab": {
+      "viable": false,
+      "method": "partly: on Linux the ancestry from the agent reaches the SCREEN server, whose PID prefixes STY in screen -ls, so the session is recoverable; the window number has no CLI mapping from a PID and needs WINDOW from the captured env (or /proc/<pid>/environ)"
+    },
+    "activation_readback": {
+      "status": "blocked",
+      "method": "no GUI window: screen ran in private PTYs and window shells descend from the daemonized SCREEN server, not from a display client; not exercised: the probe makes no KWin, qdbus or xdotool calls (CTO decision)"
+    },
+    "cleanup": {
+      "tracked": 6,
+      "survivors": 0,
+      "marker_strays": 0
+    },
+    "observations": {
+      "server_argv0": "SCREEN",
+      "binary_setgid": true,
+      "exe_link_readable": false,
+      "server_daemonized": true,
+      "server_parent_comm": "systemd",
+      "sty_matches_adapter_pattern": true,
+      "sty_pid_is_server": true,
+      "duplicate_targets": {
+        "same_cwd": true,
+        "titles": [
+          "dup"
+        ],
+        "windows": 3
+      },
+      "zero_displays": {
+        "select_exit": 0,
+        "number_before": "2",
+        "number_after": "2",
+        "selection_took_effect": false,
+        "windows_query": ""
+      },
+      "one_display": [
+        {
+          "target": "1",
+          "exit": 0,
+          "number": "1",
+          "keystroke_window": [
+            "1"
+          ],
+          "matches": true
+        },
+        {
+          "target": "0",
+          "exit": 0,
+          "number": "0",
+          "keystroke_window": [
+            "0"
+          ],
+          "matches": true
+        },
+        {
+          "target": "2",
+          "exit": 0,
+          "number": "2",
+          "keystroke_window": [
+            "2"
+          ],
+          "matches": true
+        }
+      ],
+      "error_unknown_window": {
+        "exit": 0,
+        "stderr": "",
+        "number_after": "2"
+      },
+      "two_displays": [
+        {
+          "target": "1",
+          "last_input_display": "d1",
+          "exit": 0,
+          "number": "1",
+          "displays_moved": [
+            "d2"
+          ]
+        },
+        {
+          "target": "0",
+          "last_input_display": "d2",
+          "exit": 0,
+          "number": "0",
+          "displays_moved": [
+            "d2"
+          ]
+        }
+      ]
+    },
+    "recommendation": "adapter",
+    "evidence_kind": "live",
+    "provenance": "live: real SCREEN server and PTY displays with an isolated SCREENDIR; readback by -Q number plus keystroke routing"
+  },
+  "terminator": {
+    "installed": true,
+    "version": "terminator 2.1.5",
+    "install_source": "rpm terminator-2.1.5-4.fc44.noarch",
+    "select_argv": null,
+    "readback_argv": null,
+    "readback_proven": false,
+    "multi_client_behavior": "not applicable: detection-only per #47, no selection API probed",
+    "version_floor": "not applicable: detection-only per #47",
+    "pid_only_find_tab": {
+      "viable": false,
+      "method": "not applicable: detection-only, find_tab returns None"
+    },
+    "env_markers": {
+      "own": {
+        "TERMINATOR_UUID": {
+          "shape": "urn:uuid:<uuid>",
+          "length": 45
+        },
+        "TERMINATOR_DBUS_NAME": {
+          "shape": "net.tenshu.Terminator<hex>",
+          "length": 54
+        },
+        "TERMINATOR_DBUS_PATH": {
+          "shape": "/net/tenshu/Terminator<digits>",
+          "length": 23
+        },
+        "VTE_VERSION": {
+          "shape": "<digits>",
+          "length": 4
+        },
+        "COLORTERM": {
+          "shape": "truecolor",
+          "length": 9
+        }
+      },
+      "probe_set": [],
+      "foreign_markers_in_child": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "leaked_from_launcher": [
+        "KONSOLE_DBUS_ACTIVATION_COOKIE",
+        "KONSOLE_DBUS_SERVICE",
+        "KONSOLE_DBUS_SESSION",
+        "KONSOLE_DBUS_WINDOW",
+        "KONSOLE_VERSION",
+        "WINDOWID"
+      ],
+      "launcher_terminal": "konsole",
+      "term_in_child": "xterm-256color"
+    },
+    "process_comm": {
+      "gui": {
+        "comm": "terminator",
+        "exe": "python3.14"
+      },
+      "server": null,
+      "client": null
+    },
+    "ancestry": [
+      {
+        "comm": "sh",
+        "exe": "bash",
+        "role": "child shell"
+      },
+      {
+        "comm": "terminator",
+        "exe": "python3.14",
+        "role": "gui"
+      },
+      {
+        "comm": "dbus-run-sessio",
+        "exe": "dbus-run-session",
+        "role": "dbus-run-session"
+      }
+    ],
+    "ancestry_reaches_gui": true,
+    "cleanup": {
+      "tracked": 8,
+      "survivors": 0,
+      "marker_strays": 0
+    },
+    "observations": {
+      "all_three_markers_present": true,
+      "windowid_inherited_unchanged": true,
+      "isolation": "private session bus via dbus-run-session and -H (hidden window), so no user Terminator was contacted"
+    },
+    "activation_readback": {
+      "status": "unverified",
+      "method": "detection-only per #47; not exercised: the probe makes no KWin, qdbus or xdotool calls (CTO decision)"
+    },
+    "recommendation": "none",
+    "evidence_kind": "live",
+    "provenance": "live: hidden disposable Terminator on a private D-Bus session bus; child env and process ancestry only"
+  },
+  "probe": {
+    "schema": "terminal-probe/1",
+    "platform": {
+      "os": "Fedora Linux 44 (KDE Plasma Desktop Edition)",
+      "kernel_release": "7.2.7-200.fc44.x86_64",
+      "desktop": "KDE",
+      "session_type": "wayland",
+      "python_version": "3.14.7"
+    },
+    "tested_commit": "44ddb231e3ff6fd62dbf00395fa628f243c93ef8",
+    "probe_modified_since_commit": false,
+    "probe_sha256": "a39b0679da2e66945f328508ddcaf9689ebdc1e78951096a2cac60b3b1a07ddb",
+    "kwin_calls": 0,
+    "user_config_unchanged": true,
+    "user_zellij_cache_entries_for_probe": 0,
+    "cleanup": {
+      "survivors": 0,
+      "marker_strays_after_run": 0
+    },
+    "labels": {
+      "live": "observed on this host with real terminal processes",
+      "inspected": "read from installed files or documentation, not executed",
+      "unverified": "not observed"
+    }
+  }
+}
