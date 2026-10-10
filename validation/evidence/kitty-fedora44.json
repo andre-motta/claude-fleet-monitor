@@ -268,7 +268,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.07,
+      "seconds": 0.08,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -292,7 +292,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.07,
+      "seconds": 0.08,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -340,7 +340,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.07,
+      "seconds": 0.08,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": true,
@@ -364,7 +364,7 @@
         "succeeded": true,
         "detail": "window activation"
       },
-      "seconds": 0.07,
+      "seconds": 0.08,
       "kwin_scripts": 1,
       "os_focus_after": {
         "A": false,
@@ -406,12 +406,12 @@
     "session_type": "wayland",
     "python_version": "3.14.7"
   },
-  "tested_commit": "ef74387f1324026213fa9736fc6480dc3ef0a70f",
+  "tested_commit": "4a5d74542d6076a8761315933e8221ed6484c58e",
   "tested_files_modified_since_commit": false,
   "sha256": {
-    "src/claude_fleet_monitor/terminal_apis/kitty.py": "181ecba732909163c79f91724be509fd4eb5c8bf49eddc3e7c05173356b00407",
-    "src/claude_fleet_monitor/terminal_apis/_kwin.py": "0f8f4984efa81410e1680c20383320652417d6a2e5f51164ed4296cadbf59903",
+    "src/claude_fleet_monitor/terminal_apis/kitty.py": "8b72336a69db3c563e2b3d39247561c49869b9b7c71a61b7994ab1aef1ad73cc",
+    "src/claude_fleet_monitor/terminal_apis/_kwin.py": "af4d4c99ff02a9f7712ed42ec96c6be5fe2400c7068a4f43be0f0b0626e18d58",
     "src/claude_fleet_monitor/terminal_apis/_qdbus.py": "49ca04326fefd6182957d119827a18130a4129996de25c9d98207df97de5ea45",
-    "validation/kitty.py": "bd47cabb2d1ad4757b42f6a1ebe22cbd44b820fe652fbab09364c8f131764098"
+    "validation/kitty.py": "e9d5ac524df1dd5196410e4c1bb43aafc5f8d7e494a0c7528591803bea7a3f3a"
   }
 }
