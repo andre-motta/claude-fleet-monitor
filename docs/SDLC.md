@@ -11,7 +11,7 @@ active initiative until a migration is agreed again.
 | --- | --- |
 | Repository and tracker | Public `andre-motta/claude-fleet-monitor`; GitHub Issues and PRs, native sub-issue/blocking links plus readable dependencies |
 | Default branch | `main`; merging into it is Andre's acceptance gate |
-| Feature integration | One local integration branch per initiative, owned by the orchestrator; current: `feat/terminal-focus-2` |
+| Feature integration | One local integration branch per initiative when it has several items, owned by the orchestrator; none active |
 | Worktrees | One isolated worktree and branch per work item, outside the repository checkout; removed once integrated |
 | Runtime | Python >=3.10; CI matrix 3.10, 3.12, 3.13 on Ubuntu 24.04 |
 | Setup | `python3 -m venv .venv`, then `.venv/bin/python -m pip install -e ".[dev]"`; Windows uses `.venv/Scripts/python.exe` |
@@ -22,7 +22,7 @@ active initiative until a migration is agreed again.
 | Platforms | Preserve Linux/macOS/Windows behavior using platform mocks; require live evidence for newly claimed terminal or desktop capabilities |
 | Commit rules | Imperative title under 50 characters, blank line, one-line why body, issue reference and trailers; `git commit -s`; `Co-Authored-By` naming the actual Claude model without context-size annotation |
 | Tracker authority | Maintain the initiative's issues, links and public-safe progress |
-| Publication authority | Per initiative, as Andre states it. Current: one combined PR from the integration branch into `main` after review and acceptance |
+| Publication authority | Per initiative, as Andre states it. Current: one PR per issue into `main`, squash-merged after Andre approves the squash message |
 | Reserved CTO gate | Design approval, final acceptance and merge into `main`; direct main pushes, tags, releases and deployments require covered authorization |
 | Publication effects | `main` and PR CI as above; `v*` tags publish to PyPI using the `pypi` environment; no Pages workflow found |
 | Evidence | Public-safe records under `docs/work/` and validation artifacts; no private conversation content, credentials or personal absolute paths |
@@ -81,14 +81,18 @@ live evidence explicitly.
   env detection. Other platforms stay env-only.
 - The approved design permits a small dependency-free optional Pi JavaScript
   extension packaged with the Python distribution. The core remains Python.
-  Concrete ChatGPT desktop routing still requires accepted C1 evidence.
+  ChatGPT desktop conversation focus is not supported (decision 2026-10-10,
+  #28): without a native, supported integration Fleet reports a capability as
+  unsupported rather than working around the target application.
 
 ## Initiatives
 
-- Active: terminal focus, finishing #32 and implementing #47 on
-  `feat/terminal-focus-2`, delivered as one combined PR to `main`. See
+- Delivered: terminal focus (#32, #47) in v0.8.0 and its follow-ups (#49 to
+  #52) in v0.9.0, one PR per issue into `main`. See
   [terminal focus](work/terminal-focus.md).
 - Historical: [harnesses and desktop](work/harnesses-desktop.md), delivered
-  under 0.1.0 with Codex roles and a child-PR feature branch. Its remaining
-  desktop items (#21, #22, #28, #29, #30) keep their recorded research and
-  design gates; the saved [desktop feature](work/desktop.md) still applies.
+  under 0.1.0 with Codex roles and a child-PR feature branch. ChatGPT
+  conversation focus (#22, #28, #29) is closed as not supported
+  ([evidence](work/chatgpt-focus-evidence.md)). The Tongs desktop items (#21,
+  #30) keep their recorded design gates; the saved
+  [desktop feature](work/desktop.md) still applies.

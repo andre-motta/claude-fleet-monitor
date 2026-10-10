@@ -467,8 +467,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR
 Harness contributors should follow the [adapter author guide](docs/harness-adapters.md)
 and the [implemented harness contract](docs/work/harness-contract.md).
 Agent-led initiatives follow [the SDLC profile](docs/SDLC.md).
-Future desktop UI and ChatGPT focus work is tracked in
-[harnesses and desktop](docs/work/harnesses-desktop.md).
+Future desktop UI work is tracked in
+[harnesses and desktop](docs/work/harnesses-desktop.md). Focusing ChatGPT
+desktop conversations is not supported
+([evidence](docs/work/chatgpt-focus-evidence.md)).
 
 ## License
 
