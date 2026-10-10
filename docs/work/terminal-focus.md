@@ -143,3 +143,144 @@ product code, tests, validator and workflow behavior remain as reviewed.
 
 This remains a bounded evolution of #32. Publication is a reviewed PR against
 main; all six hosted checks are required and Andre retains the merge gate.
+
+## Terminal focus 2 (finish #32, close #47)
+
+Workflow: Agent SDLC 0.2.4 (see [the profile](../SDLC.md)). Andre approved the
+design gate on 2026-10-09 for items T2, F3a, F3b, K1, K1b, P4, Z5, K7, S8 and
+R9. W6 (WezTerm) was dropped: WezTerm is not validated and has no adapter.
+Items were built in separate worktrees and merged into the local integration
+branch `feat/terminal-focus-2`, which becomes one combined PR into `main`.
+Base: `main` at `2e01b6f`. Before the items, the branch took the Ghostty qdbus
+fast lane (`22235eb`), the Konsole verify-after-activation fixes (`9231dac`,
+`dd29f6d`, `52b87ac`) and the SDLC 0.2.4 migration (`bfe20aa`).
+
+### Live confirmation on 2026-10-09
+
+Andre reported a Konsole cross-window false failure: with the TUI in one
+Konsole window and the target tab in another, inactive window, the window
+switched to the target tab but the TUI said "Focus failed". Konsole only
+reports the selected tab once its window is active, so the selection readback
+was stale. `9231dac` verifies selection again after KWin activation, and
+`dd29f6d` ties the activation check to one unique window of the owning
+Konsole process and cleans up KWin scripts on every path. After restarting
+the TUI on the integration build, Andre confirmed live on KDE Plasma Wayland
+with Konsole 26.08 that the same scenario now reports success. This is a
+hands-on, manual observation; no JSON was recorded for it.
+
+### Slice records
+
+- **T2** (`0eb46ad`, integrated `e825bf8`): Terminator detection-only exactly
+  as #47 specifies, reported by @EmilienM. Shared `_env` capture helpers, an
+  opt-in test marker cleaner, a subprocess-free capture totality test over
+  every registered adapter and a CLAUDE.md detection-order test. Evidence:
+  mocked, plus live detection in the probe below.
+- **F3a** (`fdc7f2a`, `8db535c`; `b32bae8`, `e9c152e`): the generic fallback
+  no longer claims a target or raises any window. GNOME Terminal activates
+  only the single X11 window owned by its `gnome-terminal-server` ancestor,
+  with a bounded walk and `getactivewindow` readback. Windows Terminal became
+  detection only because its owner window cannot be identified without Win32
+  enumeration validated on Windows. Evidence: mocked.
+- **K1** (`91ce25a`, `55f27ab`): partial and failed focus toasts name the
+  failing step, Konsole hard failures raise short step details, and
+  `deferred_selection_readback` marks Konsole as a parent whose selection is
+  confirmed after activation. Evidence: mocked; the live behavior is the
+  confirmation above.
+- **F3b** (`82728df`, `fb8d32d`): one `parent.activate_parent` helper for tmux
+  and zellij. Konsole parents are raised then verified; other selection-first
+  parents still never raise after a failed selection. Zellij's GenericAPI
+  fallback raise was removed. The tmux validator still passed with unchanged
+  evidence keys. Evidence: mocked plus the instrumented tmux validator.
+- **P4** (`44ddb23`, `b62b2f5`, `57e46a0`): the
+  [probe record](../../validation/evidence/terminal-probe-fedora44.json) from
+  disposable zellij 0.45.1, kitty 0.47.1, screen 5.0.1 and terminator 2.1.5
+  instances proved selection readback for zellij, kitty and screen and gated
+  their adapters. WezTerm is recorded as skipped. Evidence: live.
+- **K1b** (`98faa27`, `fa9ab0f`): toast details keep both selection and
+  activation parts visible, stale Konsole readback is worded as unconfirmed,
+  and the Konsole test fakes are shared. Evidence: mocked.
+- **Z5** (`7045cda`, `a306ade`, `eac0010`, `75bda5a`): exact zellij pane
+  selection from the hook-time `ZELLIJ_PANE_ID` with `list-clients` readback.
+  Records without a pane ID report selection unavailable. Evidence: live
+  ([JSON](../../validation/evidence/zellij-fedora44.json)); activation
+  unavailable.
+- **K7** (`4c58e95`, `a29f332`, `44e459b`): Kitty selection over an opt-in
+  unix remote-control socket with `ls` readback; activation is not claimed.
+  Evidence: live ([JSON](../../validation/evidence/kitty-fedora44.json)).
+- **S8** (`33ca29b`, `5f6c3e8`, `d819d2f`): P4 proved readback, so GNU screen
+  shipped as an adapter rather than an assessment. Selection uses `-X select`
+  with `-Q number` readback and a non-empty `-Q windows` guard, because with
+  no attached display `select` is a silent no-op while `-Q number` still
+  answers. Evidence: live ([JSON](../../validation/evidence/screen-fedora44.json)).
+- **R9**: registers `KittyAPI` and `ScreenAPI` immediately before `GenericAPI`,
+  so every earlier detection result is unchanged (screen keeps CTO option (a)).
+  Adds `kitty` to `TERMINAL_PROCESS_NAMES`, because `KittyAPI.find_tab(pid, {})`
+  truthfully returns None and activation is unsupported, so a tmux or zellij
+  parent walk stops at Kitty instead of climbing to whatever launched it.
+  Screen is never a parent stop, and `wezterm-gui` is not added without an
+  adapter. Adds the `kty` and `scr` table labels and reconciles README,
+  CLAUDE.md, the compatibility matrix and the validation guide with the
+  evidence.
+
+### Multi-client tmux routing note
+
+With several attached tmux clients showing the target pane in different
+emulator windows, tmux tries each client's parent in turn and stops at the
+first success. A delegated parent can activate its window and still report
+failure: Konsole or Ghostty when the tab selection is not confirmed
+afterwards, GNOME Terminal when the activation readback disagrees. More than
+one window can therefore be raised before one succeeds. R9 kept
+this behavior: stopping after the first activation would leave a window
+showing the wrong tab and report failure, while trying the next client can
+still reach a complete result. Stopping early would also need the activation
+outcome from `parent.py`, which tmux does not own. Documented in the README.
+
+### R9 combined local acceptance
+
+Run on 2026-10-09 in the R9 worktree on the integrated tree plus the R9
+change, Fedora 44 KDE Plasma Wayland:
+
+- Full pytest: 648 passed, 4 skipped (optional Tongs not installed) on Python
+  3.10.21, 3.12.14 and 3.13.15 through `uv run --no-project --python 3.X`, and
+  on the worktree's Python 3.14.7.
+- Marker-leak run (all markers from the
+  [command](../../validation/README.md#combined-terminal-focus-acceptance) set):
+  314 passed over the six terminal test modules; the same modules passed
+  without the markers; the full suite also passed with the markers set.
+- `python validation/tui.py`: pass.
+- `python validation/tmux.py`: pass, tmux 3.7c, two clients and four pane
+  children exited; same result keys as the committed evidence.
+- `python validation/zellij.py --no-write`: pass, eight tracked processes, no
+  survivors, user config unchanged.
+- `python validation/screen.py`: pass, verdict adapter, eleven tracked
+  processes, no survivors.
+- `validation/kitty.py` and `validation/konsole.py` were not rerun because
+  they open GUI windows on Andre's desktop; their committed evidence stands.
+- No change to `pyproject.toml` dependencies; no U+2014 in changed files;
+  `git diff --check` clean.
+
+### Pending and unmet
+
+- Hosted gates (workflow lint, Python matrix with the headless TUI journey,
+  strict Podman shell validation, real Pi lifecycle and tmux validation) have
+  not run: nothing is published yet. They are required on the combined PR.
+  actionlint is not installed locally; no workflow file changed.
+- Andre at the desktop: tmux inside a background Konsole window, focused from
+  the TUI, should report complete (needs K1 and F3b together); this is the
+  post-K1 hands-on re-run.
+- Andre at the desktop: a fresh agent session in each installed terminal
+  should show its label (`KDE`, `tmx`, `zel`, `kty`, `scr`, `trm`) and the
+  focus result listed in the README table. Sessions recorded before the
+  upgrade keep their old label and environment.
+
+### Follow-ups
+
+- Windows Terminal: Win32 owner-window activation, which needs validation on a
+  Windows host.
+- Kitty and WezTerm GUI activation through a shared KWin helper extracted from
+  Konsole (not done; needs its own high-risk review).
+- Zellij parent GUI activation: client PIDs are not obtainable from the CLI.
+- Version floors: only one version of zellij, kitty and screen was validated;
+  adapters gate on behavior, not on a version number.
+- Leaked-marker misclassification (for example Kitty started from Konsole is
+  labelled `konsole`) remains a documented limitation.

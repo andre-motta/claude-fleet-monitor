@@ -6,15 +6,21 @@ from types import SimpleNamespace
 import pytest
 
 from claude_fleet_monitor import discovery
+from claude_fleet_monitor.discovery import ProcessInfo
 from claude_fleet_monitor.terminal_apis import (
     TERMINALS,
     _env,
     capture_terminal_info,
     detect_terminal,
     get_terminal_api,
+    kitty,
     konsole,
+    tmux,
 )
 from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
+from claude_fleet_monitor.terminal_apis.kitty import KittyAPI
+from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
+from claude_fleet_monitor.terminal_apis.zellij import ZellijAPI
 from tests.terminal_env import clear_terminal_markers
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +52,21 @@ ADAPTER_MARKERS = {
         "TERMINATOR_DBUS_PATH": "/net/tenshu/Terminator2",
     },
     "windows_terminal": {"WT_SESSION": "some-guid"},
+    "kitty": {
+        "KITTY_WINDOW_ID": "3",
+        "KITTY_LISTEN_ON": "unix:/tmp/kitty-fleet/rc.sock",
+        "KITTY_PID": "4242",
+    },
+    "screen": {"STY": "4242.pts-3.fleet", "WINDOW": "2"},
     "generic": {},
+}
+PRE_EXISTING = [
+    name for name in ADAPTER_MARKERS if name not in {"kitty", "screen", "generic"}
+]
+NEW_MARKERS = {
+    "kitty": ADAPTER_MARKERS["kitty"],
+    "screen": ADAPTER_MARKERS["screen"],
+    "wezterm": {"WEZTERM_PANE": "4", "WEZTERM_UNIX_SOCKET": "/tmp/wez/gui-sock"},
 }
 
 
@@ -214,7 +234,52 @@ def test_get_terminal_api():
     assert get_terminal_api("konsole").name == "konsole"
     assert get_terminal_api("tmux").name == "tmux"
     assert get_terminal_api("terminator").name == "terminator"
+    assert get_terminal_api("kitty").name == "kitty"
+    assert get_terminal_api("screen").name == "screen"
+    assert get_terminal_api("wezterm").name == "generic"
     assert get_terminal_api("nonexistent").name == "generic"
+
+
+def test_new_adapters_sit_immediately_before_generic():
+    names = [cls.name for cls in TERMINALS]
+    assert names[-3:] == ["kitty", "screen", "generic"]
+    assert "wezterm" not in names
+
+
+@pytest.mark.parametrize(
+    ("markers", "expected"),
+    [
+        (NEW_MARKERS["kitty"], "kitty"),
+        (NEW_MARKERS["screen"], "screen"),
+        (NEW_MARKERS["wezterm"], "generic"),
+        ({**NEW_MARKERS["kitty"], **NEW_MARKERS["screen"]}, "kitty"),
+        ({"STY": "4242.pts-3.fleet"}, "generic"),
+        ({"KITTY_WINDOW_ID": "x1"}, "generic"),
+    ],
+    ids=["kitty", "screen", "wezterm", "screen-in-kitty", "sty-only", "bad-kitty-id"],
+)
+def test_new_marker_alone_detection(monkeypatch, markers, expected):
+    _set_markers(monkeypatch, markers)
+    assert detect_terminal().name == expected
+
+
+@pytest.mark.parametrize("existing", PRE_EXISTING)
+@pytest.mark.parametrize("leaked", [*NEW_MARKERS, "all"])
+def test_new_markers_never_change_existing_detection(monkeypatch, existing, leaked):
+    new = (
+        {key: value for markers in NEW_MARKERS.values() for key, value in markers.items()}
+        if leaked == "all"
+        else NEW_MARKERS[leaked]
+    )
+    _set_markers(monkeypatch, {**new, **ADAPTER_MARKERS[existing]})
+    assert detect_terminal().name == existing
+
+
+@pytest.mark.parametrize("existing", ["konsole", "gnome"])
+@pytest.mark.parametrize("leaked", list(NEW_MARKERS))
+def test_konsole_and_gnome_markers_keep_precedence(monkeypatch, existing, leaked):
+    _set_markers(monkeypatch, {**ADAPTER_MARKERS[existing], **NEW_MARKERS[leaked]})
+    assert detect_terminal().name == existing
 
 
 def _forbid_subprocess(monkeypatch):
@@ -350,3 +415,119 @@ def test_ghostty_kwin_raise_without_qdbus_is_safe(monkeypatch):
     )
 
     assert not GhosttyAPI._try_kwin_raise()
+
+
+def _process(pid, ppid, name):
+    return ProcessInfo(
+        pid=pid,
+        ppid=ppid,
+        name=name,
+        executable=name,
+        argv=(name,),
+        cwd=None,
+        start_token="1",
+    )
+
+
+def _ancestry(monkeypatch, *chain):
+    processes = {
+        pid: _process(pid, ppid, name) for pid, ppid, name in chain
+    }
+    visited = []
+    monkeypatch.setattr(
+        tmux.discovery,
+        "get_process_info",
+        lambda pid: visited.append(pid) or processes.get(pid),
+    )
+    return visited
+
+
+def _forbid_kitty(monkeypatch):
+    for method in ("find_tab", "switch_tab", "raise_window", "focus_result"):
+        monkeypatch.setattr(
+            KittyAPI,
+            method,
+            lambda *args, **kwargs: pytest.fail("kitty cannot activate a parent"),
+        )
+    monkeypatch.setattr(
+        kitty, "_run", lambda argv: pytest.fail("kitty remote control must not run")
+    )
+
+
+def test_tmux_parent_walk_stops_at_kitty_before_its_launcher(monkeypatch):
+    visited = _ancestry(
+        monkeypatch,
+        (200, 150, "tmux: client"),
+        (150, 100, "bash"),
+        (100, 50, "kitty"),
+        (50, 1, "konsole"),
+    )
+
+    parent = tmux._detect_parent_terminal(200)
+
+    assert isinstance(parent, KittyAPI)
+    assert visited == [200, 150, 100]
+
+
+def test_tmux_in_kitty_reports_activation_failed_without_kitty_calls(monkeypatch):
+    _ancestry(
+        monkeypatch,
+        (200, 150, "tmux: client"),
+        (150, 100, "bash"),
+        (100, 50, "kitty"),
+        (50, 1, "konsole"),
+    )
+    _forbid_kitty(monkeypatch)
+    commands = []
+    monkeypatch.setattr(
+        tmux.subprocess,
+        "run",
+        lambda command, **kwargs: commands.append(command)
+        or SimpleNamespace(stdout="200\t$7\t@12\t%34\t0\n", returncode=0),
+    )
+
+    assert not TmuxAPI().raise_window(
+        "$7:@12.%34", {"TMUX": "/tmp/fleet,socket,4400,7"}
+    )
+    assert [command[3] for command in commands] == ["list-clients"]
+
+
+def test_zellij_in_kitty_reports_unsupported_parent(monkeypatch):
+    _ancestry(
+        monkeypatch,
+        (101, 90, "bash"),
+        (90, 80, "zellij"),
+        (80, 50, "kitty"),
+        (50, 1, "konsole"),
+    )
+    _forbid_kitty(monkeypatch)
+
+    result = ZellijAPI().focus_result(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "s"})
+
+    assert result.state == "failed"
+    assert not result.activation.succeeded
+    assert result.activation.detail == (
+        "parent terminal kitty does not support window activation"
+    )
+
+
+def test_zellij_in_wezterm_reports_no_parent(monkeypatch):
+    _ancestry(
+        monkeypatch,
+        (101, 90, "bash"),
+        (90, 80, "zellij"),
+        (80, 1, "wezterm-gui"),
+    )
+
+    result = ZellijAPI().focus_result(101, {"ZELLIJ": "0", "ZELLIJ_SESSION_NAME": "s"})
+
+    assert result.state == "failed"
+    assert not result.activation.succeeded
+    assert result.activation.detail == "no parent terminal emulator found for zellij"
+
+
+def test_screen_is_never_a_parent_terminal():
+    assert "screen" not in tmux.TERMINAL_PROCESS_NAMES
+    assert "SCREEN" not in tmux.TERMINAL_PROCESS_NAMES
+    assert "wezterm-gui" not in tmux.TERMINAL_PROCESS_NAMES
+    assert tmux.TERMINAL_PROCESS_NAMES["kitty"] == "kitty"

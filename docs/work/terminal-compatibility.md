@@ -89,24 +89,36 @@ does not own the host terminal or display.
 
 ## Current terminal and multiplexer matrix
 
+Refreshed on 2026-10-09 for the terminal focus initiative (#32, #47) on the
+`feat/terminal-focus-2` integration branch. Rows below supersede the S1
+snapshot from 2026-09-07; the original S1 probe notes follow the table. Live
+rows were observed on Fedora 44 KDE Plasma Wayland. Every claimed selection
+requires independent readback, and GUI activation that could not be observed
+stays unverified.
+
 | Backend | Detection | Exact target | OS window activation | Evidence and truthful current claim |
 | --- | --- | --- | --- | --- |
-| tmux | `$TMUX` | Pane by pane-shell PID or Linux ancestor walk | Delegates to a small parent-terminal process allowlist | **Live exact-pane selection** on isolated tmux 3.7c for three panes; parent window untested |
-| Konsole | `$KONSOLE_VERSION` and captured D-Bus values | Session PID lookup through qdbus | KWin script by tab title | Inspected and mocked only; Konsole 26.08.0 was installed but qdbus and a live Konsole process were unavailable |
-| Zellij | `$ZELLIJ` | Not implemented; current code returns the agent PID as a placeholder | Best-effort parent walk | Detection mocked only; current `focus-tab` call has no exact target and must not be called exact support |
-| Ghostty | `TERM_PROGRAM=ghostty` | Guesses tab number from direct-child order, limited to 1 through 9, then simulates Alt+number | KWin class match or xdotool | Inspected and mocked only; fallback target plus ignored failures can produce false success |
-| GNOME Terminal and VTE family | Broad `VTE_VERSION` or GNOME service test | No tab selection; xdotool ancestor search finds an X11 window | xdotool | Detection mocked only; broad VTE detection can mislabel non-GNOME terminals; unavailable on this Wayland host |
-| iTerm2 | `$ITERM_SESSION_ID` | Captured iTerm session ID through AppleScript | AppleScript `activate` | Inspected and detection mocked only; command exit and actual selection are not verified |
-| macOS Terminal | `TERM_PROGRAM=Apple_Terminal` | Code compares captured `TERM_SESSION_ID`, or a PID fallback, with a tab tty | AppleScript `activate` | Inspected and detection mocked only; the identifier-to-tty match is not established |
-| Windows Terminal | `$WT_SESSION` | Not implemented | Optional pywinctl title match | Detection mocked only; first same-title window may be wrong and pywinctl is not a declared dependency |
-| Generic | Always | No exact target; PID is a placeholder | pywinctl, xdotool, or an ineffective macOS fallback | Best effort only; current Boolean can be a false success |
+| tmux | `$TMUX` | Stable `$session:@window.%pane` IDs with readback | Per attached client through `parent.activate_parent`; stops at Kitty and Terminator | **Live exact-pane selection** on isolated tmux 3.7c; parent routing instrumented and mocked; tmux inside a background Konsole window pending Andre's hands-on check |
+| Konsole | `$KONSOLE_VERSION` and captured D-Bus values | Session PID lookup through qdbus, qdbus6 or qdbus-qt6, current-session readback | KWin script on the one unique window of the owning process, verified after activation | **Live** tab selection on Konsole 26.08.0 (validation JSON); cross-window tab plus window confirmed hands-on by Andre through the TUI on 2026-10-09; duplicate captions fail with a named detail |
+| Zellij | `$ZELLIJ` plus captured `ZELLIJ_PANE_ID` and session name | `focus-pane-id` with `list-clients` readback | Unavailable: daemonized server, client PIDs not exposed | **Live exact-pane selection** on zellij 0.45.1 with duplicate panes and tabs; records without a pane ID report selection unavailable |
+| Kitty | Decimal `$KITTY_WINDOW_ID` | `kitten @ --to <unix socket> focus-window` with `ls` readback (tab and window `is_active`) | Not claimed | **Live selection** on kitty 0.47.1 with opt-in remote control; activation unverified; remote control off reports unavailable |
+| GNU screen | `$STY` (`<digits>.<name>`) plus decimal `$WINDOW` | `-X select` with `-Q number` readback and non-empty `-Q windows` | Not supported (no GUI window) | **Live selection** on screen 5.0.1, one and two displays; detached sessions fail with a named detail |
+| Ghostty | `TERM_PROGRAM=ghostty` | Guesses tab number from direct-child order, then simulates Alt+number after activation | GTK D-Bus activate, KWin fallback with resolved qdbus | Inspected and mocked only; not installed on the validation host |
+| GNOME Terminal | `GNOME_TERMINAL_SERVICE`; `VTE_VERSION` alone is not GNOME | None | Single X11 window owned by the `gnome-terminal-server` ancestor, `getactivewindow` readback | Mocked only; unavailable on Wayland or with several windows |
+| Terminator | `$TERMINATOR_UUID` | None (detection only, #47) | None | Detection **live** (terminator 2.1.5 probe, env and ancestry only); focus mocked |
+| iTerm2 | `$ITERM_SESSION_ID` | Captured iTerm session ID through AppleScript | AppleScript `activate` | Inspected and mocked only; no macOS host |
+| macOS Terminal | `TERM_PROGRAM=Apple_Terminal` | Captured `TERM_SESSION_ID` or a PID fallback compared with a tab tty | AppleScript `activate` | Inspected and mocked only; no macOS host |
+| Windows Terminal | `$WT_SESSION` | None (detection only) | None: the owner window is not identifiable without validated Win32 enumeration | Mocked only; no Windows host |
+| WezTerm | None (no adapter) | None | None | Not validated (skipped by CTO decision); sessions fall back to generic |
+| Generic | Always | None | None | Mocked; the former best-effort pywinctl/xdotool raise was removed as a false positive |
 
-The live tmux probe used a detached server on an isolated temporary socket, did
-not attach to or alter a user terminal, and selected `fleetprobe:0.0`, `.1` and
-`.2` successfully. This verifies the installed Linux PID-to-pane and
-`select-window`/`select-pane` path. It does not verify a nested parent terminal
-or OS window activation. The first sandboxed attempt could not create the Unix
-socket; the same isolated probe passed outside that sandbox restriction.
+S1 probe notes (2026-09-07). The live tmux probe used a detached server on an
+isolated temporary socket, did not attach to or alter a user terminal, and
+selected `fleetprobe:0.0`, `.1` and `.2` successfully. This verifies the
+installed Linux PID-to-pane and `select-window`/`select-pane` path. It does not
+verify a nested parent terminal or OS window activation. The first sandboxed
+attempt could not create the Unix socket; the same isolated probe passed outside
+that sandbox restriction.
 
 ## High-value additions and corrections
 
@@ -138,6 +150,13 @@ socket; the same isolated probe passed outside that sandbox restriction.
    should remain untested generic or window-only candidates unless a stable API
    proves exact target selection. Process-title matching alone is insufficient.
 
+Status on 2026-10-09 (#32, #47): item 1 is delivered through structured focus
+results, item 2 through hook-time pane capture with live readback, item 4 as
+the opt-in Kitty adapter and item 5 as a GNU screen adapter after live readback
+was proven. Item 3 (WezTerm) was skipped by CTO decision and stays unvalidated.
+Under item 6, Terminator became a detection-only backend (#47) and the generic
+fallback no longer raises any window.
+
 Primary references inspected on 2026-09-07:
 
 - [Kitty remote control](https://sw.kovidgoyal.net/kitty/remote-control/)
@@ -155,9 +174,9 @@ Primary references inspected on 2026-09-07:
 
 | Boundary | Current behavior | Required claim and validation |
 | --- | --- | --- |
-| tmux | Exact pane selection is implemented; parent detection only recognizes Konsole, Ghostty, GNOME Terminal, iTerm2, Terminal.app and Windows Terminal process names | Claim exact pane only where live; test each parent backend separately and add Kitty/WezTerm names only with a backend |
-| Zellij | Detected first, but the agent PID is not a pane ID and current action has no exact target | No exact-focus claim until hook-time pane ID is stored and live duplicate-pane tests pass |
-| GNU screen | No backend | Untested; prove window and region identity plus parent activation before support |
+| tmux | Exact pane selection is live; the parent walk recognizes Konsole, Ghostty, GNOME Terminal, Terminator, Kitty, iTerm2, Terminal.app and Windows Terminal process names and stops at the first | Kitty and Terminator stop the walk with activation unsupported; WezTerm has no backend, so `wezterm-gui` is not a stop; tmux inside a background Konsole window needs Andre's hands-on check |
+| Zellij | Hook-time `ZELLIJ_PANE_ID` gives live exact-pane selection; the generic fallback raise was removed | Parent activation stays unavailable unless a reliable client-PID mapping is found |
+| GNU screen | Window selection is live with readback; detection sits immediately before generic, so screen inside another emulator keeps that emulator's label | Region (split) selection and parent activation remain unclaimed; screen is never a parent-walk stop |
 | SSH to a remote host | Hooks and `FLEET_DIR` are host-local; a remote agent writes a remote store and a remote focus process cannot directly activate the local terminal | Document local and remote Fleet instances explicitly; do not claim cross-host focus without an authenticated bridge design |
 | WSL in Windows Terminal | `$WT_SESSION` may identify the outer terminal, while Fleet runs in a separate Linux process/filesystem and the current pywinctl path is not established across WSL | Untested; prove storage location, Windows PID/window mapping, exact pane limits and `wt.exe` behavior on WSL 1 and WSL 2 |
 | Nested multiplexers | Detection stops at the first of tmux or Zellij; only tmux/Zellij attempt a parent walk | Test tmux-in-Zellij, Zellij-in-tmux and multiplexer-in-emulator explicitly; report each layer's result |

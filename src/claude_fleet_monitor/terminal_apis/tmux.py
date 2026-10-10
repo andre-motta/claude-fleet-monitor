@@ -14,6 +14,7 @@ TERMINAL_PROCESS_NAMES = {
     "gnome-terminal": "gnome",
     "gnome-terminal-server": "gnome",
     "terminator": "terminator",
+    "kitty": "kitty",
     "iTerm2": "iterm2",
     "Terminal": "macos_terminal",
     "WindowsTerminal": "windows_terminal",
