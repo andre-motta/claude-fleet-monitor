@@ -14,7 +14,6 @@ from claude_fleet_monitor.terminal_apis import (
     detect_terminal,
     get_terminal_api,
     kitty,
-    konsole,
     tmux,
 )
 from claude_fleet_monitor.terminal_apis.ghostty import GhosttyAPI
@@ -137,8 +136,8 @@ def test_vte_alone_does_not_claim_gnome_terminal(monkeypatch):
 
 def test_ghostty_missing_ancestry_is_not_a_tab(monkeypatch):
     monkeypatch.setattr(
-        "claude_fleet_monitor.terminal_apis.ghostty._find_ghostty_pid",
-        lambda: None,
+        "claude_fleet_monitor.terminal_apis.ghostty.discovery.get_process_info",
+        lambda pid: None,
     )
     result = GhosttyAPI().focus_result(101, {})
     assert result.state == "failed"
@@ -384,39 +383,6 @@ def test_claude_md_detection_order_matches_registry():
     assert documented == [cls.name for cls in TERMINALS]
 
 
-def test_ghostty_kwin_raise_uses_resolved_qdbus(monkeypatch):
-    calls = []
-
-    def run(command, **kwargs):
-        calls.append(command)
-        return SimpleNamespace(returncode=0, stdout="7\n")
-
-    monkeypatch.setattr(
-        konsole.shutil,
-        "which",
-        lambda name: "/usr/bin/qdbus-qt6" if name == "qdbus-qt6" else None,
-    )
-    monkeypatch.setattr(konsole.subprocess, "run", run)
-
-    assert not GhosttyAPI._try_kwin_raise()
-    assert [command[0] for command in calls] == [
-        "/usr/bin/qdbus-qt6",
-        "/usr/bin/qdbus-qt6",
-    ]
-    assert calls[1][2] == "/Scripting/Script7"
-
-
-def test_ghostty_kwin_raise_without_qdbus_is_safe(monkeypatch):
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: None)
-    monkeypatch.setattr(
-        konsole.subprocess,
-        "run",
-        lambda *args, **kwargs: pytest.fail("qdbus must not run"),
-    )
-
-    assert not GhosttyAPI._try_kwin_raise()
-
-
 def _process(pid, ppid, name):
     return ProcessInfo(
         pid=pid,
@@ -486,9 +452,11 @@ def test_tmux_in_kitty_reports_activation_failed_without_kitty_calls(monkeypatch
         or SimpleNamespace(stdout="200\t$7\t@12\t%34\t0\n", returncode=0),
     )
 
-    assert not TmuxAPI().raise_window(
-        "$7:@12.%34", {"TMUX": "/tmp/fleet,socket,4400,7"}
-    )
+    with pytest.raises(
+        RuntimeError,
+        match="^parent terminal kitty does not support window activation$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", {"TMUX": "/tmp/fleet,socket,4400,7"})
     assert [command[3] for command in commands] == ["list-clients"]
 
 

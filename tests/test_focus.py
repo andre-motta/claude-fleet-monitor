@@ -3,7 +3,9 @@ import os
 
 import pytest
 
-from claude_fleet_monitor.focus import focus_notification, focus_session
+import claude_fleet_monitor.focus as focus_module
+import claude_fleet_monitor.mcp_server as mcp_server
+from claude_fleet_monitor.focus import focus, focus_notification, focus_session
 from claude_fleet_monitor.models import FocusOperation, FocusResult
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from tests.conftest import write_session
@@ -116,8 +118,7 @@ def _operation(succeeded, detail, attempted=True):
                 ),
                 activation=_operation(True, "window activation"),
             ),
-            "Partially focused: repo (selection: backend does not support"
-            " exact tab or pane selection; activation: ok)",
+            "Partially focused: repo (selection: unsupported; activation: ok)",
             "warning",
         ),
         (
@@ -309,3 +310,137 @@ def test_raising_selection_step_still_reaches_verification(
     assert result.state == state
     assert result.selection.attempted
     assert result.selection.detail == detail
+
+
+def test_unsupported_step_leaves_the_budget_to_the_other_step():
+    result = FocusResult(
+        state="failed",
+        reason="terminal focus operations failed",
+        target_found=True,
+        selection=FocusOperation.unavailable(
+            "backend does not support exact tab or pane selection"
+        ),
+        activation=_operation(False, "a" * 150),
+    )
+
+    message, _ = focus_notification(result, "repo")
+
+    details = message.split(" (selection: ")[1].removesuffix(")")
+    selection, activation = details.split("; activation: ")
+    assert selection == "unsupported"
+    assert activation == "a" * (120 - len("unsupported") - 3) + "..."
+
+
+def test_attempted_unsupported_wording_is_kept_verbatim():
+    detail = "parent terminal kitty does not support window activation"
+    result = FocusResult(
+        state="partial",
+        reason="only some terminal focus operations succeeded",
+        target_found=True,
+        selection=_operation(True, "tab or pane selection"),
+        activation=_operation(False, detail),
+    )
+
+    message, _ = focus_notification(result, "repo")
+
+    assert message.endswith(f"activation: {detail})")
+
+
+PARTIAL = FocusResult(
+    state="partial",
+    reason="only some terminal focus operations succeeded",
+    backend="konsole",
+    pid=42,
+    target_found=True,
+    selection=_operation(True, "tab or pane selection"),
+    activation=_operation(False, "window did not become active within 1s"),
+)
+FAILED = FocusResult(
+    state="failed",
+    reason="terminal focus operations failed",
+    backend="tmux",
+    pid=42,
+    target_found=True,
+    selection=_operation(False, "tab or pane selection"),
+    activation=_operation(False, "no attached tmux client shows the pane"),
+)
+COMPLETE = FocusResult(
+    state="complete",
+    reason="target selected and window activated",
+    backend="konsole",
+    pid=42,
+    target_found=True,
+    selection=_operation(True, "tab or pane selection"),
+    activation=_operation(True, "window activation"),
+)
+
+
+@pytest.mark.parametrize(
+    ("result", "succeeded", "stdout", "stderr"),
+    [
+        (COMPLETE, True, "Focused session via konsole (PID 42)\n", ""),
+        (
+            PARTIAL,
+            True,
+            "Partially focused session via konsole (PID 42) (selection: ok;"
+            " activation: window did not become active within 1s)\n",
+            "",
+        ),
+        (
+            FAILED,
+            False,
+            "",
+            "terminal focus operations failed (selection: failed;"
+            " activation: no attached tmux client shows the pane)\n",
+        ),
+        (
+            FocusResult(state="unavailable", reason="no safe target"),
+            False,
+            "",
+            "no safe target\n",
+        ),
+        (
+            FocusResult(state="not-found", reason="no session matching 'x'"),
+            False,
+            "",
+            "no session matching 'x'\n",
+        ),
+    ],
+    ids=["complete", "partial", "failed", "unavailable", "not-found"],
+)
+def test_cli_focus_prints_step_details(
+    monkeypatch, capsys, result, succeeded, stdout, stderr
+):
+    monkeypatch.setattr(focus_module, "focus_session", lambda query: result)
+
+    assert focus("repo") is succeeded
+    assert capsys.readouterr() == (stdout, stderr)
+
+
+@pytest.mark.parametrize(
+    ("result", "payload"),
+    [
+        (
+            PARTIAL,
+            {
+                "success": True,
+                "message": "Partially focused session via konsole (PID 42)"
+                " (selection: ok; activation: window did not become active"
+                " within 1s)",
+            },
+        ),
+        (
+            FAILED,
+            {
+                "success": False,
+                "error": "terminal focus operations failed (selection: failed;"
+                " activation: no attached tmux client shows the pane)",
+            },
+        ),
+    ],
+    ids=["partial", "failed"],
+)
+def test_mcp_focus_reports_step_details(monkeypatch, result, payload):
+    monkeypatch.setattr(focus_module, "focus_session", lambda query: result)
+
+    assert json.loads(mcp_server.fleet_focus("repo")) == payload

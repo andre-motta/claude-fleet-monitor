@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from claude_fleet_monitor.terminal_apis import generic, gnome, windows_terminal
+from claude_fleet_monitor.terminal_apis import _x11, generic, gnome, windows_terminal
 from claude_fleet_monitor.terminal_apis.generic import GenericAPI
 from claude_fleet_monitor.terminal_apis.gnome import GnomeAPI
 from claude_fleet_monitor.terminal_apis.windows_terminal import WindowsTerminalAPI
@@ -77,17 +77,20 @@ def gnome_env(monkeypatch):
     )
     calls = []
 
-    def install(responses):
+    def install(responses, unmanaged=()):
         def run(argv, **kwargs):
             calls.append(argv)
             assert argv[0] == "xdotool"
+            assert "--onlyvisible" not in argv
             assert kwargs["timeout"] <= 3
+            if argv[1] == "get_desktop_for_window":
+                return _completed(returncode=1 if argv[2] in unmanaged else 0)
             response = responses[argv[1]]
             if isinstance(response, BaseException):
                 raise response
             return response
 
-        monkeypatch.setattr(gnome.subprocess, "run", run)
+        monkeypatch.setattr(_x11.subprocess, "run", run)
         return calls
 
     return install
@@ -112,9 +115,48 @@ def test_gnome_activates_single_owned_window_with_readback(gnome_env):
     assert not result.selection.attempted
     assert calls == [
         ["xdotool", "search", "--pid", "100"],
+        ["xdotool", "get_desktop_for_window", "4194307"],
         ["xdotool", "windowactivate", "--sync", "4194307"],
         ["xdotool", "getactivewindow"],
     ]
+
+
+LEADER, WINDOW, HIDDEN = "4194305", "4194307", "4194320"
+
+
+def test_gnome_hidden_client_leader_does_not_hide_the_owned_window(gnome_env):
+    calls = gnome_env(
+        {
+            "search": _completed(f"{LEADER}\n{WINDOW}\n"),
+            "windowactivate": _completed(),
+            "getactivewindow": _completed(f"{WINDOW}\n"),
+        },
+        unmanaged={LEADER},
+    )
+
+    result = GnomeAPI().focus_result(300, {})
+
+    assert result.activation.succeeded
+    assert calls[0] == ["xdotool", "search", "--pid", "100"]
+    assert calls[3] == ["xdotool", "windowactivate", "--sync", WINDOW]
+
+
+def test_gnome_minimized_session_window_beside_a_visible_one_is_unavailable(
+    gnome_env,
+):
+    calls = gnome_env(
+        {"search": _completed(f"{LEADER}\n{WINDOW}\n{HIDDEN}\n")},
+        unmanaged={LEADER},
+    )
+
+    result = GnomeAPI().focus_result(300, {})
+
+    assert result.state == "failed"
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "gnome-terminal-server owns 2 windows; exact window unknown"
+    )
+    assert [argv[1] for argv in calls] == ["search"] + ["get_desktop_for_window"] * 3
 
 
 def test_gnome_several_windows_is_unavailable(gnome_env):
@@ -128,16 +170,36 @@ def test_gnome_several_windows_is_unavailable(gnome_env):
     assert result.activation.detail == (
         "gnome-terminal-server owns 3 windows; exact window unknown"
     )
-    assert len(calls) == 1
+    assert "windowactivate" not in [argv[1] for argv in calls]
 
 
-def test_gnome_no_owned_window_is_unavailable(gnome_env):
-    gnome_env({"search": _completed("", returncode=1)})
+def test_gnome_window_lookup_is_bounded(gnome_env):
+    listed = "".join(f"{10 + index}\n" for index in range(17))
+    calls = gnome_env({"search": _completed(listed)})
 
     result = GnomeAPI().focus_result(300, {})
 
     assert not result.activation.attempted
-    assert "owns no X11 window" in result.activation.detail
+    assert result.activation.detail == (
+        "gnome-terminal-server owns 17 X11 windows; exact window unknown"
+    )
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("search", "unmanaged"),
+    [(_completed("", returncode=1), ()), (_completed(f"{LEADER}\n"), {LEADER})],
+    ids=["none-listed", "leader-only"],
+)
+def test_gnome_no_owned_window_is_unavailable(gnome_env, search, unmanaged):
+    gnome_env({"search": search}, unmanaged=unmanaged)
+
+    result = GnomeAPI().focus_result(300, {})
+
+    assert not result.activation.attempted
+    assert result.activation.detail == (
+        "gnome-terminal-server owns no managed X11 window"
+    )
 
 
 def test_gnome_activation_readback_mismatch_is_not_success(gnome_env):

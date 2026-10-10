@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from claude_fleet_monitor.terminal_apis import konsole
+from claude_fleet_monitor.terminal_apis import _qdbus, konsole
 
 
 def qdbus_result(returncode=0, stdout=""):
@@ -78,8 +78,8 @@ class FakeKonsole:
 def fake_konsole(monkeypatch, active=False):
     executable = "/usr/bin/qdbus-qt6"
     fake = FakeKonsole(executable, active=active)
-    monkeypatch.setattr(konsole.shutil, "which", lambda name: executable)
-    monkeypatch.setattr(konsole.subprocess, "run", fake.run)
+    monkeypatch.setattr(_qdbus.shutil, "which", lambda name: executable)
+    monkeypatch.setattr(_qdbus.subprocess, "run", fake.run)
     monkeypatch.setattr(konsole, "_ACTIVATION_SETTLE_SECONDS", 0)
     monkeypatch.setattr(
         konsole.KonsoleAPI, "find_tab", lambda self, pid, env: "svc|7|2"

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from claude_fleet_monitor.discovery import ProcessInfo
-from claude_fleet_monitor.terminal_apis import gnome, konsole, tmux
+from claude_fleet_monitor.terminal_apis import _qdbus, gnome, konsole, tmux
 from claude_fleet_monitor.terminal_apis.base import TerminalAPI
 from claude_fleet_monitor.terminal_apis.generic import GenericAPI
 from claude_fleet_monitor.terminal_apis.tmux import TmuxAPI
@@ -266,7 +266,10 @@ def test_raise_window_requires_parent_selection_success(monkeypatch):
     )
     monkeypatch.setattr(tmux, "_detect_parent_terminal", lambda pid: parent)
 
-    assert not TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    with pytest.raises(
+        RuntimeError, match="^parent terminal unknown did not activate$"
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
     assert calls == ["select"]
 
 
@@ -390,7 +393,10 @@ def test_raise_window_never_constructs_generic_api(monkeypatch):
     )
     monkeypatch.setattr(tmux, "_detect_parent_terminal", lambda pid: None)
 
-    assert not TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    with pytest.raises(
+        RuntimeError, match="^no parent terminal emulator found$"
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
 
 
 def _gnome_tree():
@@ -417,6 +423,8 @@ def _route_tmux_and_xdotool(monkeypatch, xdotool):
         if command[0] == "tmux":
             return completed("200\t$7\t@12\t%34\t0\n")
         assert command[0] == "xdotool"
+        if command[1] == "get_desktop_for_window":
+            return completed("0\n")
         return xdotool[command[1]]
 
     monkeypatch.setattr(tmux.subprocess, "run", run)
@@ -439,11 +447,12 @@ def test_tmux_in_gnome_terminal_activates_owned_window(monkeypatch):
     assert TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
     assert [command[:2] for command in commands[1:]] == [
         ["xdotool", "search"],
+        ["xdotool", "get_desktop_for_window"],
         ["xdotool", "windowactivate"],
         ["xdotool", "getactivewindow"],
     ]
     assert commands[1][-1] == "100"
-    assert commands[2][-1] == "4194307"
+    assert commands[3][-1] == "4194307"
 
 
 def test_tmux_in_gnome_terminal_with_several_windows_is_not_raised(monkeypatch):
@@ -454,13 +463,14 @@ def test_tmux_in_gnome_terminal_with_several_windows_is_not_raised(monkeypatch):
         monkeypatch, {"search": completed("11\n12\n")}
     )
 
-    assert not TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
-    assert [command[:2] for command in commands[1:]] == [["xdotool", "search"]]
+    with pytest.raises(RuntimeError, match="^parent terminal gnome did not activate$"):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert "windowactivate" not in [command[1] for command in commands]
 
 
 def test_tmux_in_background_konsole_window_is_raised_then_verified(monkeypatch):
     fake = _fake_konsole(monkeypatch)
-    konsole_run = konsole.subprocess.run
+    konsole_run = _qdbus.subprocess.run
 
     def run(command, **kwargs):
         if command[0] == "tmux":
@@ -483,7 +493,7 @@ def test_tmux_in_background_konsole_window_needs_observed_activation(
 ):
     fake = _fake_konsole(monkeypatch)
     fake.activates = False
-    konsole_run = konsole.subprocess.run
+    konsole_run = _qdbus.subprocess.run
 
     def run(command, **kwargs):
         if command[0] == "tmux":
@@ -495,14 +505,28 @@ def test_tmux_in_background_konsole_window_needs_observed_activation(
         tmux, "_detect_parent_terminal", lambda pid: konsole.KonsoleAPI()
     )
 
-    assert not TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    with pytest.raises(
+        RuntimeError, match="^parent terminal konsole did not activate$"
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
 
 
 @pytest.mark.parametrize(
-    "result",
-    [completed(), completed("malformed\n"), completed(returncode=1)],
+    ("result", "detail"),
+    [
+        (completed(), "no attached tmux client shows the pane"),
+        (
+            completed("201\t$7\t@12\t%35\t0\n202\t$7\t@12\t%34\t1\n"),
+            "no attached tmux client shows the pane",
+        ),
+        (completed("malformed\n"), "unrecognized tmux list-clients output"),
+        (completed(returncode=1), "tmux client list could not be read"),
+    ],
+    ids=["no-clients", "other-pane-or-control", "malformed", "failed"],
 )
-def test_raise_window_fails_safely_without_eligible_clients(monkeypatch, result):
+def test_raise_window_fails_safely_without_eligible_clients(
+    monkeypatch, result, detail
+):
     monkeypatch.setattr(tmux.subprocess, "run", lambda *args, **kwargs: result)
     monkeypatch.setattr(
         tmux,
@@ -510,7 +534,50 @@ def test_raise_window_fails_safely_without_eligible_clients(monkeypatch, result)
         lambda pid: pytest.fail("no client may be routed"),
     )
 
-    assert not TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    with pytest.raises(RuntimeError, match=f"^{detail}$"):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+
+
+def test_raise_window_names_each_distinct_client_failure(monkeypatch):
+    monkeypatch.setattr(
+        tmux.subprocess,
+        "run",
+        lambda *args, **kwargs: completed(
+            "300\t$7\t@12\t%34\t0\n200\t$7\t@12\t%34\t0\n"
+            "400\t$7\t@12\t%34\t0\n"
+        ),
+    )
+    unsupported = SimpleNamespace(name="kitty", activation_supported=False)
+    parents = {200: None, 300: unsupported, 400: None}
+    routed = []
+    monkeypatch.setattr(
+        tmux,
+        "_detect_parent_terminal",
+        lambda pid: routed.append(pid) or parents[pid],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="^no parent terminal emulator found;"
+        " parent terminal kitty does not support window activation$",
+    ):
+        TmuxAPI().raise_window("$7:@12.%34", TMUX_ENV)
+    assert routed == [200, 300, 400]
+
+
+def test_failed_client_routing_is_reported_as_failed_activation(monkeypatch):
+    api = TmuxAPI()
+    monkeypatch.setattr(api, "find_tab", lambda pid, env: "$7:@12.%34")
+    monkeypatch.setattr(api, "switch_tab", lambda target, env: True)
+    monkeypatch.setattr(
+        tmux.subprocess, "run", lambda *args, **kwargs: completed()
+    )
+
+    result = api.focus_result(200, TMUX_ENV)
+
+    assert result.state == "partial"
+    assert result.activation.attempted and not result.activation.succeeded
+    assert result.activation.detail == "no attached tmux client shows the pane"
 
 
 def test_detect_parent_terminal_uses_shared_process_discovery(monkeypatch):

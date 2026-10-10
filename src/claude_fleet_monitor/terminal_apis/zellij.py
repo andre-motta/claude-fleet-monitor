@@ -115,7 +115,10 @@ class ZellijAPI(TerminalAPI):
         if not isinstance(terminal_env, dict) or not terminal_env:
             return None
         if "ZELLIJ_PANE_ID" not in terminal_env:
-            raise LookupError("record predates pane capture")
+            raise LookupError(
+                "session recorded before zellij pane capture; restart the agent"
+                " session to enable selection"
+            )
         target = _target(terminal_env["ZELLIJ_PANE_ID"], terminal_env)
         return target[1] if target else None
 
