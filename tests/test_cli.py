@@ -127,3 +127,15 @@ def test_uninstall_preserves_other_hooks(settings_file, monkeypatch):
     settings = json.loads(settings_file.read_text())
     assert len(settings["hooks"]["PreToolUse"]) == 1
     assert "other-hook" in settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+
+
+def test_every_command_prints_the_deprecation_notice(monkeypatch, capsys):
+    import sys
+
+    import pytest
+
+    from claude_fleet_monitor import cli
+    monkeypatch.setattr(sys, "argv", ["claude-fleet", "--help"])
+    with pytest.raises(SystemExit):
+        cli.main()
+    assert "deprecated and replaced by tongs-agents" in capsys.readouterr().err

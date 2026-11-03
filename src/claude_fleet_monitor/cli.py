@@ -303,7 +303,16 @@ def cmd_status(args):
         )
 
 
+DEPRECATION_NOTICE = (
+    "claude-fleet-monitor is deprecated and replaced by tongs-agents: "
+    "pip install tongs-agents && tongs-agents install, then "
+    "pip uninstall claude-fleet-monitor. "
+    "See https://github.com/andre-motta/tongs-agents/blob/main/docs/migration.md"
+)
+
+
 def main():
+    print(DEPRECATION_NOTICE, file=sys.stderr)
     parser = argparse.ArgumentParser(
         prog="claude-fleet",
         description="Fleet monitoring for Claude Code and Codex sessions",

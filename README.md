@@ -1,5 +1,20 @@
 # Claude Fleet Monitor
 
+> **Deprecated.** claude-fleet-monitor is replaced by
+> [tongs-agents](https://github.com/andre-motta/tongs-agents), which keeps the
+> fleet monitor and adds a harness-agnostic agent workspace. This is the last
+> release; it gets no further fixes. To move over:
+>
+> ```bash
+> pip install tongs-agents             # or: pipx install tongs-agents
+> tongs-agents install                 # removes the claude-fleet-monitor hooks and MCP entries
+> pip uninstall claude-fleet-monitor   # or pipx uninstall, matching how you installed it
+> tongs-agents doctor
+> ```
+>
+> Then restart running agent sessions. The full guide is
+> [Upgrading from claude-fleet-monitor](https://github.com/andre-motta/tongs-agents/blob/main/docs/migration.md).
+
 [![PyPI version](https://img.shields.io/pypi/v/claude-fleet-monitor)](https://pypi.org/project/claude-fleet-monitor/)
 [![Downloads](https://img.shields.io/pypi/dm/claude-fleet-monitor)](https://pypistats.org/packages/claude-fleet-monitor)
 [![License](https://img.shields.io/pypi/l/claude-fleet-monitor)](https://github.com/andre-motta/claude-fleet-monitor/blob/main/LICENSE)
